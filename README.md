@@ -60,7 +60,7 @@ pnpm dev:web
 Following the architecture doc's recommended build order:
 
 - [x] **Stage 0** — Monorepo foundation (workspace, Docker, configs)
-- [ ] **Stage 1** — Database schema (Prisma)
+- [x] **Stage 1** — Database schema (Prisma + PostGIS), PrismaModule, seed
 - [ ] **Stage 2** — Auth module (JWT + RBAC)
 - [ ] **Stage 3** — Properties & Listings (CRUD + search)
 - [ ] **Stage 4** — Web frontend MVP

@@ -1,0 +1,434 @@
+// Genuine Homes — database schema (PostgreSQL + PostGIS).
+//
+// Design rules from the architecture doc:
+//  - Money is `Decimal`/numeric, NEVER float — floats lose cents.
+//  - Soft deletes (deleted_at) on users, properties, listings — never lose
+//    financial history.
+//  - PostGIS geography(Point) on properties for "within N km" map search.
+//  - One unified `payments` ledger for ALL money movements.
+//  - Indexes: (district,type,price) for the main search, GIN on amenities
+//    jsonb, GiST on location (added via raw SQL in the init migration).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Enums (mirror @genuine-homes/shared)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  user
+  landlord
+  agent
+  developer
+  admin
+}
+
+enum PropertyType {
+  house
+  apartment
+  villa
+  land
+  commercial
+}
+
+enum VerificationStatus {
+  unverified
+  pending
+  verified
+  rejected
+}
+
+enum PropertyStatus {
+  draft
+  active
+  rented
+  sold
+  suspended
+}
+
+enum ListingType {
+  rent
+  sale
+  installment
+}
+
+enum RentPeriod {
+  monthly
+  yearly
+}
+
+enum InstallmentPlanStatus {
+  pending_deposit
+  active
+  completed
+  defaulted
+  cancelled
+}
+
+enum InstallmentPaymentStatus {
+  upcoming
+  paid
+  late
+  missed
+}
+
+enum PaymentPurpose {
+  rent
+  installment
+  deposit
+  verification_fee
+  featured_listing
+}
+
+enum PaymentProvider {
+  mtn_momo
+  airtel_money
+  card
+  bank
+}
+
+enum PaymentStatus {
+  pending
+  successful
+  failed
+  refunded
+}
+
+enum RentalAgreementStatus {
+  pending
+  active
+  ended
+  terminated
+}
+
+enum NotificationType {
+  payment_successful
+  payment_failed
+  installment_due_soon
+  installment_overdue
+  listing_verified
+  new_message
+  viewing_scheduled
+  saved_search_match
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Core entities
+// ─────────────────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  fullName     String    @map("full_name")
+  // Many users only have a phone; email is optional but unique when present.
+  email        String?   @unique
+  // Primary identifier in Uganda.
+  phone        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(user)
+  isVerified   Boolean   @default(false) @map("is_verified")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  properties            Property[]        @relation("PropertyOwner")
+  favorites             Favorite[]
+  reviewsAuthored       Review[]          @relation("ReviewAuthor")
+  reviewsReceived       Review[]          @relation("ReviewTarget")
+  messagesSent          Message[]         @relation("MessageSender")
+  messagesReceived      Message[]         @relation("MessageReceiver")
+  notifications         Notification[]
+  installmentPlans      InstallmentPlan[] @relation("PlanBuyer")
+  rentalAgreements      RentalAgreement[] @relation("AgreementTenant")
+  payments              Payment[]
+  verificationsReviewed Verification[]    @relation("VerificationReviewer")
+  refreshTokens         RefreshToken[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Property {
+  id          String       @id @default(uuid()) @db.Uuid
+  ownerId     String       @map("owner_id") @db.Uuid
+  type        PropertyType
+  title       String
+  description String       @db.Text
+  district    String
+  city        String
+  area        String?
+  // PostGIS point (lng,lat) in WGS84 (SRID 4326). Nullable until geocoded.
+  location    Unsupported("geography(Point, 4326)")?
+  sizeSqm     Decimal?     @map("size_sqm") @db.Decimal(12, 2)
+  // Null for land.
+  bedrooms    Int?
+  bathrooms   Int?
+  // Flexible list: { water: true, power: true, fence: true, ... }
+  amenities   Json         @default("{}")
+  verificationStatus VerificationStatus @default(unverified) @map("verification_status")
+  status      PropertyStatus @default(draft)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz(6)
+
+  owner         User            @relation("PropertyOwner", fields: [ownerId], references: [id])
+  images        PropertyImage[]
+  listings      Listing[]
+  verifications Verification[]
+  favoritedBy   Favorite[]
+
+  @@index([ownerId])
+  @@index([district, type])
+  @@index([status])
+  @@index([verificationStatus])
+  @@index([amenities], type: Gin)
+  @@map("properties")
+}
+
+// A property can be listed for rent OR sale OR installments — sometimes more
+// than one at a time.
+model Listing {
+  id                  String      @id @default(uuid()) @db.Uuid
+  propertyId          String      @map("property_id") @db.Uuid
+  listingType         ListingType @map("listing_type")
+  // Total price (sale/installment) or monthly/yearly rent.
+  price               Decimal     @db.Decimal(14, 2)
+  currency            String      @default("UGX") @db.Char(3)
+  rentPeriod          RentPeriod? @map("rent_period")
+  // Installment listings, e.g. 20 (%).
+  minDepositPercent   Decimal?    @map("min_deposit_percent") @db.Decimal(5, 2)
+  maxInstallmentMonths Int?       @map("max_installment_months")
+  isActive            Boolean     @default(true) @map("is_active")
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt           DateTime?   @map("deleted_at") @db.Timestamptz(6)
+
+  property         Property          @relation(fields: [propertyId], references: [id])
+  installmentPlans InstallmentPlan[]
+  rentalAgreements RentalAgreement[]
+  messages         Message[]
+
+  @@index([propertyId])
+  @@index([listingType, isActive, price])
+  @@map("listings")
+}
+
+model PropertyImage {
+  id         String   @id @default(uuid()) @db.Uuid
+  propertyId String   @map("property_id") @db.Uuid
+  url        String
+  // Display order within the gallery.
+  position   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@map("property_images")
+}
+
+// The heart of the platform.
+model InstallmentPlan {
+  id                String                @id @default(uuid()) @db.Uuid
+  listingId         String                @map("listing_id") @db.Uuid
+  buyerId           String                @map("buyer_id") @db.Uuid
+  // Locked at signing.
+  totalPrice        Decimal               @map("total_price") @db.Decimal(14, 2)
+  depositAmount     Decimal               @map("deposit_amount") @db.Decimal(14, 2)
+  months            Int
+  monthlyAmount     Decimal               @map("monthly_amount") @db.Decimal(14, 2)
+  // Platform service fee.
+  serviceFeePercent Decimal               @default(0) @map("service_fee_percent") @db.Decimal(5, 2)
+  currency          String                @default("UGX") @db.Char(3)
+  status            InstallmentPlanStatus @default(pending_deposit)
+  nextDueDate       DateTime?             @map("next_due_date") @db.Date
+  // Signed contract PDF in private cloud storage.
+  signedContractUrl String?               @map("signed_contract_url")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing  Listing              @relation(fields: [listingId], references: [id])
+  buyer    User                 @relation("PlanBuyer", fields: [buyerId], references: [id])
+  payments InstallmentPayment[]
+
+  @@index([buyerId])
+  @@index([listingId])
+  @@index([status])
+  @@index([nextDueDate])
+  @@map("installment_plans")
+}
+
+model InstallmentPayment {
+  id         String                   @id @default(uuid()) @db.Uuid
+  planId     String                   @map("plan_id") @db.Uuid
+  // 1-based position in the schedule (deposit is tracked on the plan).
+  sequence   Int
+  amount     Decimal                  @db.Decimal(14, 2)
+  dueDate    DateTime                 @map("due_date") @db.Date
+  paidAt     DateTime?                @map("paid_at") @db.Timestamptz(6)
+  status     InstallmentPaymentStatus @default(upcoming)
+  // Flutterwave transaction id.
+  paymentRef String?                  @map("payment_ref")
+  createdAt  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  plan InstallmentPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, sequence])
+  @@index([planId, status])
+  @@index([dueDate, status])
+  @@map("installment_payments")
+}
+
+// One unified ledger for ALL money movements.
+model Payment {
+  id          String          @id @default(uuid()) @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  purpose     PaymentPurpose
+  // Points to the rent/installment/verification record this payment settles.
+  // Polymorphic by `purpose`, so no DB-level FK.
+  referenceId String?         @map("reference_id") @db.Uuid
+  amount      Decimal         @db.Decimal(14, 2)
+  currency    String          @default("UGX") @db.Char(3)
+  provider    PaymentProvider
+  // Gateway transaction id. Unique → idempotency for duplicate webhooks.
+  providerRef String?         @map("provider_ref")
+  status      PaymentStatus   @default(pending)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([providerRef])
+  @@index([userId])
+  @@index([purpose, status])
+  @@index([referenceId])
+  @@map("payments")
+}
+
+model RentalAgreement {
+  id          String                @id @default(uuid()) @db.Uuid
+  listingId   String                @map("listing_id") @db.Uuid
+  tenantId    String                @map("tenant_id") @db.Uuid
+  startDate   DateTime              @map("start_date") @db.Date
+  endDate     DateTime?             @map("end_date") @db.Date
+  monthlyRent Decimal               @map("monthly_rent") @db.Decimal(14, 2)
+  currency    String                @default("UGX") @db.Char(3)
+  status      RentalAgreementStatus @default(pending)
+  createdAt   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id])
+  tenant  User    @relation("AgreementTenant", fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+  @@index([listingId, status])
+  @@map("rental_agreements")
+}
+
+model Verification {
+  id         String             @id @default(uuid()) @db.Uuid
+  propertyId String             @map("property_id") @db.Uuid
+  // Submitted documents: [{ kind: 'land_title', url, uploadedAt }, ...]
+  documents  Json               @default("[]")
+  reviewerId String?            @map("reviewer_id") @db.Uuid
+  status     VerificationStatus @default(pending)
+  notes      String?            @db.Text
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reviewer User?    @relation("VerificationReviewer", fields: [reviewerId], references: [id])
+
+  @@index([propertyId])
+  @@index([status])
+  @@map("verifications")
+}
+
+model Favorite {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  propertyId String   @map("property_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, propertyId])
+  @@index([propertyId])
+  @@map("favorites")
+}
+
+model Review {
+  id        String   @id @default(uuid()) @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  // The agent/landlord being reviewed.
+  targetId  String   @map("target_id") @db.Uuid
+  rating    Int      @db.SmallInt
+  comment   String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  author User @relation("ReviewAuthor", fields: [authorId], references: [id])
+  target User @relation("ReviewTarget", fields: [targetId], references: [id])
+
+  @@unique([authorId, targetId])
+  @@index([targetId])
+  @@map("reviews")
+}
+
+model Message {
+  id         String    @id @default(uuid()) @db.Uuid
+  senderId   String    @map("sender_id") @db.Uuid
+  receiverId String    @map("receiver_id") @db.Uuid
+  listingId  String?   @map("listing_id") @db.Uuid
+  body       String    @db.Text
+  readAt     DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  sender   User     @relation("MessageSender", fields: [senderId], references: [id])
+  receiver User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  listing  Listing? @relation(fields: [listingId], references: [id])
+
+  @@index([receiverId, readAt])
+  @@index([senderId])
+  @@index([listingId])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  payload   Json             @default("{}")
+  readAt    DateTime?        @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// Hashed refresh tokens for JWT rotation (added for the auth module). Storing a
+// hash lets us revoke sessions and detect refresh-token reuse.
+model RefreshToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
