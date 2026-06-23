@@ -1,0 +1,23 @@
+{
+  "name": "genuine-homes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Genuine Homes — a real estate rental & ownership platform for East Africa (Uganda first).",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @genuine-homes/api start:dev",
+    "dev:web": "pnpm --filter @genuine-homes/web dev",
+    "build": "pnpm -r build",
+    "build:shared": "pnpm --filter @genuine-homes/shared build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:up": "docker compose up -d postgres redis",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @genuine-homes/api prisma:migrate",
+    "db:generate": "pnpm --filter @genuine-homes/api prisma:generate",
+    "db:seed": "pnpm --filter @genuine-homes/api prisma:seed"
+  }
+}

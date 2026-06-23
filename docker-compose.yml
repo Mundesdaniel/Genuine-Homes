@@ -1,0 +1,40 @@
+# Local development infrastructure for Genuine Homes.
+# PostgreSQL ships with the PostGIS extension (geographic queries for property/map search).
+# Redis backs sessions, rate limiting, and the BullMQ job queue (installment reminders).
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: gh_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-genuine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-genuine_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-genuine_homes}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - gh_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-genuine} -d ${POSTGRES_DB:-genuine_homes}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: gh_redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - gh_redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  gh_pgdata:
+  gh_redisdata:
