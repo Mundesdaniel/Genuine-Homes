@@ -11,7 +11,8 @@
     "onlyBuiltDependencies": [
       "@prisma/client",
       "@prisma/engines",
-      "prisma"
+      "prisma",
+      "esbuild"
     ]
   },
   "scripts": {
@@ -25,6 +26,10 @@
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @genuine-homes/api prisma:migrate",
     "db:generate": "pnpm --filter @genuine-homes/api prisma:generate",
-    "db:seed": "pnpm --filter @genuine-homes/api prisma:seed"
+    "db:seed": "pnpm --filter @genuine-homes/api prisma:seed",
+    "slides": "node scripts/generate-presentations.mjs"
+  },
+  "devDependencies": {
+    "pptxgenjs": "^4.0.1"
   }
 }

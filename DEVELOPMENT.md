@@ -163,8 +163,48 @@ pnpm dev:api
 
 ---
 
-## Stage 4 — Web frontend MVP (next)
+## Stage 4 — Web frontend MVP ✅
 
-React + Vite + TS + Tailwind + TanStack Query + Zustand. Auth flow against
-Stage 2 (register/login/refresh/protected routes), and property browse / map
-search / detail against the Stage 3 listing-search API.
+A React single-page app in `apps/web` consuming the Stage 2 + Stage 3 APIs.
+
+- **Stack**: React + TypeScript + Vite + Tailwind + TanStack Query + Zustand +
+  React Router + Leaflet. Uses `@genuine-homes/shared` types **and** Zod schemas
+  (the forms validate with the same schemas the API mirrors).
+- **Pages**: search (`/`, facets + near-me geolocation + result map + pagination),
+  listing detail (`/listings/:id`, gallery + map + the property's other
+  listings), `/login` + `/register`, and a protected seller `/dashboard`
+  (list `mine`, create property, add listing).
+- **Auth**: persisted Zustand session + an axios client that attaches the access
+  token and does single-flight **refresh-token rotation** on a 401, then replays
+  the request (logout on failure). Protected routes redirect to `/login`.
+- **Dev proxy**: Vite proxies `/api` → the NestJS backend on `:3100`, so the SPA
+  and API share an origin in development.
+
+**Decision:** the shared package compiles to CommonJS (for the API + Jest), but
+bundlers can't see names re-exported through `export *` from a CJS module — so
+`@genuine-homes/shared`'s barrel now uses **explicit re-exports**, and Vite's
+commonjs plugin is told to include the workspace package (its real path is
+outside `node_modules`).
+
+**Verified:** `tsc` + `vite build` succeed; the 34 backend tests still pass; and
+live, the Vite dev proxy reached the API — health, listing search (2 seeded
+listings), and landlord login all succeeded through `http://localhost:5173`,
+confirming the SPA → proxy → API → Postgres path. (In-browser interaction
+testing is still recommended.)
+
+### How to resume next time
+
+```bash
+pnpm install && pnpm build:shared
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+pnpm dev:api        # http://localhost:3100/api
+pnpm dev:web        # http://localhost:5173  (login: +256700000002 / Password123!)
+```
+
+---
+
+## Stage 5 — Payments module (next)
+
+Flutterwave integration (MTN MoMo / Airtel Money / card) behind a Strategy
+interface, writing to the unified `payments` ledger; webhook handling with
+`provider_ref` idempotency; deposit + rent payment initiation.
