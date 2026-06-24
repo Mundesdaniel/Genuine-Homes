@@ -56,8 +56,62 @@ pnpm dev:api              # boots on http://localhost:3100/api (3000 = Grafana h
 
 ---
 
-## Stage 2 — Auth module (next)
+## Stage 2 — Auth module (JWT + RBAC) ✅
 
-JWT access (short-lived) + refresh token rotation (hashed in `refresh_tokens`),
-argon2 password hashing (dep already installed), `@Roles()` RBAC guard,
-register/login/refresh/logout endpoints, login rate limiting.
+Full authentication + authorization for the modular monolith
+(`apps/api/src/auth`).
+
+- **Endpoints** (`/api/auth`): `POST register`, `POST login`, `POST refresh`,
+  `POST logout`, `GET me`.
+- **Passwords**: argon2id via `@node-rs/argon2` (same scheme as the seed).
+  Login runs a decoy verify when the account is missing, so timing can't be
+  used to enumerate users; credential errors are deliberately generic.
+- **Tokens**: short-lived JWT access token + long-lived refresh token, both
+  signed in `TokenService` (the only place the secrets are read). Payloads carry
+  a `type` (`access`/`refresh`) so the two can't be swapped.
+- **Refresh rotation + reuse detection**: refresh tokens are stored only as a
+  SHA-256 hash in `refresh_tokens`. Each refresh revokes the old row and issues
+  a new one; replaying a rotated token revokes **every** session for that user.
+- **RBAC**: global `JwtAuthGuard` (everything is protected unless `@Public()`)
+  + global `RolesGuard` (`@Roles(...)`). `@CurrentUser()` injects the user.
+  `admin` can never be self-assigned at registration.
+- **Rate limiting**: `@nestjs/throttler` — 100 req/min/IP default, tightened to
+  5/min on register & login and 10/min on refresh.
+- **Validation**: class-validator DTOs mirror the Zod schemas now exported from
+  `@genuine-homes/shared` (`registerSchema`/`loginSchema`), keeping API and
+  web validation in lockstep.
+
+**Decision:** Implemented the JWT guards directly on `@nestjs/jwt` rather than
+pulling in Passport — fewer dependencies, full control over refresh-token
+rotation, and simpler to unit test. Made `JwtAuthGuard` a global guard with an
+`@Public()` opt-out so every future endpoint is secure by default (good fit for
+a financial platform); the health probe is marked `@Public()`.
+
+**Verified:** `pnpm --filter @genuine-homes/api build` (nest build) and the type
+check pass; 16 unit tests green — `AuthService` (register, duplicate phone,
+login by phone/email, wrong-password & unknown-user rejection, refresh rotation,
+reuse detection, logout), `RolesGuard`, and an `AppModule` DI smoke test that
+boots the whole graph with Prisma stubbed (so it needs no database). A live
+boot against Postgres was **not** run this round — Docker Desktop was down.
+
+### How to resume next time
+
+```bash
+pnpm install
+pnpm db:up                # start Postgres + Redis (Docker Desktop must be running)
+pnpm --filter @genuine-homes/api prisma:generate
+pnpm --filter @genuine-homes/api prisma:seed   # seeded users can now log in
+pnpm dev:api
+# Smoke test (seeded dev password = Password123!):
+#   curl -XPOST localhost:3100/api/auth/login -H 'content-type: application/json' \
+#        -d '{"emailOrPhone":"+256700000003","password":"Password123!"}'
+#   curl localhost:3100/api/auth/me -H "authorization: Bearer <accessToken>"
+```
+
+---
+
+## Stage 3 — Properties & Listings (next)
+
+Property + listing CRUD with owner-scoped `@Roles()` (landlord/agent/developer),
+PostGIS "near me" + faceted search (district/type/price), Cloudinary image
+uploads, and soft-delete-aware queries.
