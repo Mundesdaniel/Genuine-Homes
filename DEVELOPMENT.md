@@ -203,8 +203,52 @@ pnpm dev:web        # http://localhost:5173  (login: +256700000002 / Password123
 
 ---
 
-## Stage 5 — Payments module (next)
+## Stage 5 — Payments module ✅
 
-Flutterwave integration (MTN MoMo / Airtel Money / card) behind a Strategy
-interface, writing to the unified `payments` ledger; webhook handling with
-`provider_ref` idempotency; deposit + rent payment initiation.
+Gateway-backed payments writing to the unified `payments` ledger
+(`apps/api/src/payments`).
+
+- **Endpoints** (`/api/payments`): `POST initiate` (creates a pending payment +
+  returns a checkout URL), `GET mine`, `GET :id` (owner/admin), and a public
+  `POST webhook`.
+- **Gateway Strategy**: a `PaymentGateway` interface with `FlutterwaveGateway`
+  (real hosted checkout + `verif-hash` signature) and `MockGateway` (fake
+  checkout + `{ tx_ref, status }` webhook). A factory selects Flutterwave when
+  `FLUTTERWAVE_SECRET_KEY` is set, otherwise the mock — so the flow works
+  end-to-end with no real credentials.
+- **Idempotency**: the payment's own id is the gateway `tx_ref`; the webhook only
+  transitions a still-`pending` payment, so duplicate/out-of-order callbacks are
+  no-ops, backed by the unique `provider_ref` column.
+- **Settlement hook**: `onPaymentSucceeded()` is the extension point Stage 6
+  (installments) and rentals will hang off.
+
+**Decision:** Strategy pattern for the gateway (per the architecture doc) with a
+**mock as the default** when unconfigured, so payments are fully testable now;
+real Flutterwave is a drop-in once sandbox keys are added.
+
+**Verified:** `nest build` + type check pass; 51 unit tests green (incl.
+idempotent-duplicate and signature-rejection cases). Live with the mock gateway
+against Docker Postgres: initiated a 16,000,000 UGX deposit (pending + checkout
+URL) → webhook settled it **successful** (`provider_ref` recorded) → a duplicate
+"failed" webhook was **ignored** (status stayed successful) → `GET /:id` without
+a token → **401** → `mine` listed it.
+
+### How to resume next time
+
+```bash
+pnpm db:up && pnpm db:migrate && pnpm db:seed && pnpm dev:api
+# Initiate (mock gateway returns a fake checkout URL), then settle via webhook:
+#   POST /api/payments/initiate  { purpose, amount, provider }
+#   POST /api/payments/webhook   { tx_ref: <paymentId>, status: 'successful', id }
+# Real Flutterwave: set FLUTTERWAVE_SECRET_KEY + FLUTTERWAVE_WEBHOOK_HASH in .env.
+```
+
+---
+
+## Stage 6 — Installment engine (next)
+
+The platform's headline feature: turn an installment listing into a plan
+(deposit + monthly schedule), drive its state machine
+(`pending_deposit → active → completed | defaulted`), generate the
+`installment_payments` schedule, and react to settled payments (via the Stage 5
+hook). Due-soon / overdue reminders come with the notifications work.

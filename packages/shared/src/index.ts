@@ -93,3 +93,11 @@ export type {
   ListingSearchItem,
   Paginated,
 } from './schemas/listing';
+
+// ── Payments ────────────────────────────────────────────────────────────────
+export { initiatePaymentSchema } from './schemas/payment';
+export type {
+  InitiatePaymentInput,
+  PaymentResponse,
+  PaymentInitiation,
+} from './schemas/payment';

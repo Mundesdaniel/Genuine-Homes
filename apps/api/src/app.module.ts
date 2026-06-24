@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { ListingsModule } from './listings/listings.module';
+import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
 
@@ -30,6 +31,7 @@ import { PropertiesModule } from './properties/properties.module';
     AuthModule,
     PropertiesModule,
     ListingsModule,
+    PaymentsModule,
     HealthModule,
   ],
   providers: [

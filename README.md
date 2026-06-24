@@ -64,7 +64,7 @@ Following the architecture doc's recommended build order:
 - [x] **Stage 2** — Auth module (JWT + RBAC, refresh rotation, rate limiting)
 - [x] **Stage 3** — Properties & Listings (CRUD + PostGIS search, RBAC, soft delete)
 - [x] **Stage 4** — Web frontend MVP (search, map, auth, seller dashboard)
-- [ ] **Stage 5** — Payments module (Flutterwave + ledger + webhooks)
+- [x] **Stage 5** — Payments module (gateway strategy + ledger + idempotent webhooks)
 - [ ] **Stage 6** — Installment engine (plans, schedules, reminders)
 - [ ] **Stage 7+** — Verification, chat, mobile app
 

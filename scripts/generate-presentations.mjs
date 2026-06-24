@@ -144,6 +144,7 @@ const T = {
   s2: { primary: '4338CA', light: 'FFFFFF', gold: 'F59E0B' },
   s3: { primary: '2D6A4F', light: 'FFFFFF', gold: 'E9A23B' },
   s4: { primary: '0F766E', light: 'FFFFFF', gold: 'F59E0B' },
+  s5: { primary: '9A3412', light: 'FFFFFF', gold: 'F59E0B' },
 };
 
 const FOOT = 'Genuine Homes · East Africa real estate · rent · buy · installments';
@@ -168,8 +169,8 @@ const decks = [
         ['2', 'Auth module (JWT + RBAC)', 'Done'],
         ['3', 'Properties & Listings (CRUD + search)', 'Done'],
         ['4', 'Web frontend MVP', 'Done'],
-        ['5', 'Payments (Flutterwave + ledger)', 'Next'],
-        ['6', 'Installment engine', 'Planned'],
+        ['5', 'Payments (Flutterwave + ledger)', 'Done'],
+        ['6', 'Installment engine', 'Next'],
         ['7+', 'Verification, chat, mobile app', 'Planned'],
       ] },
       { type: 'table', label: 'Architecture', title: 'Technology stack', headers: ['Layer', 'Choice'], colW: [3.4, 8.7], rows: [
@@ -337,6 +338,37 @@ const decks = [
         'SPA → proxy → API → Postgres path confirmed end-to-end',
       ] },
       { type: 'closing', label: 'How to run', title: 'Start the full stack', lead: 'Bring up the database, the API, and the web app:', commands: ['pnpm install && pnpm build:shared', 'pnpm db:up && pnpm db:migrate && pnpm db:seed', 'pnpm dev:api    # http://localhost:3100/api', 'pnpm dev:web    # http://localhost:5173'] },
+    ],
+  },
+  {
+    theme: T.s5,
+    file: 'stage-5-payments.pptx',
+    slides: [
+      { type: 'cover', kicker: 'Stage 5', title: 'Payments Module', subtitle: 'The first stage where money moves — gateway, unified ledger, idempotent webhooks.', footer: FOOT },
+      { type: 'table', label: 'Endpoints', title: '/api/payments', headers: ['Method & path', 'Auth', 'Purpose'], colW: [3.6, 2.6, 5.9], rows: [
+        ['POST /initiate', 'bearer', 'Create a pending payment + checkout URL'],
+        ['GET /mine', 'bearer', 'List your payments'],
+        ['GET /:id', 'owner/admin', "One payment's status"],
+        ['POST /webhook', 'gateway signature', 'Settle a payment (idempotent)'],
+      ] },
+      { type: 'split', label: 'Strategy', title: 'One interface, two gateways', items: [
+        { lead: 'Flutterwave', text: 'real hosted checkout when a secret key is set' },
+        { lead: 'Mock', text: 'fake checkout + simple webhook when unconfigured' },
+        { lead: 'Selection', text: 'a factory picks the gateway at startup' },
+        { lead: 'Methods', text: 'MoMo, Airtel Money, card, bank' },
+      ], callout: { heading: 'Usable without keys', text: 'The mock gateway makes the whole flow work end-to-end in dev/CI. Dropping in Flutterwave sandbox keys flips it to the real gateway with no code change.' } },
+      { type: 'decisions', label: 'Idempotency', title: 'Webhooks you can trust', items: [
+        { heading: 'Only pending payments transition', text: 'The webhook updates WHERE status = pending, so a duplicate or out-of-order callback is a no-op — proven live (a repeated "failed" webhook left a settled payment successful).' },
+        { heading: 'Unique provider_ref', text: 'The ledger\'s unique gateway-reference column (from Stage 1) is the second line of defence against recording the same transaction twice.' },
+      ] },
+      { type: 'bullets', label: 'Verification', title: 'Confirmed working', items: [
+        '51 unit tests green (initiate, gateway failure, bad signature, settle, duplicate no-op, ownership, Flutterwave signature/parse)',
+        'Live (mock gateway + Docker Postgres): initiate a 16M UGX deposit -> pending + checkout URL',
+        'Webhook settled it successful and recorded providerRef',
+        'Duplicate "failed" webhook ignored — status stayed successful',
+        'GET /:id without a token -> 401; mine listed the payment',
+      ] },
+      { type: 'closing', label: 'How to try it', title: 'Pay, then settle', lead: 'Initiate a payment, then simulate the gateway callback:', commands: ['pnpm db:up && pnpm dev:api', "curl -XPOST .../api/payments/initiate -d '{\"purpose\":\"deposit\",\"amount\":16000000,\"provider\":\"mtn_momo\"}'", "curl -XPOST .../api/payments/webhook -d '{\"tx_ref\":\"<id>\",\"status\":\"successful\",\"id\":\"demo-1\"}'"] },
     ],
   },
 ];

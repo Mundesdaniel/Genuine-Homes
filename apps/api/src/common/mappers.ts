@@ -1,7 +1,8 @@
-import type { Listing, Property, PropertyImage } from '@prisma/client';
+import type { Listing, Payment, Property, PropertyImage } from '@prisma/client';
 import type {
   ListingResponse,
   ListingSearchItem,
+  PaymentResponse,
   PropertyDetail,
   PropertyImageResponse,
   PropertySummary,
@@ -39,6 +40,21 @@ export function mapListing(listing: Listing): ListingResponse {
     isActive: listing.isActive,
     createdAt: listing.createdAt.toISOString(),
     updatedAt: listing.updatedAt.toISOString(),
+  };
+}
+
+export function mapPayment(payment: Payment): PaymentResponse {
+  return {
+    id: payment.id,
+    purpose: payment.purpose,
+    referenceId: payment.referenceId ?? null,
+    amount: payment.amount.toNumber(),
+    currency: payment.currency,
+    provider: payment.provider,
+    providerRef: payment.providerRef ?? null,
+    status: payment.status,
+    createdAt: payment.createdAt.toISOString(),
+    updatedAt: payment.updatedAt.toISOString(),
   };
 }
 
