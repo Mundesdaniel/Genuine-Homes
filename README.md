@@ -65,7 +65,7 @@ Following the architecture doc's recommended build order:
 - [x] **Stage 3** — Properties & Listings (CRUD + PostGIS search, RBAC, soft delete)
 - [x] **Stage 4** — Web frontend MVP (search, map, auth, seller dashboard)
 - [x] **Stage 5** — Payments module (gateway strategy + ledger + idempotent webhooks)
-- [ ] **Stage 6** — Installment engine (plans, schedules, reminders)
+- [x] **Stage 6** — Installment engine (plans, schedule, state machine) + web charts
 - [ ] **Stage 7+** — Verification, chat, mobile app
 
 See [`DEVELOPMENT.md`](./DEVELOPMENT.md) for stage-by-stage progress notes.

@@ -101,3 +101,13 @@ export type {
   PaymentResponse,
   PaymentInitiation,
 } from './schemas/payment';
+
+// ── Installments ────────────────────────────────────────────────────────────
+export { createPlanSchema, payViaSchema, PLAN_TRANSITIONS } from './schemas/installment';
+export type {
+  CreatePlanInput,
+  PayViaInput,
+  InstallmentPaymentItem,
+  InstallmentPlanResponse,
+  InstallmentPlanDetail,
+} from './schemas/installment';

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   ListingType,
   RentPeriod,
@@ -49,9 +50,14 @@ export function NewListingForm({
     },
     onSuccess: () => {
       setPrice('');
+      toast.success('Listing added');
       onCreated();
     },
-    onError: (e) => setError(apiErrorMessage(e)),
+    onError: (e) => {
+      const message = apiErrorMessage(e);
+      setError(message);
+      toast.error(message);
+    },
   });
 
   if (properties.length === 0) {

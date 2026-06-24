@@ -10,7 +10,7 @@ import {
   SearchFilters,
   type FiltersValue,
 } from '@/components/SearchFilters';
-import { EmptyState, ErrorState, Spinner } from '@/components/ui';
+import { CardSkeletonGrid, EmptyState, ErrorState } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 
 const PAGE_SIZE = 12;
@@ -74,7 +74,7 @@ export function HomePage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl bg-brand-dark px-6 py-10 text-white">
+      <section className="animate-slide-up rounded-2xl bg-gradient-to-br from-brand-dark to-brand px-6 py-10 text-white shadow-sm">
         <h1 className="text-3xl font-bold tracking-tight">
           Find your next home in Uganda
         </h1>
@@ -151,7 +151,7 @@ export function HomePage() {
           )}
 
           {isLoading ? (
-            <Spinner label="Searching listings…" />
+            <CardSkeletonGrid count={6} />
           ) : isError ? (
             <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />
           ) : items.length === 0 ? (

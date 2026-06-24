@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { loginSchema } from '@genuine-homes/shared';
 import { authApi } from '@/api/auth';
 import { apiErrorMessage } from '@/lib/apiClient';
@@ -26,13 +27,18 @@ export function LoginPage() {
     },
     onSuccess: (res) => {
       setSession(res);
+      toast.success(`Welcome back, ${res.user.fullName.split(' ')[0]}!`);
       navigate(redirectTo, { replace: true });
     },
-    onError: (e) => setError(apiErrorMessage(e)),
+    onError: (e) => {
+      const message = apiErrorMessage(e);
+      setError(message);
+      toast.error(message);
+    },
   });
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-md animate-slide-up">
       <div className="card p-8">
         <h1 className="text-2xl font-bold text-brand-dark">Welcome back</h1>
         <p className="mt-1 text-sm text-stone-500">

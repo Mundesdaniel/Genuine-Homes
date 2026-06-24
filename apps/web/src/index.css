@@ -33,8 +33,16 @@
   .card {
     @apply rounded-xl border border-stone-200 bg-white shadow-sm;
   }
+  /* Clickable cards lift on hover for a livelier feel. */
+  .card-hover {
+    @apply transition duration-200 hover:-translate-y-1 hover:shadow-lg;
+  }
   .chip {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  /* Loading placeholder block. */
+  .skeleton {
+    @apply animate-pulse rounded-md bg-stone-200;
   }
 }
 

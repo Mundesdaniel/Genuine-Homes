@@ -20,8 +20,8 @@ folder holds one document per stage. For the running progress log see
 | 3 | Properties & Listings (CRUD + search) | ✅ Done | [stage-3-properties-and-listings.md](./stage-3-properties-and-listings.md) |
 | 4 | Web frontend MVP | ✅ Done | [stage-4-web-frontend.md](./stage-4-web-frontend.md) |
 | 5 | Payments module (Flutterwave + ledger + webhooks) | ✅ Done | [stage-5-payments.md](./stage-5-payments.md) |
-| 6 | Installment engine (plans, schedules, reminders) | ⬜ Next | _planned_ |
-| 7+ | Verification, chat, mobile app | ⬜ Planned | _planned_ |
+| 6 | Installment engine (+ web charts & yellow theme) | ✅ Done | [stage-6-installments.md](./stage-6-installments.md) |
+| 7+ | Verification, chat, mobile app | ⬜ Next | _planned_ |
 
 ## Slide decks (PowerPoint)
 
@@ -38,6 +38,7 @@ overview plus one deck per completed stage, all sharing one design system
 | Stage 3 — Properties & Listings | [presentations/stage-3-properties-and-listings.pptx](./presentations/stage-3-properties-and-listings.pptx) |
 | Stage 4 — Web frontend | [presentations/stage-4-web-frontend.pptx](./presentations/stage-4-web-frontend.pptx) |
 | Stage 5 — Payments | [presentations/stage-5-payments.pptx](./presentations/stage-5-payments.pptx) |
+| Stage 6 — Installment engine | [presentations/stage-6-installments.pptx](./presentations/stage-6-installments.pptx) |
 
 Regenerate them after editing the content/design in
 [`../scripts/generate-presentations.mjs`](../scripts/generate-presentations.mjs):

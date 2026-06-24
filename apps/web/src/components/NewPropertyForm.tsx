@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import {
   PropertyType,
   createPropertySchema,
@@ -58,9 +59,14 @@ export function NewPropertyForm({ onCreated }: { onCreated: () => void }) {
     onSuccess: () => {
       setForm({ ...BLANK });
       setAmenities({});
+      toast.success('Property created');
       onCreated();
     },
-    onError: (e) => setError(apiErrorMessage(e)),
+    onError: (e) => {
+      const message = apiErrorMessage(e);
+      setError(message);
+      toast.error(message);
+    },
   });
 
   return (

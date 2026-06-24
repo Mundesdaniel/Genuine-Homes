@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { listingsApi } from '@/api/listings';
 import { propertiesApi } from '@/api/properties';
+import { InstallmentPanel } from '@/components/InstallmentPanel';
 import { ResultsMap } from '@/components/ResultsMap';
 import { Badge, ErrorState, Spinner } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
@@ -138,6 +139,10 @@ export function ListingDetailPage() {
               Contact seller
             </button>
           </div>
+
+          {listing.listingType === 'installment' && (
+            <InstallmentPanel listing={listing} />
+          )}
 
           {property && property.listings.length > 1 && (
             <div className="card p-5">

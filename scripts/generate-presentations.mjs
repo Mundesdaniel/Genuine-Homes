@@ -145,6 +145,7 @@ const T = {
   s3: { primary: '2D6A4F', light: 'FFFFFF', gold: 'E9A23B' },
   s4: { primary: '0F766E', light: 'FFFFFF', gold: 'F59E0B' },
   s5: { primary: '9A3412', light: 'FFFFFF', gold: 'F59E0B' },
+  s6: { primary: 'A16207', light: 'FFFFFF', gold: 'FACC15' },
 };
 
 const FOOT = 'Genuine Homes · East Africa real estate · rent · buy · installments';
@@ -170,8 +171,8 @@ const decks = [
         ['3', 'Properties & Listings (CRUD + search)', 'Done'],
         ['4', 'Web frontend MVP', 'Done'],
         ['5', 'Payments (Flutterwave + ledger)', 'Done'],
-        ['6', 'Installment engine', 'Next'],
-        ['7+', 'Verification, chat, mobile app', 'Planned'],
+        ['6', 'Installment engine + web charts', 'Done'],
+        ['7+', 'Verification, chat, mobile app', 'Next'],
       ] },
       { type: 'table', label: 'Architecture', title: 'Technology stack', headers: ['Layer', 'Choice'], colW: [3.4, 8.7], rows: [
         ['Web frontend', 'React + TypeScript + Vite + Tailwind + TanStack Query + Zustand'],
@@ -369,6 +370,45 @@ const decks = [
         'GET /:id without a token -> 401; mine listed the payment',
       ] },
       { type: 'closing', label: 'How to try it', title: 'Pay, then settle', lead: 'Initiate a payment, then simulate the gateway callback:', commands: ['pnpm db:up && pnpm dev:api', "curl -XPOST .../api/payments/initiate -d '{\"purpose\":\"deposit\",\"amount\":16000000,\"provider\":\"mtn_momo\"}'", "curl -XPOST .../api/payments/webhook -d '{\"tx_ref\":\"<id>\",\"status\":\"successful\",\"id\":\"demo-1\"}'"] },
+    ],
+  },
+  {
+    theme: T.s6,
+    file: 'stage-6-installments.pptx',
+    slides: [
+      { type: 'cover', kicker: 'Stage 6', title: 'Installment Engine', subtitle: 'The headline feature: deposit + monthly schedule, a plan state machine, and a livelier yellow web app with live charts.', footer: FOOT },
+      { type: 'table', label: 'Endpoints', title: '/api/installment-plans', headers: ['Method & path', 'Purpose'], colW: [6.0, 6.1], rows: [
+        ['POST /', 'Create a plan (deposit % + months)'],
+        ['GET /mine · GET /:id', 'Plans + schedule + progress'],
+        ['POST /:id/deposit', 'Start the deposit payment'],
+        ['POST /:id/installments/:iid/pay', 'Pay a scheduled installment'],
+        ['POST /:id/cancel', 'Cancel a plan awaiting its deposit'],
+      ] },
+      { type: 'split', label: 'How it works', title: 'Plan → schedule → ownership', items: [
+        { lead: 'Exact math', text: 'Decimal deposit + schedule; last installment absorbs the remainder' },
+        { lead: 'State machine', text: 'pending_deposit → active → completed (cancelled / defaulted)' },
+        { lead: 'Event-driven', text: 'a settled payment emits payment.succeeded; the engine reacts' },
+        { lead: 'No coupling', text: 'payments never imports installments — events decouple them' },
+      ], callout: { heading: 'Deposit activates, last installment completes', text: 'Paying the deposit flips the plan to active; paying the final installment marks it paid and completes the plan — all triggered by the payment webhook.' } },
+      { type: 'bullets', label: 'Web', title: 'Lively, yellow, charted', items: [
+        { lead: 'Theme', text: 'recoloured to a golden-yellow brand with a bright accent' },
+        { lead: 'Interactive', text: 'toasts, entrance animations, hover-lift cards, skeletons' },
+        { lead: 'Live charts', text: 'payments-over-time, properties-by-status, plan progress donut (polled)' },
+        { lead: 'Journey', text: 'buy-on-installment panel → plan page → mock checkout settles it in-browser' },
+      ] },
+      { type: 'bullets', label: 'Seed', title: 'New demo accounts', items: [
+        { lead: 'daniel@gmail.com', text: 'a property developer (can list)' },
+        { lead: 'roro@gmail.com', text: 'a buyer with a live 24-month plan (4 months paid)' },
+        'Matching ledger rows give the charts real data on first run',
+        'Dev password for all seeded users: Password123!',
+      ] },
+      { type: 'bullets', label: 'Verification', title: 'Confirmed working', items: [
+        'nest build + tsc + vite build pass; 59 backend unit tests green',
+        'Live: created a 30% / 12-month plan -> paid deposit -> plan auto-activated',
+        'Paid installment #1 -> 1/12 paid (driven by the payment event)',
+        'Web proxy served plans + 7 payments feeding the dashboard charts',
+      ] },
+      { type: 'closing', label: 'How to run', title: 'See it in the browser', lead: 'Seed, run both apps, and log in as Roro:', commands: ['pnpm db:up && pnpm db:migrate && pnpm db:seed', 'pnpm dev:api && pnpm dev:web', '# log in: roro@gmail.com / Password123! -> Dashboard', '# or open an installment listing -> "Buy on installment"'] },
     ],
   },
 ];

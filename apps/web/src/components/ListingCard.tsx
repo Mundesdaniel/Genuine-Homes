@@ -23,7 +23,7 @@ export function ListingCard({ item }: { item: ListingSearchItem }) {
   return (
     <Link
       to={`/listings/${item.id}`}
-      className="card group overflow-hidden transition hover:shadow-md"
+      className="card card-hover group animate-fade-in overflow-hidden"
     >
       <div className="aspect-[4/3] w-full overflow-hidden bg-stone-100">
         {p.coverImageUrl ? (

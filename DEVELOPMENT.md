@@ -245,10 +245,50 @@ pnpm db:up && pnpm db:migrate && pnpm db:seed && pnpm dev:api
 
 ---
 
-## Stage 6 — Installment engine (next)
+## Stage 6 — Installment engine (+ web charts & yellow theme) ✅
 
-The platform's headline feature: turn an installment listing into a plan
-(deposit + monthly schedule), drive its state machine
-(`pending_deposit → active → completed | defaulted`), generate the
-`installment_payments` schedule, and react to settled payments (via the Stage 5
-hook). Due-soon / overdue reminders come with the notifications work.
+The headline feature plus a livelier web app.
+
+- **Backend** (`apps/api/src/installments`): create a plan from a listing
+  (deposit % + months, exact `Decimal` schedule — the last installment absorbs
+  the remainder), state machine `pending_deposit → active → completed`
+  (`cancelled`/`defaulted`), and pay deposit/installments through the Stage 5
+  payments module. The plan **reacts to settled payments**: `PaymentsService`
+  emits `payment.succeeded` (`@nestjs/event-emitter`) and the installments
+  module activates the plan (deposit) or marks a schedule item paid / completes
+  the plan (final installment) — no circular dependency.
+- **Web**: recoloured to a **yellow** brand; added `react-hot-toast`, entrance
+  animations, hover-lift cards, skeleton loaders; **live charts** (`recharts`)
+  for payments-over-time, properties-by-status, and a plan-progress donut
+  (polled every 15s); and the full installment journey (buy-on-installment
+  panel → plan page → dev mock-checkout that settles in-browser).
+- **Seed**: added **daniel@gmail.com** (developer) and **roro@gmail.com**
+  (buyer with a live 24-month plan, 4 months paid) + matching ledger rows so the
+  charts have data on first run.
+
+**Decision:** wired payment→installment effects through an **event** rather than
+a direct call, so payments stays unaware of installments (clean one-way
+dependency) and future modules (rentals) can subscribe to the same event.
+
+**Verified:** `nest build` + `tsc` + `vite build` pass; 59 backend tests green.
+Live (mock gateway + Docker Postgres): created a 30%/12-month plan → paid the
+deposit → webhook → **plan auto-activated** → paid installment #1 → **1/12
+paid**. The web dev proxy served Roro's plans + 7 payments feeding the charts.
+
+### How to resume next time
+
+```bash
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+pnpm dev:api && pnpm dev:web
+# Log in as roro@gmail.com / Password123! → Dashboard (charts), or open an
+# installment listing → "Buy on installment" → pay via the mock checkout.
+```
+
+---
+
+## Stage 7+ — Verification, chat, mobile (next)
+
+The trust wedge: land-title verification + escrow + a "verified" badge surfaced
+in the web app; buyer↔seller chat (the `messages` table); notifications
+(due-soon / overdue reminders, FCM + Africa's Talking SMS); then the React
+Native app.

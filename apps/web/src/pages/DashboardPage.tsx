@@ -1,15 +1,28 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { installmentsApi } from '@/api/installments';
+import { paymentsApi } from '@/api/payments';
+import { propertiesApi } from '@/api/properties';
+import { PaymentsTrendChart, PropertiesStatusChart } from '@/components/charts';
 import { NewListingForm } from '@/components/NewListingForm';
 import { NewPropertyForm } from '@/components/NewPropertyForm';
+import { PlanCard } from '@/components/PlanCard';
 import { Badge, EmptyState, ErrorState, Spinner } from '@/components/ui';
-import { propertiesApi } from '@/api/properties';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { apiErrorMessage } from '@/lib/apiClient';
-import { titleCase } from '@/lib/format';
+import { formatMoney, titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
 const SELLER_ROLES = ['landlord', 'agent', 'developer', 'admin'];
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="card p-4">
+      <p className="text-2xl font-bold text-brand-dark">{value}</p>
+      <p className="text-xs uppercase tracking-wide text-stone-500">{label}</p>
+    </div>
+  );
+}
 
 export function DashboardPage() {
   useCurrentUser();
@@ -17,9 +30,23 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const [panel, setPanel] = useState<'none' | 'property' | 'listing'>('none');
 
-  const mineQuery = useQuery({
+  const seller = Boolean(user?.role && SELLER_ROLES.includes(user.role));
+
+  const propertiesQuery = useQuery({
     queryKey: ['mine'],
     queryFn: () => propertiesApi.listMine(1, 50),
+    enabled: seller,
+  });
+  // Polled so settlements (and the charts) feel live.
+  const plansQuery = useQuery({
+    queryKey: ['plans'],
+    queryFn: () => installmentsApi.mine(),
+    refetchInterval: 15_000,
+  });
+  const paymentsQuery = useQuery({
+    queryKey: ['payments'],
+    queryFn: () => paymentsApi.mine(),
+    refetchInterval: 15_000,
   });
 
   const removeMutation = useMutation({
@@ -27,24 +54,29 @@ export function DashboardPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mine'] }),
   });
 
-  const seller = Boolean(user?.role && SELLER_ROLES.includes(user.role));
-  const properties = mineQuery.data?.items ?? [];
+  const properties = propertiesQuery.data?.items ?? [];
+  const plans = plansQuery.data?.items ?? [];
+  const payments = paymentsQuery.data?.items ?? [];
+
+  const paidTotal = payments
+    .filter((p) => p.status === 'successful')
+    .reduce((sum, p) => sum + p.amount, 0);
+  const activePlans = plans.filter((p) => p.status === 'active').length;
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['mine'] });
     setPanel('none');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="animate-fade-in space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-stone-800">
             Hi, {user?.fullName?.split(' ')[0] ?? 'there'} 👋
           </h1>
           <p className="text-sm text-stone-500">
-            {seller
-              ? 'Manage your properties and listings.'
-              : 'Your account is set up for renting and buying.'}
+            {seller ? 'Manage your properties and track payments.' : 'Track your home-ownership journey.'}
           </p>
         </div>
         {seller && (
@@ -68,64 +100,103 @@ export function DashboardPage() {
       </div>
 
       {panel === 'property' && <NewPropertyForm onCreated={refresh} />}
-      {panel === 'listing' && (
-        <NewListingForm properties={properties} onCreated={refresh} />
-      )}
+      {panel === 'listing' && <NewListingForm properties={properties} onCreated={refresh} />}
 
-      {!seller ? (
-        <EmptyState
-          title="Browse to get started"
-          hint="Buyer and renter accounts don't list properties. Head to Browse to find a home."
-        />
-      ) : mineQuery.isLoading ? (
-        <Spinner label="Loading your properties…" />
-      ) : mineQuery.isError ? (
-        <ErrorState
-          message={apiErrorMessage(mineQuery.error)}
-          onRetry={() => mineQuery.refetch()}
-        />
-      ) : properties.length === 0 ? (
-        <EmptyState title="No properties yet" hint="Add your first property above." />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {properties.map((p) => (
-            <div key={p.id} className="card overflow-hidden">
-              <div className="aspect-[4/3] bg-stone-100">
-                {p.coverImageUrl ? (
-                  <img src={p.coverImageUrl} alt={p.title} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="grid h-full place-items-center text-sm text-stone-400">
-                    No photo
-                  </div>
-                )}
-              </div>
-              <div className="space-y-2 p-4">
-                <div className="flex flex-wrap gap-2">
-                  <Badge label={titleCase(p.status)} />
-                  {p.verificationStatus === 'verified' && (
-                    <Badge label="Verified" tone="verified" />
-                  )}
-                </div>
-                <h3 className="line-clamp-1 font-semibold text-stone-800">{p.title}</h3>
-                <p className="text-sm text-stone-500">
-                  {[p.area, p.district].filter(Boolean).join(', ')}
-                </p>
-                <button
-                  className="btn-outline w-full"
-                  type="button"
-                  disabled={removeMutation.isPending}
-                  onClick={() => {
-                    if (window.confirm(`Delete "${p.title}"?`)) {
-                      removeMutation.mutate(p.id);
-                    }
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Stat label="Total paid" value={formatMoney(paidTotal)} />
+        <Stat label="Active plans" value={String(activePlans)} />
+        <Stat label="Plans" value={String(plans.length)} />
+        {seller && <Stat label="Properties" value={String(properties.length)} />}
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card p-5">
+          <h2 className="mb-2 text-sm font-semibold text-stone-700">
+            Payments over time
+            {paymentsQuery.isFetching && (
+              <span className="ml-2 text-xs font-normal text-stone-400">live</span>
+            )}
+          </h2>
+          <PaymentsTrendChart payments={payments} />
         </div>
+        {seller && (
+          <div className="card p-5">
+            <h2 className="mb-2 text-sm font-semibold text-stone-700">Properties by status</h2>
+            <PropertiesStatusChart properties={properties} />
+          </div>
+        )}
+      </div>
+
+      {/* Plans */}
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-stone-800">Your installment plans</h2>
+        {plansQuery.isLoading ? (
+          <Spinner label="Loading plans…" />
+        ) : plans.length === 0 ? (
+          <EmptyState
+            title="No installment plans yet"
+            hint="Find an installment listing and choose “Buy on installment”."
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {plans.map((plan) => (
+              <PlanCard key={plan.id} plan={plan} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Properties (sellers) */}
+      {seller && (
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-stone-800">Your properties</h2>
+          {propertiesQuery.isLoading ? (
+            <Spinner label="Loading properties…" />
+          ) : propertiesQuery.isError ? (
+            <ErrorState
+              message={apiErrorMessage(propertiesQuery.error)}
+              onRetry={() => propertiesQuery.refetch()}
+            />
+          ) : properties.length === 0 ? (
+            <EmptyState title="No properties yet" hint="Add your first property above." />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {properties.map((p) => (
+                <div key={p.id} className="card card-hover overflow-hidden">
+                  <div className="aspect-[4/3] bg-stone-100">
+                    {p.coverImageUrl ? (
+                      <img src={p.coverImageUrl} alt={p.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="grid h-full place-items-center text-sm text-stone-400">No photo</div>
+                    )}
+                  </div>
+                  <div className="space-y-2 p-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge label={titleCase(p.status)} />
+                      {p.verificationStatus === 'verified' && <Badge label="Verified" tone="verified" />}
+                    </div>
+                    <h3 className="line-clamp-1 font-semibold text-stone-800">{p.title}</h3>
+                    <p className="text-sm text-stone-500">
+                      {[p.area, p.district].filter(Boolean).join(', ')}
+                    </p>
+                    <button
+                      className="btn-outline w-full"
+                      type="button"
+                      disabled={removeMutation.isPending}
+                      onClick={() => {
+                        if (window.confirm(`Delete "${p.title}"?`)) removeMutation.mutate(p.id);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );

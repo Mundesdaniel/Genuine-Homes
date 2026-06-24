@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   SELF_ASSIGNABLE_ROLES,
   registerSchema,
@@ -47,13 +48,18 @@ export function RegisterPage() {
     },
     onSuccess: (res) => {
       setSession(res);
+      toast.success('Account created — welcome to Genuine Homes!');
       navigate('/dashboard', { replace: true });
     },
-    onError: (e) => setError(apiErrorMessage(e)),
+    onError: (e) => {
+      const message = apiErrorMessage(e);
+      setError(message);
+      toast.error(message);
+    },
   });
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="mx-auto max-w-md animate-slide-up">
       <div className="card p-8">
         <h1 className="text-2xl font-bold text-brand-dark">Create your account</h1>
         <p className="mt-1 text-sm text-stone-500">

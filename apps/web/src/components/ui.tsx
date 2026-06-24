@@ -28,6 +28,24 @@ export function ErrorState({
   );
 }
 
+// Skeleton placeholders that mimic the card grid while results load.
+export function CardSkeletonGrid({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="card overflow-hidden">
+          <div className="skeleton aspect-[4/3] rounded-b-none" />
+          <div className="space-y-2 p-4">
+            <div className="skeleton h-4 w-2/3" />
+            <div className="skeleton h-3 w-1/2" />
+            <div className="skeleton h-5 w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center">

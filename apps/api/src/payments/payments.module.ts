@@ -27,5 +27,6 @@ import { PaymentsService } from './payments.service';
           : new MockGateway(),
     },
   ],
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}

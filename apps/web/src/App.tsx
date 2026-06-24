@@ -5,7 +5,9 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { HomePage } from '@/pages/HomePage';
 import { ListingDetailPage } from '@/pages/ListingDetailPage';
 import { LoginPage } from '@/pages/LoginPage';
+import { MockCheckoutPage } from '@/pages/MockCheckoutPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { PlanDetailPage } from '@/pages/PlanDetailPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 
 export default function App() {
@@ -21,6 +23,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="plans/:id"
+          element={
+            <ProtectedRoute>
+              <PlanDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="payments/mock-checkout/:paymentId"
+          element={
+            <ProtectedRoute>
+              <MockCheckoutPage />
             </ProtectedRoute>
           }
         />

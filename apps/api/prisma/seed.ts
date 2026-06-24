@@ -18,11 +18,23 @@ const IDS = {
   admin: '00000000-0000-4000-8000-000000000001',
   landlord: '00000000-0000-4000-8000-000000000002',
   tenant: '00000000-0000-4000-8000-000000000003',
+  daniel: '00000000-0000-4000-8000-000000000004',
+  roro: '00000000-0000-4000-8000-000000000005',
   propHouse: '00000000-0000-4000-8000-000000000010',
   propLand: '00000000-0000-4000-8000-000000000011',
   listingRent: '00000000-0000-4000-8000-000000000020',
   listingInstallment: '00000000-0000-4000-8000-000000000021',
+  planRoro: '00000000-0000-4000-8000-000000000030',
+  payDeposit: '00000000-0000-4000-8000-000000000040',
+  payInst1: '00000000-0000-4000-8000-000000000041',
+  payInst2: '00000000-0000-4000-8000-000000000042',
+  payInst3: '00000000-0000-4000-8000-000000000043',
+  payInst4: '00000000-0000-4000-8000-000000000044',
 } as const;
+
+/** Add n calendar months to a date (UTC). */
+const addMonths = (date: Date, n: number): Date =>
+  new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()));
 
 /** Set a property's PostGIS location (Prisma can't write Unsupported columns). */
 async function setLocation(
@@ -74,6 +86,35 @@ async function main(): Promise<void> {
       id: IDS.tenant,
       fullName: 'David Okello',
       phone: '+256700000003',
+      passwordHash,
+      role: 'user',
+    },
+  });
+
+  // Daniel — a property developer (can list).
+  await prisma.user.upsert({
+    where: { id: IDS.daniel },
+    update: {},
+    create: {
+      id: IDS.daniel,
+      fullName: 'Daniel Munde',
+      email: 'daniel@gmail.com',
+      phone: '+256700000004',
+      passwordHash,
+      role: 'developer',
+      isVerified: true,
+    },
+  });
+
+  // Roro — a buyer with a live installment plan (used by the dashboard charts).
+  const roro = await prisma.user.upsert({
+    where: { id: IDS.roro },
+    update: {},
+    create: {
+      id: IDS.roro,
+      fullName: 'Roro Nakato',
+      email: 'roro@gmail.com',
+      phone: '+256700000005',
       passwordHash,
       role: 'user',
     },
@@ -154,8 +195,90 @@ async function main(): Promise<void> {
     },
   });
 
+  // ── Demo installment plan for Roro on the Gayaza land (idempotent) ─────────
+  // 24-month plan, 20% deposit; the first four months are already paid so the
+  // dashboard's progress + "payments over time" charts have real data.
+  const PLAN_MONTHS = 24;
+  const planTotal = new Prisma.Decimal('80000000');
+  const planDeposit = new Prisma.Decimal('16000000'); // 20%
+  const financed = planTotal.minus(planDeposit); // 64,000,000
+  const monthly = financed
+    .div(PLAN_MONTHS)
+    .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+  const planStart = new Date('2026-01-15T00:00:00Z');
+
+  await prisma.installmentPlan.upsert({
+    where: { id: IDS.planRoro },
+    update: {},
+    create: {
+      id: IDS.planRoro,
+      listingId: IDS.listingInstallment,
+      buyerId: roro.id,
+      totalPrice: planTotal,
+      depositAmount: planDeposit,
+      months: PLAN_MONTHS,
+      monthlyAmount: monthly,
+      currency: 'UGX',
+      status: 'active',
+      nextDueDate: addMonths(planStart, 5), // months 1–4 paid → #5 is next
+    },
+  });
+
+  const schedule: Prisma.InstallmentPaymentCreateManyInput[] = [];
+  let allocated = new Prisma.Decimal(0);
+  for (let i = 1; i <= PLAN_MONTHS; i++) {
+    const amount = i < PLAN_MONTHS ? monthly : financed.minus(allocated);
+    allocated = allocated.plus(amount);
+    schedule.push({
+      planId: IDS.planRoro,
+      sequence: i,
+      amount,
+      dueDate: addMonths(planStart, i),
+      status: 'upcoming',
+    });
+  }
+  await prisma.installmentPayment.createMany({ data: schedule, skipDuplicates: true });
+  await prisma.installmentPayment.updateMany({
+    where: { planId: IDS.planRoro, sequence: { in: [1, 2, 3, 4] } },
+    data: { status: 'paid', paidAt: addMonths(planStart, 4) },
+  });
+
+  // Matching ledger rows; past createdAt so the trend chart isn't a single spike.
+  const ledger: Array<{
+    id: string;
+    purpose: 'deposit' | 'installment';
+    amount: Prisma.Decimal;
+    when: string;
+    ref: string;
+  }> = [
+    { id: IDS.payDeposit, purpose: 'deposit', amount: planDeposit, when: '2026-01-20T10:00:00Z', ref: 'seed_dep' },
+    { id: IDS.payInst1, purpose: 'installment', amount: monthly, when: '2026-02-15T10:00:00Z', ref: 'seed_i1' },
+    { id: IDS.payInst2, purpose: 'installment', amount: monthly, when: '2026-03-15T10:00:00Z', ref: 'seed_i2' },
+    { id: IDS.payInst3, purpose: 'installment', amount: monthly, when: '2026-04-15T10:00:00Z', ref: 'seed_i3' },
+    { id: IDS.payInst4, purpose: 'installment', amount: monthly, when: '2026-05-15T10:00:00Z', ref: 'seed_i4' },
+  ];
+  for (const p of ledger) {
+    await prisma.payment.upsert({
+      where: { id: p.id },
+      update: {},
+      create: {
+        id: p.id,
+        userId: roro.id,
+        purpose: p.purpose,
+        referenceId: IDS.planRoro,
+        amount: p.amount,
+        currency: 'UGX',
+        provider: 'mtn_momo',
+        providerRef: p.ref,
+        status: 'successful',
+        createdAt: new Date(p.when),
+      },
+    });
+  }
+
   console.log('✓ Seed complete.');
-  console.log(`  Users: ${admin.email}, ${landlord.email}, +256700000003`);
+  console.log(`  Users: ${admin.email}, ${landlord.email}, daniel@gmail.com, roro@gmail.com, +256700000003`);
+  console.log(`  Roro has a live 24-month installment plan (4 months paid).`);
   console.log(`  Dev password for all seeded users: ${DEV_PASSWORD}`);
 }
 

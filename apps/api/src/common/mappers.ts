@@ -1,5 +1,15 @@
-import type { Listing, Payment, Property, PropertyImage } from '@prisma/client';
 import type {
+  InstallmentPayment,
+  InstallmentPlan,
+  Listing,
+  Payment,
+  Property,
+  PropertyImage,
+} from '@prisma/client';
+import type {
+  InstallmentPaymentItem,
+  InstallmentPlanDetail,
+  InstallmentPlanResponse,
   ListingResponse,
   ListingSearchItem,
   PaymentResponse,
@@ -7,6 +17,9 @@ import type {
   PropertyImageResponse,
   PropertySummary,
 } from '@genuine-homes/shared';
+
+// PostgreSQL `date` columns come back as a Date at UTC midnight.
+const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
 
 /**
  * Mappers from Prisma rows to the shared API response shapes. Centralised here
@@ -55,6 +68,56 @@ export function mapPayment(payment: Payment): PaymentResponse {
     status: payment.status,
     createdAt: payment.createdAt.toISOString(),
     updatedAt: payment.updatedAt.toISOString(),
+  };
+}
+
+export function mapInstallmentPayment(
+  item: InstallmentPayment,
+): InstallmentPaymentItem {
+  return {
+    id: item.id,
+    sequence: item.sequence,
+    amount: item.amount.toNumber(),
+    dueDate: toDateString(item.dueDate),
+    paidAt: item.paidAt ? item.paidAt.toISOString() : null,
+    status: item.status,
+  };
+}
+
+export function mapPlan(plan: InstallmentPlan): InstallmentPlanResponse {
+  return {
+    id: plan.id,
+    listingId: plan.listingId,
+    buyerId: plan.buyerId,
+    totalPrice: plan.totalPrice.toNumber(),
+    depositAmount: plan.depositAmount.toNumber(),
+    months: plan.months,
+    monthlyAmount: plan.monthlyAmount.toNumber(),
+    serviceFeePercent: plan.serviceFeePercent.toNumber(),
+    currency: plan.currency,
+    status: plan.status,
+    nextDueDate: plan.nextDueDate ? toDateString(plan.nextDueDate) : null,
+    createdAt: plan.createdAt.toISOString(),
+    updatedAt: plan.updatedAt.toISOString(),
+  };
+}
+
+export function mapPlanDetail(
+  plan: InstallmentPlan & { payments: InstallmentPayment[] },
+): InstallmentPlanDetail {
+  const schedule = [...plan.payments]
+    .sort((a, b) => a.sequence - b.sequence)
+    .map(mapInstallmentPayment);
+  const paid = schedule.filter((s) => s.status === 'paid');
+  const paidAmount = paid.reduce((sum, s) => sum + s.amount, 0);
+  const totalScheduled = schedule.reduce((sum, s) => sum + s.amount, 0);
+  return {
+    ...mapPlan(plan),
+    schedule,
+    paidCount: paid.length,
+    remainingCount: schedule.length - paid.length,
+    paidAmount,
+    remainingAmount: totalScheduled - paidAmount,
   };
 }
 

@@ -7,6 +7,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   DEFAULT_CURRENCY,
   type Paginated,
@@ -22,6 +23,10 @@ import {
   PAYMENT_GATEWAY,
   type PaymentGateway,
 } from './gateway/payment-gateway.interface';
+import {
+  PAYMENT_SUCCEEDED,
+  type PaymentSucceededEvent,
+} from './payment-events';
 import { PaymentsRepository } from './payments.repository';
 
 @Injectable()
@@ -31,6 +36,7 @@ export class PaymentsService {
   constructor(
     private readonly repo: PaymentsRepository,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
+    private readonly events: EventEmitter2,
   ) {}
 
   // Create a pending ledger row, then ask the gateway to start the charge.
@@ -101,7 +107,7 @@ export class PaymentsService {
     if (changed) {
       this.logger.log(`Payment ${event.txRef} settled as ${event.status}`);
       if (event.status === PaymentStatus.SUCCESSFUL) {
-        this.onPaymentSucceeded(event.txRef);
+        await this.announceSuccess(event.txRef);
       }
     } else {
       this.logger.log(`Webhook for ${event.txRef} ignored (already settled)`);
@@ -135,10 +141,19 @@ export class PaymentsService {
   }
 
   /**
-   * Extension point: later stages (the installment engine, rentals) will react
-   * to a settled payment here — e.g. activate a plan, mark a schedule paid.
+   * Broadcast a settled payment so subscribers (installments, rentals) can
+   * react — e.g. activate a plan or mark a schedule item paid.
    */
-  private onPaymentSucceeded(paymentId: string): void {
-    this.logger.log(`Downstream effects for settled payment ${paymentId} (TODO: Stage 6)`);
+  private async announceSuccess(paymentId: string): Promise<void> {
+    const payment = await this.repo.findById(paymentId);
+    if (!payment) return;
+    const event: PaymentSucceededEvent = {
+      paymentId: payment.id,
+      userId: payment.userId,
+      purpose: payment.purpose,
+      referenceId: payment.referenceId ?? null,
+      amount: payment.amount.toNumber(),
+    };
+    this.events.emit(PAYMENT_SUCCEEDED, event);
   }
 }
