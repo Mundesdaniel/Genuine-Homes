@@ -62,7 +62,7 @@ Following the architecture doc's recommended build order:
 - [x] **Stage 0** — Monorepo foundation (workspace, Docker, configs)
 - [x] **Stage 1** — Database schema (Prisma + PostGIS), PrismaModule, seed
 - [x] **Stage 2** — Auth module (JWT + RBAC, refresh rotation, rate limiting)
-- [ ] **Stage 3** — Properties & Listings (CRUD + search)
+- [x] **Stage 3** — Properties & Listings (CRUD + PostGIS search, RBAC, soft delete)
 - [ ] **Stage 4** — Web frontend MVP
 - [ ] **Stage 5** — Payments module (Flutterwave + ledger + webhooks)
 - [ ] **Stage 6** — Installment engine (plans, schedules, reminders)

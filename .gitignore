@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+# pnpm-only repo — never an npm/yarn lockfile
+package-lock.json
+yarn.lock
 
 # Build output
 dist/

@@ -5,7 +5,9 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
+import { ListingsModule } from './listings/listings.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { PropertiesModule } from './properties/properties.module';
 
 /**
  * Root module of the Genuine Homes modular monolith.
@@ -26,6 +28,8 @@ import { PrismaModule } from './prisma/prisma.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     AuthModule,
+    PropertiesModule,
+    ListingsModule,
     HealthModule,
   ],
   providers: [

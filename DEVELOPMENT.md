@@ -110,8 +110,61 @@ pnpm dev:api
 
 ---
 
-## Stage 3 — Properties & Listings (next)
+## Stage 3 — Properties & Listings (CRUD + search) ✅
 
-Property + listing CRUD with owner-scoped `@Roles()` (landlord/agent/developer),
-PostGIS "near me" + faceted search (district/type/price), Cloudinary image
-uploads, and soft-delete-aware queries.
+Property and listing management plus public discovery
+(`apps/api/src/properties`, `apps/api/src/listings`).
+
+- **Properties** (`/api/properties`): create, update, soft-delete, `GET /:id`
+  (public detail with gallery + listings + coordinates), `GET /mine`
+  (paginated owner dashboard), and image attach/remove. Mutations are gated to
+  seller roles (`landlord`/`agent`/`developer`/`admin`) **and** an ownership
+  check (admins bypass).
+- **Listings** (`/api/listings`, created under `/api/properties/:id/listings`):
+  create/update/soft-delete with the rent/sale/installment cross-field rules
+  (`listingShapeError` — rent needs a period, installment needs deposit % +
+  months within the `INSTALLMENT` guardrails, etc.). Updates that switch the
+  listing type clear the now-irrelevant fields.
+- **Search** (`GET /api/listings`): faceted (district, property type, listing
+  type, price range, min bedrooms, verified-only) + **PostGIS "near me"**
+  (`lat`/`lng`/`radiusM`, `ST_DWithin` + `ST_Distance`, distance returned in
+  metres), with `newest`/`price`/`distance` sorting and pagination. Built with
+  parameterised `Prisma.sql` fragments (no string interpolation), then hydrated
+  via Prisma.
+- **PostGIS**: coordinates are written/read with raw SQL (`ST_MakePoint` /
+  `ST_X`/`ST_Y`) since Prisma can't touch the `Unsupported` geography column.
+- **Soft deletes** cascade: deleting a property deactivates its listings, so
+  both leave search while financial history is preserved.
+
+**Decision:** Made search **listing-centric** (one row per listing + its
+property) rather than property-centric — it matches how people search ("rentals
+in Kampala under X"), maps cleanly onto the `(listing_type, is_active, price)`
+index, and avoids property/listing fan-out duplication in pagination.
+
+**Verified (live against Dockerised Postgres+PostGIS):** `nest build` + type
+check pass; 34 unit tests green (auth + RBAC + properties/listings services +
+AppModule DI). End-to-end over HTTP: landlord login → public search (2 seeded
+listings) → geo search at Kampala centre/8 km returns only the Nakawa house at
+**4035 m** (Gayaza plot at ~10.6 km correctly excluded) → created a property
+with coordinates + a rent listing → it surfaced in a 3 km geo search → tenant
+create blocked (**403**) → rent-without-period rejected (**400**) → soft-delete
+returned **204**, after which detail **404**s and the listing leaves search.
+
+### How to resume next time
+
+```bash
+pnpm install && pnpm build:shared
+pnpm db:up && pnpm db:migrate && pnpm db:seed
+pnpm dev:api
+# Public search examples:
+#   curl 'localhost:3100/api/listings?district=Kampala&listingType=rent'
+#   curl 'localhost:3100/api/listings?lat=0.3476&lng=32.5825&radiusM=8000'
+```
+
+---
+
+## Stage 4 — Web frontend MVP (next)
+
+React + Vite + TS + Tailwind + TanStack Query + Zustand. Auth flow against
+Stage 2 (register/login/refresh/protected routes), and property browse / map
+search / detail against the Stage 3 listing-search API.
