@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
+import { FavoritesModule } from './favorites/favorites.module';
 import { HealthModule } from './health/health.module';
 import { InstallmentsModule } from './installments/installments.module';
 import { ListingsModule } from './listings/listings.module';
@@ -43,6 +44,7 @@ import { UploadsModule } from './uploads/uploads.module';
     PaymentsModule,
     InstallmentsModule,
     NotificationsModule,
+    FavoritesModule,
     UploadsModule,
     HealthModule,
   ],

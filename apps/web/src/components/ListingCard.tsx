@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { ListingSearchItem } from '@genuine-homes/shared';
 import { formatDistance, formatMoney, titleCase } from '@/lib/format';
+import { FavoriteButton } from './FavoriteButton';
 import { Badge } from './ui';
 
 const PERIOD_SUFFIX: Record<string, string> = { monthly: '/mo', yearly: '/yr' };
@@ -25,7 +26,8 @@ export function ListingCard({ item }: { item: ListingSearchItem }) {
       to={`/listings/${item.id}`}
       className="card card-hover group animate-fade-in overflow-hidden"
     >
-      <div className="aspect-[4/3] w-full overflow-hidden bg-stone-100">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-stone-100">
+        <FavoriteButton propertyId={p.id} />
         {p.coverImageUrl ? (
           <img
             src={p.coverImageUrl}

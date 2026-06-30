@@ -119,3 +119,6 @@ export type {
   NotificationResponse,
   UnreadCountResponse,
 } from './schemas/notification';
+
+// ── Favorites ─────────────────────────────────────────────────────────────────
+export type { FavoriteIdsResponse } from './schemas/favorite';

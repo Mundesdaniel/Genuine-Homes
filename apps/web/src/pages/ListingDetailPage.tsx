@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { listingsApi } from '@/api/listings';
 import { propertiesApi } from '@/api/properties';
+import { FavoriteButton } from '@/components/FavoriteButton';
 import { InstallmentPanel } from '@/components/InstallmentPanel';
 import { ResultsMap } from '@/components/ResultsMap';
 import { Badge, ErrorState, Spinner } from '@/components/ui';
@@ -138,6 +139,9 @@ export function ListingDetailPage() {
             <button className="btn-primary mt-4 w-full" type="button">
               Contact seller
             </button>
+            <div className="mt-2">
+              <FavoriteButton propertyId={p.id} variant="inline" />
+            </div>
           </div>
 
           {listing.listingType === 'installment' && (

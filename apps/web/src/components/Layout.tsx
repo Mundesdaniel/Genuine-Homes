@@ -37,9 +37,14 @@ export function Layout() {
               Browse
             </NavLink>
             {token && (
-              <NavLink to="/dashboard" className={navClass}>
-                Dashboard
-              </NavLink>
+              <>
+                <NavLink to="/favorites" className={navClass}>
+                  Saved
+                </NavLink>
+                <NavLink to="/dashboard" className={navClass}>
+                  Dashboard
+                </NavLink>
+              </>
             )}
           </nav>
 
