@@ -17,6 +17,7 @@ import { PropertiesModule } from './properties/properties.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { UsersModule } from './users/users.module';
 import { VerificationsModule } from './verifications/verifications.module';
 
 /**
@@ -51,6 +52,7 @@ import { VerificationsModule } from './verifications/verifications.module';
     ReviewsModule,
     RentalsModule,
     VerificationsModule,
+    UsersModule,
     UploadsModule,
     HealthModule,
   ],

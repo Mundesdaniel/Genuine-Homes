@@ -24,6 +24,7 @@ import type {
   PropertySummary,
   RentalAgreementResponse,
   ReviewResponse,
+  UserProfileResponse,
   VerificationDocument,
   VerificationResponse,
 } from '@genuine-homes/shared';
@@ -82,6 +83,18 @@ export function mapNotification(n: Notification): NotificationResponse {
     data,
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
+  };
+}
+
+export function mapUserProfile(user: User): UserProfileResponse {
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email ?? null,
+    phone: user.phone,
+    role: user.role,
+    isVerified: user.isVerified,
+    createdAt: user.createdAt.toISOString(),
   };
 }
 

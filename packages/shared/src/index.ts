@@ -152,3 +152,11 @@ export type {
   VerificationDocument,
   VerificationResponse,
 } from './schemas/verification';
+
+// ── Users ─────────────────────────────────────────────────────────────────────
+export { updateProfileSchema, adminUpdateUserSchema } from './schemas/user';
+export type {
+  UpdateProfileInput,
+  AdminUpdateUserInput,
+  UserProfileResponse,
+} from './schemas/user';
