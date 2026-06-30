@@ -130,3 +130,10 @@ export type {
   ReviewResponse,
   ReviewSummary,
 } from './schemas/review';
+
+// ── Rentals ───────────────────────────────────────────────────────────────────
+export { RENTAL, createRentalSchema } from './schemas/rental';
+export type {
+  CreateRentalInput,
+  RentalAgreementResponse,
+} from './schemas/rental';

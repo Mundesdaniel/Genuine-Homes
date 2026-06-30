@@ -6,6 +6,7 @@ import type {
   Payment,
   Property,
   PropertyImage,
+  RentalAgreement,
   Review,
   User,
 } from '@prisma/client';
@@ -20,6 +21,7 @@ import type {
   PropertyDetail,
   PropertyImageResponse,
   PropertySummary,
+  RentalAgreementResponse,
   ReviewResponse,
 } from '@genuine-homes/shared';
 
@@ -77,6 +79,23 @@ export function mapNotification(n: Notification): NotificationResponse {
     data,
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
+  };
+}
+
+export function mapRentalAgreement(
+  agreement: RentalAgreement,
+): RentalAgreementResponse {
+  return {
+    id: agreement.id,
+    listingId: agreement.listingId,
+    tenantId: agreement.tenantId,
+    startDate: toDateString(agreement.startDate),
+    endDate: agreement.endDate ? toDateString(agreement.endDate) : null,
+    monthlyRent: agreement.monthlyRent.toNumber(),
+    currency: agreement.currency,
+    status: agreement.status,
+    createdAt: agreement.createdAt.toISOString(),
+    updatedAt: agreement.updatedAt.toISOString(),
   };
 }
 

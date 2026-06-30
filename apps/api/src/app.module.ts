@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
+import { RentalsModule } from './rentals/rentals.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
 
@@ -47,6 +48,7 @@ import { UploadsModule } from './uploads/uploads.module';
     NotificationsModule,
     FavoritesModule,
     ReviewsModule,
+    RentalsModule,
     UploadsModule,
     HealthModule,
   ],
