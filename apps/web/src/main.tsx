@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
+import './lib/i18n';
 import App from './App';
 import { queryClient } from './lib/queryClient';
 

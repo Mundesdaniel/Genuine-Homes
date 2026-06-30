@@ -1,4 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useLogout } from '@/hooks/useAuth';
 import { titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
@@ -9,6 +11,7 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 export function Layout() {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.accessToken);
   const logout = useLogout();
@@ -34,22 +37,22 @@ export function Layout() {
 
           <nav className="flex items-center gap-6">
             <NavLink to="/" end className={navClass}>
-              Browse
+              {t('nav.browse')}
             </NavLink>
             {token && (
               <>
                 <NavLink to="/favorites" className={navClass}>
-                  Saved
+                  {t('nav.saved')}
                 </NavLink>
                 <NavLink to="/payments" className={navClass}>
-                  Payments
+                  {t('nav.payments')}
                 </NavLink>
                 <NavLink to="/dashboard" className={navClass}>
-                  Dashboard
+                  {t('nav.dashboard')}
                 </NavLink>
                 {user?.role === 'admin' && (
                   <NavLink to="/admin" className={navClass}>
-                    Admin
+                    {t('nav.admin')}
                   </NavLink>
                 )}
               </>
@@ -57,10 +60,11 @@ export function Layout() {
           </nav>
 
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             {token ? (
               <>
                 <span className="hidden text-sm text-stone-600 sm:inline">
-                  {user?.fullName ?? 'Account'}
+                  {user?.fullName ?? t('nav.account')}
                   {user?.role && (
                     <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
                       {titleCase(user.role)}
@@ -68,16 +72,16 @@ export function Layout() {
                   )}
                 </span>
                 <button className="btn-outline" onClick={onLogout} type="button">
-                  Log out
+                  {t('nav.logout')}
                 </button>
               </>
             ) : (
               <>
                 <Link to="/login" className="btn-ghost">
-                  Log in
+                  {t('nav.login')}
                 </Link>
                 <Link to="/register" className="btn-primary">
-                  Sign up
+                  {t('nav.signup')}
                 </Link>
               </>
             )}

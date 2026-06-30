@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { SearchListingsInput } from '@genuine-homes/shared';
 import { listingsApi } from '@/api/listings';
@@ -43,6 +44,7 @@ function toParams(
 }
 
 export function HomePage() {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<FiltersValue>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
   const [geo, setGeo] = useState<Geo>(null);
@@ -75,13 +77,8 @@ export function HomePage() {
   return (
     <div className="space-y-6">
       <section className="animate-slide-up rounded-2xl bg-gradient-to-br from-brand-dark to-brand px-6 py-10 text-white shadow-sm">
-        <h1 className="text-3xl font-bold tracking-tight">
-          Find your next home in Uganda
-        </h1>
-        <p className="mt-2 max-w-2xl text-emerald-50/90">
-          Rent, buy outright, or buy in installments — from verified listings,
-          paid with Mobile Money.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight">{t('hero.title')}</h1>
+        <p className="mt-2 max-w-2xl text-emerald-50/90">{t('hero.subtitle')}</p>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
