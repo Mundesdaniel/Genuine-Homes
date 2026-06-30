@@ -41,6 +41,9 @@ export function Layout() {
                 <NavLink to="/favorites" className={navClass}>
                   Saved
                 </NavLink>
+                <NavLink to="/payments" className={navClass}>
+                  Payments
+                </NavLink>
                 <NavLink to="/dashboard" className={navClass}>
                   Dashboard
                 </NavLink>

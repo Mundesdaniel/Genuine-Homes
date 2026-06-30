@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { FavoritesPage } from '@/pages/FavoritesPage';
 import { HomePage } from '@/pages/HomePage';
 import { ListingDetailPage } from '@/pages/ListingDetailPage';
+import { PaymentsPage } from '@/pages/PaymentsPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MockCheckoutPage } from '@/pages/MockCheckoutPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
@@ -34,6 +35,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <FavoritesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="payments"
+          element={
+            <ProtectedRoute>
+              <PaymentsPage />
             </ProtectedRoute>
           }
         />

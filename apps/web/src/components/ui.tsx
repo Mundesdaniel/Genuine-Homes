@@ -60,6 +60,11 @@ const TONE: Record<string, string> = {
   sale: 'bg-amber-100 text-amber-800',
   installment: 'bg-indigo-100 text-indigo-800',
   verified: 'bg-emerald-100 text-emerald-800',
+  // Payment statuses.
+  successful: 'bg-emerald-100 text-emerald-800',
+  pending: 'bg-amber-100 text-amber-800',
+  failed: 'bg-red-100 text-red-700',
+  refunded: 'bg-stone-200 text-stone-700',
   default: 'bg-stone-100 text-stone-700',
 };
 
