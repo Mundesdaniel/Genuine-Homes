@@ -9,6 +9,7 @@ import type {
   RentalAgreement,
   Review,
   User,
+  Verification,
 } from '@prisma/client';
 import type {
   InstallmentPaymentItem,
@@ -23,6 +24,8 @@ import type {
   PropertySummary,
   RentalAgreementResponse,
   ReviewResponse,
+  VerificationDocument,
+  VerificationResponse,
 } from '@genuine-homes/shared';
 
 // PostgreSQL `date` columns come back as a Date at UTC midnight.
@@ -79,6 +82,25 @@ export function mapNotification(n: Notification): NotificationResponse {
     data,
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
+  };
+}
+
+export function mapVerification(
+  verification: Verification & { property: { title: string } },
+): VerificationResponse {
+  const documents = Array.isArray(verification.documents)
+    ? (verification.documents as unknown as VerificationDocument[])
+    : [];
+  return {
+    id: verification.id,
+    propertyId: verification.propertyId,
+    propertyTitle: verification.property.title,
+    status: verification.status,
+    documents,
+    notes: verification.notes ?? null,
+    reviewerId: verification.reviewerId ?? null,
+    createdAt: verification.createdAt.toISOString(),
+    updatedAt: verification.updatedAt.toISOString(),
   };
 }
 

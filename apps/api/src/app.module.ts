@@ -17,6 +17,7 @@ import { PropertiesModule } from './properties/properties.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { VerificationsModule } from './verifications/verifications.module';
 
 /**
  * Root module of the Genuine Homes modular monolith.
@@ -49,6 +50,7 @@ import { UploadsModule } from './uploads/uploads.module';
     FavoritesModule,
     ReviewsModule,
     RentalsModule,
+    VerificationsModule,
     UploadsModule,
     HealthModule,
   ],

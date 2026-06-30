@@ -137,3 +137,18 @@ export type {
   CreateRentalInput,
   RentalAgreementResponse,
 } from './schemas/rental';
+
+// ── Verifications ─────────────────────────────────────────────────────────────
+export {
+  VERIFICATION,
+  verificationDocumentSchema,
+  submitVerificationSchema,
+  reviewVerificationSchema,
+} from './schemas/verification';
+export type {
+  VerificationDocumentInput,
+  SubmitVerificationInput,
+  ReviewVerificationInput,
+  VerificationDocument,
+  VerificationResponse,
+} from './schemas/verification';
