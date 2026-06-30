@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { listingsApi } from '@/api/listings';
 import { propertiesApi } from '@/api/properties';
 import { FavoriteButton } from '@/components/FavoriteButton';
@@ -13,6 +13,7 @@ const PERIOD_SUFFIX: Record<string, string> = { monthly: '/mo', yearly: '/yr' };
 
 export function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const listingQuery = useQuery({
     queryKey: ['listing', id],
@@ -136,7 +137,13 @@ export function ListingDetailPage() {
                   {listing.maxInstallmentMonths} months
                 </p>
               )}
-            <button className="btn-primary mt-4 w-full" type="button">
+            <button
+              className="btn-primary mt-4 w-full"
+              type="button"
+              onClick={() =>
+                navigate(`/messages?to=${p.ownerId}&listingId=${listing.id}`)
+              }
+            >
               Contact seller
             </button>
             <div className="mt-2">

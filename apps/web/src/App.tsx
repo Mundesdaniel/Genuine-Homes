@@ -3,6 +3,7 @@ import { UserRole } from '@genuine-homes/shared';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AdminPage } from '@/pages/AdminPage';
+import { ChatPage } from '@/pages/ChatPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { FavoritesPage } from '@/pages/FavoritesPage';
 import { HomePage } from '@/pages/HomePage';
@@ -43,6 +44,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <PaymentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="messages"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
             </ProtectedRoute>
           }
         />

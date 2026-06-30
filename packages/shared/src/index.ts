@@ -163,3 +163,11 @@ export type {
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 export type { AdminOverviewResponse } from './schemas/admin';
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+export { CHAT, CHAT_MESSAGE_EVENT, sendMessageSchema } from './schemas/chat';
+export type {
+  SendMessageInput,
+  MessageResponse,
+  ConversationSummary,
+} from './schemas/chat';

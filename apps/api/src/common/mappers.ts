@@ -2,6 +2,7 @@ import type {
   InstallmentPayment,
   InstallmentPlan,
   Listing,
+  Message,
   Notification,
   Payment,
   Property,
@@ -17,6 +18,7 @@ import type {
   InstallmentPlanResponse,
   ListingResponse,
   ListingSearchItem,
+  MessageResponse,
   NotificationResponse,
   PaymentResponse,
   PropertyDetail,
@@ -83,6 +85,18 @@ export function mapNotification(n: Notification): NotificationResponse {
     data,
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
+  };
+}
+
+export function mapMessage(message: Message): MessageResponse {
+  return {
+    id: message.id,
+    senderId: message.senderId,
+    receiverId: message.receiverId,
+    listingId: message.listingId ?? null,
+    body: message.body,
+    readAt: message.readAt ? message.readAt.toISOString() : null,
+    createdAt: message.createdAt.toISOString(),
   };
 }
 

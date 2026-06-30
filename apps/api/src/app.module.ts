@@ -6,6 +6,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
 import { validateEnv } from './config/env.validation';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HealthModule } from './health/health.module';
@@ -55,6 +56,7 @@ import { VerificationsModule } from './verifications/verifications.module';
     VerificationsModule,
     UsersModule,
     AdminModule,
+    ChatModule,
     UploadsModule,
     HealthModule,
   ],

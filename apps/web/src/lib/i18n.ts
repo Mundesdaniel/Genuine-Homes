@@ -24,6 +24,7 @@ const en = {
   nav: {
     browse: 'Browse',
     saved: 'Saved',
+    messages: 'Messages',
     payments: 'Payments',
     dashboard: 'Dashboard',
     admin: 'Admin',
@@ -44,6 +45,7 @@ const sw: typeof en = {
   nav: {
     browse: 'Vinjari',
     saved: 'Zilizohifadhiwa',
+    messages: 'Ujumbe',
     payments: 'Malipo',
     dashboard: 'Dashibodi',
     admin: 'Msimamizi',
@@ -63,6 +65,7 @@ const lg: Partial<typeof en> = {
   nav: {
     browse: 'Noonya',
     saved: 'Ebitereke',
+    messages: 'Obubaka',
     payments: 'Ebisasulwa',
     dashboard: 'Dashiboodi',
     admin: 'Omukulu',
