@@ -160,3 +160,6 @@ export type {
   AdminUpdateUserInput,
   UserProfileResponse,
 } from './schemas/user';
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export type { AdminOverviewResponse } from './schemas/admin';

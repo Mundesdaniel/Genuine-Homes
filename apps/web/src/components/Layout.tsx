@@ -44,6 +44,11 @@ export function Layout() {
                 <NavLink to="/dashboard" className={navClass}>
                   Dashboard
                 </NavLink>
+                {user?.role === 'admin' && (
+                  <NavLink to="/admin" className={navClass}>
+                    Admin
+                  </NavLink>
+                )}
               </>
             )}
           </nav>

@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
+import { UserRole } from '@genuine-homes/shared';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { AdminPage } from '@/pages/AdminPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { FavoritesPage } from '@/pages/FavoritesPage';
 import { HomePage } from '@/pages/HomePage';
@@ -32,6 +34,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <FavoritesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="admin"
+          element={
+            <ProtectedRoute requireRole={UserRole.ADMIN}>
+              <AdminPage />
             </ProtectedRoute>
           }
         />

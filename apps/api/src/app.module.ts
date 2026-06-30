@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { FavoritesModule } from './favorites/favorites.module';
@@ -53,6 +54,7 @@ import { VerificationsModule } from './verifications/verifications.module';
     RentalsModule,
     VerificationsModule,
     UsersModule,
+    AdminModule,
     UploadsModule,
     HealthModule,
   ],
