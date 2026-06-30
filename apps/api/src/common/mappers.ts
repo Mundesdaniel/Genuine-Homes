@@ -6,6 +6,8 @@ import type {
   Payment,
   Property,
   PropertyImage,
+  Review,
+  User,
 } from '@prisma/client';
 import type {
   InstallmentPaymentItem,
@@ -18,6 +20,7 @@ import type {
   PropertyDetail,
   PropertyImageResponse,
   PropertySummary,
+  ReviewResponse,
 } from '@genuine-homes/shared';
 
 // PostgreSQL `date` columns come back as a Date at UTC midnight.
@@ -74,6 +77,18 @@ export function mapNotification(n: Notification): NotificationResponse {
     data,
     readAt: n.readAt ? n.readAt.toISOString() : null,
     createdAt: n.createdAt.toISOString(),
+  };
+}
+
+export function mapReview(
+  review: Review & { author: Pick<User, 'id' | 'fullName'> },
+): ReviewResponse {
+  return {
+    id: review.id,
+    rating: review.rating,
+    comment: review.comment ?? null,
+    author: { id: review.author.id, fullName: review.author.fullName },
+    createdAt: review.createdAt.toISOString(),
   };
 }
 

@@ -122,3 +122,11 @@ export type {
 
 // ── Favorites ─────────────────────────────────────────────────────────────────
 export type { FavoriteIdsResponse } from './schemas/favorite';
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+export { REVIEW, createReviewSchema } from './schemas/review';
+export type {
+  CreateReviewInput,
+  ReviewResponse,
+  ReviewSummary,
+} from './schemas/review';
