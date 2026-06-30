@@ -24,6 +24,8 @@ import {
   type PaymentGateway,
 } from './gateway/payment-gateway.interface';
 import {
+  PAYMENT_FAILED,
+  type PaymentFailedEvent,
   PAYMENT_SUCCEEDED,
   type PaymentSucceededEvent,
 } from './payment-events';
@@ -108,6 +110,8 @@ export class PaymentsService {
       this.logger.log(`Payment ${event.txRef} settled as ${event.status}`);
       if (event.status === PaymentStatus.SUCCESSFUL) {
         await this.announceSuccess(event.txRef);
+      } else if (event.status === PaymentStatus.FAILED) {
+        await this.announceFailure(event.txRef);
       }
     } else {
       this.logger.log(`Webhook for ${event.txRef} ignored (already settled)`);
@@ -155,5 +159,19 @@ export class PaymentsService {
       amount: payment.amount.toNumber(),
     };
     this.events.emit(PAYMENT_SUCCEEDED, event);
+  }
+
+  /** Broadcast a failed payment so the notifications module can alert the payer. */
+  private async announceFailure(paymentId: string): Promise<void> {
+    const payment = await this.repo.findById(paymentId);
+    if (!payment) return;
+    const event: PaymentFailedEvent = {
+      paymentId: payment.id,
+      userId: payment.userId,
+      purpose: payment.purpose,
+      referenceId: payment.referenceId ?? null,
+      amount: payment.amount.toNumber(),
+    };
+    this.events.emit(PAYMENT_FAILED, event);
   }
 }

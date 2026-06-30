@@ -17,6 +17,25 @@ export const INSTALLMENT = {
   /** Allowed plan durations offered in the UI (months). */
   ALLOWED_MONTHS: [12, 24, 36, 48] as const,
   MAX_MONTHS: 48,
+  /** Days before a due date to send the "installment due soon" reminder. */
+  REMINDER_LEAD_DAYS: 3,
+} as const;
+
+/** Property gallery image-upload rules (shared by the API validator and the
+ *  web uploader so client and server agree on what's allowed). */
+export const IMAGE_UPLOAD = {
+  /** Max size of a single uploaded photo. */
+  MAX_BYTES: 5 * 1024 * 1024,
+  /** MIME types accepted by the upload endpoint. */
+  ACCEPTED_MIME_TYPES: [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/avif',
+  ] as const,
+  /** Soft cap on how many photos a single property gallery may hold. */
+  MAX_PER_PROPERTY: 12,
 } as const;
 
 /** WGS84 spatial reference id used for all PostGIS geography columns. */

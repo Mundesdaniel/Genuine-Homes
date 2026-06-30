@@ -10,6 +10,9 @@ export const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  // Absolute origin the API is reachable at, used to build URLs for locally
+  // stored uploads (e.g. http://localhost:3100). Defaults to localhost:PORT.
+  PUBLIC_API_URL: z.string().url().optional(),
 
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url().default('redis://localhost:6379'),

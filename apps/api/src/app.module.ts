@@ -2,15 +2,18 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { InstallmentsModule } from './installments/installments.module';
 import { ListingsModule } from './listings/listings.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
+import { UploadsModule } from './uploads/uploads.module';
 
 /**
  * Root module of the Genuine Homes modular monolith.
@@ -31,12 +34,16 @@ import { PropertiesModule } from './properties/properties.module';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     // Event-driven side effects (e.g. a settled payment activating a plan).
     EventEmitterModule.forRoot(),
+    // Cron scheduling (nightly installment overdue/due-soon sweep).
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     PropertiesModule,
     ListingsModule,
     PaymentsModule,
     InstallmentsModule,
+    NotificationsModule,
+    UploadsModule,
     HealthModule,
   ],
   providers: [

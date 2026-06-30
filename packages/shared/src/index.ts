@@ -35,6 +35,7 @@ export {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
   INSTALLMENT,
+  IMAGE_UPLOAD,
   SRID_WGS84,
   DEFAULT_SEARCH_RADIUS_M,
 } from './constants';
@@ -75,6 +76,7 @@ export type {
   PropertySummary,
   PropertyImageResponse,
   PropertyDetail,
+  UploadResponse,
 } from './schemas/property';
 
 // ── Listings ──────────────────────────────────────────────────────────────────
@@ -111,3 +113,9 @@ export type {
   InstallmentPlanResponse,
   InstallmentPlanDetail,
 } from './schemas/installment';
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+export type {
+  NotificationResponse,
+  UnreadCountResponse,
+} from './schemas/notification';

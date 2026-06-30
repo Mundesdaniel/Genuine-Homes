@@ -28,6 +28,11 @@ export type PlanWithSchedule = InstallmentPlan & {
   payments: InstallmentPayment[];
 };
 
+/** A scheduled payment joined with the few plan fields the sweep reminders need. */
+export type ScheduledPaymentWithPlan = InstallmentPayment & {
+  plan: Pick<InstallmentPlan, 'id' | 'buyerId' | 'currency' | 'status'>;
+};
+
 @Injectable()
 export class InstallmentsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -130,6 +135,49 @@ export class InstallmentsRepository {
       where: { id },
       data: { status: 'paid', paidAt: new Date(), paymentRef },
     });
+  }
+
+  // ── Nightly sweep ─────────────────────────────────────────────────────────
+
+  // Upcoming payments of active plans falling due in [from, to) — for "due soon"
+  // reminders. `from` is today's start so already-overdue items are excluded.
+  findDueSoon(from: Date, to: Date): Promise<ScheduledPaymentWithPlan[]> {
+    return this.prisma.installmentPayment.findMany({
+      where: {
+        status: 'upcoming',
+        dueDate: { gte: from, lt: to },
+        plan: { status: 'active' },
+      },
+      include: {
+        plan: { select: { id: true, buyerId: true, currency: true, status: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+  }
+
+  // Upcoming payments of active plans whose due date has passed — these get
+  // marked `late` and trigger an overdue reminder.
+  findOverdue(before: Date): Promise<ScheduledPaymentWithPlan[]> {
+    return this.prisma.installmentPayment.findMany({
+      where: {
+        status: 'upcoming',
+        dueDate: { lt: before },
+        plan: { status: 'active' },
+      },
+      include: {
+        plan: { select: { id: true, buyerId: true, currency: true, status: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+  }
+
+  async markPaymentsLate(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const { count } = await this.prisma.installmentPayment.updateMany({
+      where: { id: { in: ids }, status: 'upcoming' },
+      data: { status: 'late' },
+    });
+    return count;
   }
 
   // Earliest still-unpaid due date + whether the whole schedule is paid.

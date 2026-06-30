@@ -2,17 +2,26 @@ import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import type { Env } from './config/env.validation';
+import { UPLOADS_DIR, UPLOADS_ROUTE } from './uploads/uploads.constants';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const config = app.get(ConfigService<Env, true>);
 
   // Security headers (HSTS, no-sniff, etc.) — financial platform = high standards.
-  app.use(helmet());
+  // crossOriginResourcePolicy is relaxed so the web app (a different dev origin)
+  // can load locally-served property images via <img>.
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  // Serve locally-stored property images. Mounted outside the /api prefix, so
+  // URLs look like http://localhost:3100/uploads/<file>. Unused in production
+  // when Cloudinary is the active storage strategy.
+  app.useStaticAssets(UPLOADS_DIR, { prefix: `${UPLOADS_ROUTE}/` });
 
   app.enableCors({
     origin: config

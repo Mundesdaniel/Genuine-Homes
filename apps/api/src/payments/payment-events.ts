@@ -15,3 +15,18 @@ export interface PaymentSucceededEvent {
   referenceId: string | null;
   amount: number;
 }
+
+/**
+ * Emitted when a payment is settled as failed. The notifications module
+ * subscribes to alert the payer; financial modules ignore it (a failed payment
+ * changes no plan/rental state).
+ */
+export const PAYMENT_FAILED = 'payment.failed';
+
+export interface PaymentFailedEvent {
+  paymentId: string;
+  userId: string;
+  purpose: PaymentPurpose;
+  referenceId: string | null;
+  amount: number;
+}

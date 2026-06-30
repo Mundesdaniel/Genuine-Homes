@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import {
   INSTALLMENT,
@@ -24,13 +24,34 @@ import {
 } from '../payments/payment-events';
 import { PaymentsService } from '../payments/payments.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
+import {
+  INSTALLMENT_DUE_SOON,
+  INSTALLMENT_OVERDUE,
+  type InstallmentReminderEvent,
+} from './installment-events';
 import { PayViaDto } from './dto/pay-via.dto';
-import { InstallmentsRepository } from './installments.repository';
+import {
+  InstallmentsRepository,
+  type ScheduledPaymentWithPlan,
+} from './installments.repository';
 
 // Add n calendar months to a date (UTC).
 function addMonths(date: Date, n: number): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()),
+  );
+}
+
+// Midnight UTC of the given date — `date` columns are stored at UTC midnight.
+function startOfUtcDay(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+}
+
+function addDays(date: Date, n: number): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + n),
   );
 }
 
@@ -41,6 +62,7 @@ export class InstallmentsService {
   constructor(
     private readonly repo: InstallmentsRepository,
     private readonly payments: PaymentsService,
+    private readonly events: EventEmitter2,
   ) {}
 
   // Turn an installment listing into a plan: compute the deposit + an exact
@@ -181,6 +203,55 @@ export class InstallmentsService {
     }
     await this.repo.updatePlanStatus(plan.id, InstallmentPlanStatus.CANCELLED, null);
     return this.getDetail(user, plan.id);
+  }
+
+  /**
+   * Nightly sweep over active plans:
+   *  - schedule items due within REMINDER_LEAD_DAYS emit a "due soon" reminder;
+   *  - items whose due date has passed are marked `late` and emit an "overdue"
+   *    reminder.
+   *
+   * Pure data work + event emission — the notifications module turns the events
+   * into in-app/SMS/push messages. Returns counts so the scheduler can log them
+   * and tests can assert on them. Marking plans `defaulted` is deliberately left
+   * to an explicit admin action: it is a legal/contractual decision, not a
+   * mechanical one.
+   */
+  async sweepOverdue(
+    now: Date = new Date(),
+  ): Promise<{ dueSoon: number; markedLate: number }> {
+    const today = startOfUtcDay(now);
+    const soonEnd = addDays(today, INSTALLMENT.REMINDER_LEAD_DAYS);
+
+    const dueSoon = await this.repo.findDueSoon(today, soonEnd);
+    for (const item of dueSoon) {
+      this.events.emit(INSTALLMENT_DUE_SOON, this.toReminderEvent(item));
+    }
+
+    const overdue = await this.repo.findOverdue(today);
+    const markedLate = await this.repo.markPaymentsLate(overdue.map((i) => i.id));
+    for (const item of overdue) {
+      this.events.emit(INSTALLMENT_OVERDUE, this.toReminderEvent(item));
+    }
+
+    this.logger.log(
+      `Overdue sweep: ${dueSoon.length} due-soon reminder(s), ${markedLate} marked late`,
+    );
+    return { dueSoon: dueSoon.length, markedLate };
+  }
+
+  private toReminderEvent(
+    item: ScheduledPaymentWithPlan,
+  ): InstallmentReminderEvent {
+    return {
+      buyerId: item.plan.buyerId,
+      planId: item.plan.id,
+      installmentId: item.id,
+      sequence: item.sequence,
+      amount: item.amount.toNumber(),
+      currency: item.plan.currency,
+      dueDate: item.dueDate.toISOString().slice(0, 10),
+    };
   }
 
   /**

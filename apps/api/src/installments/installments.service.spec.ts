@@ -1,12 +1,18 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import type { InstallmentPayment, InstallmentPlan, Listing } from '@prisma/client';
 import { InstallmentPlanStatus, PaymentPurpose, UserRole } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
+import {
+  INSTALLMENT_DUE_SOON,
+  INSTALLMENT_OVERDUE,
+} from './installment-events';
 import { InstallmentsService } from './installments.service';
 import type {
   InstallmentsRepository,
   PlanWithSchedule,
+  ScheduledPaymentWithPlan,
   ScheduleItem,
 } from './installments.repository';
 import type { PaymentsService } from '../payments/payments.service';
@@ -48,9 +54,24 @@ const plan = (over: Partial<InstallmentPlan> = {}): InstallmentPlan =>
 const planDetail = (over: Partial<InstallmentPlan> = {}): PlanWithSchedule =>
   ({ ...plan(over), payments: [] }) as unknown as PlanWithSchedule;
 
+const scheduledPayment = (
+  over: Partial<ScheduledPaymentWithPlan> = {},
+): ScheduledPaymentWithPlan =>
+  ({
+    id: 'item-1',
+    planId: 'plan-1',
+    sequence: 3,
+    amount: new Prisma.Decimal('2666666.66'),
+    dueDate: new Date('2026-06-01'),
+    status: 'upcoming',
+    plan: { id: 'plan-1', buyerId: buyer.id, currency: 'UGX', status: 'active' },
+    ...over,
+  }) as unknown as ScheduledPaymentWithPlan;
+
 describe('InstallmentsService', () => {
   let repo: jest.Mocked<InstallmentsRepository>;
   let payments: jest.Mocked<PaymentsService>;
+  let events: jest.Mocked<EventEmitter2>;
   let service: InstallmentsService;
 
   beforeEach(() => {
@@ -65,11 +86,15 @@ describe('InstallmentsService', () => {
       setNextDueDate: jest.fn().mockResolvedValue(undefined),
       markInstallmentPaid: jest.fn().mockResolvedValue(undefined),
       scheduleProgress: jest.fn().mockResolvedValue({ nextDue: new Date(), allPaid: false }),
+      findDueSoon: jest.fn().mockResolvedValue([]),
+      findOverdue: jest.fn().mockResolvedValue([]),
+      markPaymentsLate: jest.fn().mockResolvedValue(0),
     } as unknown as jest.Mocked<InstallmentsRepository>;
     payments = {
       initiate: jest.fn().mockResolvedValue({ payment: {}, redirectUrl: 'x' }),
     } as unknown as jest.Mocked<PaymentsService>;
-    service = new InstallmentsService(repo, payments);
+    events = { emit: jest.fn() } as unknown as jest.Mocked<EventEmitter2>;
+    service = new InstallmentsService(repo, payments, events);
   });
 
   const dto = (over: Partial<CreatePlanDto> = {}): CreatePlanDto =>
@@ -161,6 +186,38 @@ describe('InstallmentsService', () => {
         InstallmentPlanStatus.COMPLETED,
         null,
       );
+    });
+  });
+
+  describe('sweepOverdue', () => {
+    it('emits a due-soon reminder for each upcoming payment in the window', async () => {
+      repo.findDueSoon.mockResolvedValue([
+        scheduledPayment({ id: 'item-due' }),
+      ]);
+      const result = await service.sweepOverdue(new Date('2026-05-30'));
+      expect(events.emit).toHaveBeenCalledWith(
+        INSTALLMENT_DUE_SOON,
+        expect.objectContaining({ installmentId: 'item-due', buyerId: buyer.id }),
+      );
+      expect(result.dueSoon).toBe(1);
+    });
+
+    it('marks overdue payments late and emits an overdue reminder', async () => {
+      repo.findOverdue.mockResolvedValue([scheduledPayment({ id: 'item-late' })]);
+      repo.markPaymentsLate.mockResolvedValue(1);
+      const result = await service.sweepOverdue(new Date('2026-07-01'));
+      expect(repo.markPaymentsLate).toHaveBeenCalledWith(['item-late']);
+      expect(events.emit).toHaveBeenCalledWith(
+        INSTALLMENT_OVERDUE,
+        expect.objectContaining({ installmentId: 'item-late' }),
+      );
+      expect(result.markedLate).toBe(1);
+    });
+
+    it('does nothing when nothing is due or overdue', async () => {
+      const result = await service.sweepOverdue(new Date('2026-06-30'));
+      expect(events.emit).not.toHaveBeenCalled();
+      expect(result).toEqual({ dueSoon: 0, markedLate: 0 });
     });
   });
 });

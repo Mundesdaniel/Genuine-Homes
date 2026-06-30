@@ -2,6 +2,7 @@ import type {
   InstallmentPayment,
   InstallmentPlan,
   Listing,
+  Notification,
   Payment,
   Property,
   PropertyImage,
@@ -12,6 +13,7 @@ import type {
   InstallmentPlanResponse,
   ListingResponse,
   ListingSearchItem,
+  NotificationResponse,
   PaymentResponse,
   PropertyDetail,
   PropertyImageResponse,
@@ -53,6 +55,25 @@ export function mapListing(listing: Listing): ListingResponse {
     isActive: listing.isActive,
     createdAt: listing.createdAt.toISOString(),
     updatedAt: listing.updatedAt.toISOString(),
+  };
+}
+
+export function mapNotification(n: Notification): NotificationResponse {
+  // `payload` holds the rendered title/body plus reference ids. Pull the text
+  // out and expose the remaining keys as `data` for client deep-linking.
+  const payload =
+    n.payload && typeof n.payload === 'object' && !Array.isArray(n.payload)
+      ? (n.payload as Record<string, unknown>)
+      : {};
+  const { title, body, ...data } = payload;
+  return {
+    id: n.id,
+    type: n.type,
+    title: typeof title === 'string' ? title : '',
+    body: typeof body === 'string' ? body : '',
+    data,
+    readAt: n.readAt ? n.readAt.toISOString() : null,
+    createdAt: n.createdAt.toISOString(),
   };
 }
 

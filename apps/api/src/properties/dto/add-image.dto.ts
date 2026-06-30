@@ -3,8 +3,10 @@ import { IsInt, IsOptional, IsUrl, Max, MaxLength, Min } from 'class-validator';
 
 /** Attach an image URL to a property's gallery. Mirrors `addImageSchema`. */
 export class AddImageDto {
+  // require_tld:false so locally-uploaded dev URLs (http://localhost:3100/uploads/…)
+  // are accepted alongside hosted ones like Cloudinary.
   @ApiProperty({ example: 'https://res.cloudinary.com/demo/image/upload/x.jpg' })
-  @IsUrl()
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
   @MaxLength(2048)
   url!: string;
 

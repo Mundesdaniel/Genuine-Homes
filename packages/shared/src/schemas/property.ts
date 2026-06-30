@@ -99,6 +99,12 @@ export interface PropertyImageResponse {
   position: number;
 }
 
+/** Result of uploading a file to the media endpoint (`POST /uploads`). The
+ *  returned `url` is what gets attached to a property via `addImageSchema`. */
+export interface UploadResponse {
+  url: string;
+}
+
 /** Full property view: the summary plus its gallery and listings. */
 export interface PropertyDetail extends PropertySummary {
   images: PropertyImageResponse[];
