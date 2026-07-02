@@ -4,10 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { UserRole } from '@genuine-homes/shared';
 import type { Env } from '../config/env.validation';
-import type {
-  AccessTokenPayload,
-  RefreshTokenPayload,
-} from './types/jwt-payload';
+import type { AccessTokenPayload, RefreshTokenPayload } from './types/jwt-payload';
 
 /**
  * Owns all JWT signing/verifying and refresh-token hashing. Keeping this in one
@@ -41,9 +38,7 @@ export class TokenService {
   }
 
   // Sign a rotating refresh token; the jti makes it unique so its hash is too.
-  async signRefresh(
-    userId: string,
-  ): Promise<{ token: string; expiresAt: Date }> {
+  async signRefresh(userId: string): Promise<{ token: string; expiresAt: Date }> {
     const payload: RefreshTokenPayload = {
       sub: userId,
       jti: randomUUID(),
@@ -74,5 +69,12 @@ export class TokenService {
   // hash (so the raw token never touches the database) and revoke it.
   hashRefresh(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  // When the refresh token stops verifying — aligns the httpOnly cookie's
+  // lifetime with the token it carries.
+  refreshExpiry(token: string): Date {
+    const { exp } = this.jwt.decode<{ exp: number }>(token);
+    return new Date(exp * 1000);
   }
 }

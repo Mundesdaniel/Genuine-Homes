@@ -64,9 +64,9 @@ _(These matter most because they're in "done" code.)_
 
 ## E. Security & compliance
 
-- [ ] 🔴 **`apps/api/.env` is committed to git** (dev placeholder secrets). Gitignored going forward, but the tracked file must be removed (`git rm --cached apps/api/.env`) before any real secret lands.
+- [x] 🔴 **`apps/api/.env` is committed to git** — _Resolved:_ verified 2026-07-02 that the file is untracked (`git ls-files` empty) **and absent from all history** (`git log --all -- apps/api/.env` returns nothing), so no removal/rewrite is needed. `.gitignore` covers it; `apps/api/.env.example` is the tracked template.
 - [x] 🟠 **Uploaded files served publicly** — _Done (Stage 9):_ sensitive documents now upload to `POST /uploads/documents` into a **private** `uploads-private/` dir (a sibling of the public static mount, never served directly). Verification submissions reference the opaque storage key; every API response mints **HMAC-signed, 15-minute URLs** (`/api/uploads/documents/:key?exp&sig`, signature covers key+expiry, verified constant-time; `UPLOADS_SIGNING_SECRET` env, derived from `JWT_ACCESS_SECRET` when unset). Legacy rows that stored plain URLs pass through unchanged. Property gallery images remain public by design.
-- [ ] 🟠 **Refresh tokens in `localStorage`** (XSS-exposed). Move to an httpOnly refresh-token cookie for production.
+- [x] 🟠 **Refresh tokens in `localStorage`** — _Done (Stage 9):_ the refresh token now travels in an **httpOnly `gh_refresh` cookie** (path-scoped to `/api/auth`, `SameSite=Lax` so cross-site POSTs never carry it, `Secure` in production, expiry aligned with the token). `/refresh` and `/logout` read the cookie (body token kept as an optional fallback for non-browser clients); logout always clears it. The web app persists only the 15-min access token + user profile — a zustand `migrate` scrubs previously-persisted refresh tokens on first load. Verified live: cookie-only refresh, rotation, replay→401 reuse detection, logout revoke+clear.
 - [x] ✅ **Genuinely solid:** helmet, CORS allowlist, rate limiting (tight on auth), argon2 hashing, env validation at boot, parameterized Prisma queries, constant-time login.
 
 ---

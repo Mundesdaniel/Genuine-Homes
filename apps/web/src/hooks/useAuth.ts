@@ -23,9 +23,11 @@ export function useCurrentUser() {
 export function useLogout() {
   const queryClient = useQueryClient();
   return async () => {
-    const { refreshToken, clear } = useAuthStore.getState();
+    const { clear } = useAuthStore.getState();
     try {
-      if (refreshToken) await authApi.logout(refreshToken);
+      // The refresh token rides in the httpOnly cookie; the API revokes the
+      // session and clears the cookie.
+      await authApi.logout();
     } catch (error) {
       // Logout is best-effort; ignore network/expiry errors.
       void apiErrorMessage(error);

@@ -5,6 +5,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as Sentry from '@sentry/node';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
@@ -32,6 +33,9 @@ async function bootstrap(): Promise<void> {
   // Correlation id + AsyncLocalStorage context — must precede the request
   // logger and everything else that reads the id.
   app.use(requestContextMiddleware);
+
+  // Parses the httpOnly gh_refresh cookie the auth endpoints read/set.
+  app.use(cookieParser());
 
   // Security headers (HSTS, no-sniff, etc.) — financial platform = high standards.
   // crossOriginResourcePolicy is relaxed so the web app (a different dev origin)

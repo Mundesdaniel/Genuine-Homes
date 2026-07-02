@@ -59,8 +59,11 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+/** Browsers carry the refresh token in the httpOnly `gh_refresh` cookie, so
+ *  the body token is optional — it exists for non-browser clients (the future
+ *  mobile app, scripts) that manage tokens themselves. */
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(10),
+  refreshToken: z.string().min(10).optional(),
 });
 export type RefreshInput = z.infer<typeof refreshSchema>;
 

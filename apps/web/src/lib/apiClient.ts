@@ -4,7 +4,10 @@ import { useAuthStore } from '@/store/authStore';
 
 const baseURL = import.meta.env.VITE_API_URL ?? '/api';
 
-export const api = axios.create({ baseURL });
+// withCredentials so the httpOnly gh_refresh cookie travels on auth calls even
+// when VITE_API_URL points at a different origin (same-origin setups — the
+// Vite dev proxy, nginx in prod — send it regardless).
+export const api = axios.create({ baseURL, withCredentials: true });
 
 // Attach the access token to every request.
 api.interceptors.request.use((config) => {
@@ -17,16 +20,17 @@ api.interceptors.request.use((config) => {
 let refreshing: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {
-  const { refreshToken, setSession, clear } = useAuthStore.getState();
-  if (!refreshToken) {
-    clear();
-    return null;
-  }
+  const { accessToken, setSession, clear } = useAuthStore.getState();
+  // No session to refresh (never logged in / already cleared) — don't ask.
+  if (!accessToken) return null;
   try {
-    // Use a bare axios call so this request skips the interceptors below.
-    const { data } = await axios.post<AuthResponse>(`${baseURL}/auth/refresh`, {
-      refreshToken,
-    });
+    // The refresh token rides in the httpOnly cookie; the body stays empty.
+    // Bare axios call so this request skips the interceptors below.
+    const { data } = await axios.post<AuthResponse>(
+      `${baseURL}/auth/refresh`,
+      {},
+      { withCredentials: true },
+    );
     setSession(data);
     return data.accessToken;
   } catch {
@@ -40,8 +44,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const original = error.config as
-      | (InternalAxiosRequestConfig & { _retry?: boolean })
-      | undefined;
+      (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
     const isAuthCall = original?.url?.includes('/auth/');
     if (error.response?.status === 401 && original && !original._retry && !isAuthCall) {

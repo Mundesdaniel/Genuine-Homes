@@ -12,6 +12,6 @@ export const authApi = {
   register: (input: RegisterRequest) =>
     api.post<AuthResponse>('/auth/register', input).then((r) => r.data),
   me: () => api.get<AuthUser>('/auth/me').then((r) => r.data),
-  logout: (refreshToken: string) =>
-    api.post('/auth/logout', { refreshToken }).then((r) => r.data),
+  /** The refresh token rides in the httpOnly cookie; the API also clears it. */
+  logout: () => api.post('/auth/logout', {}).then((r) => r.data),
 };
