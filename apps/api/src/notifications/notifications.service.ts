@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import {
@@ -24,11 +24,8 @@ import {
   PAYMENT_SUCCEEDED,
   type PaymentSucceededEvent,
 } from '../payments/payment-events';
+import { NotificationQueue } from './notification-queue';
 import { NotificationsRepository } from './notifications.repository';
-import {
-  NOTIFICATION_SENDERS,
-  type NotificationSender,
-} from './senders/notification-sender.interface';
 
 function formatAmount(currency: string, amount: number): string {
   return `${currency} ${amount.toLocaleString('en-US')}`;
@@ -40,8 +37,7 @@ export class NotificationsService {
 
   constructor(
     private readonly repo: NotificationsRepository,
-    @Inject(NOTIFICATION_SENDERS)
-    private readonly senders: NotificationSender[],
+    private readonly queue: NotificationQueue,
   ) {}
 
   // ── Queries (current user) ─────────────────────────────────────────────────
@@ -74,9 +70,9 @@ export class NotificationsService {
   }
 
   /**
-   * Create an in-app notification and fan it out to every delivery channel.
-   * Public so sibling modules can notify directly (e.g. a verified listing)
-   * without going through an event.
+   * Create an in-app notification and hand the fan-out to the durable queue
+   * (BullMQ; inline fallback). Public so sibling modules can notify directly
+   * (e.g. a verified listing) without going through an event.
    */
   async notify(
     userId: string,
@@ -87,7 +83,7 @@ export class NotificationsService {
   ): Promise<void> {
     const payload = { title, body, ...data } as Prisma.InputJsonValue;
     await this.repo.create(userId, type, payload);
-    await this.dispatch({ userId, type, title, body });
+    await this.queue.enqueue({ userId, type, title, body });
   }
 
   // ── Event listeners ─────────────────────────────────────────────────────────
@@ -221,28 +217,6 @@ export class NotificationsService {
           body: `Your payment of ${amount} was successful.`,
         };
     }
-  }
-
-  // Resolve the recipient and push the notification to every channel. Each
-  // sender failure is isolated so one bad channel never blocks the others.
-  private async dispatch(base: {
-    userId: string;
-    type: NotificationType;
-    title: string;
-    body: string;
-  }): Promise<void> {
-    const contact = await this.repo.findUserContact(base.userId);
-    if (!contact) return;
-    const outbound = { ...base, phone: contact.phone, email: contact.email };
-    await Promise.all(
-      this.senders.map((sender) =>
-        sender
-          .send(outbound)
-          .catch((err) =>
-            this.logger.error(`Sender ${sender.channel} failed: ${String(err)}`),
-          ),
-      ),
-    );
   }
 
   // Event listeners must never throw back into the emitter — log and swallow.

@@ -1,14 +1,24 @@
 import type { Notification } from '@prisma/client';
 import { NotificationType, PaymentPurpose, UserRole } from '@genuine-homes/shared';
+import type { ConfigService } from '@nestjs/config';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
+import type { Env } from '../config/env.validation';
 import type { InstallmentReminderEvent } from '../installments/installment-events';
 import type { PaymentSucceededEvent } from '../payments/payment-events';
+import { NotificationDispatcher } from './notification-dispatcher';
+import { NotificationQueue } from './notification-queue';
 import type { NotificationsRepository } from './notifications.repository';
 import { NotificationsService } from './notifications.service';
 import type {
   NotificationSender,
   OutboundNotification,
 } from './senders/notification-sender.interface';
+
+// Config that resolves the queue to inline mode (as under NODE_ENV=test).
+const testConfig = {
+  get: (key: string) =>
+    ({ NODE_ENV: 'test', REDIS_URL: 'redis://localhost:6379' })[key],
+} as unknown as ConfigService<Env, true>;
 
 const user: AuthenticatedUser = { id: 'user-1', role: UserRole.USER };
 
@@ -54,7 +64,11 @@ describe('NotificationsService', () => {
         .mockResolvedValue({ fullName: 'Ada', phone: '+256700000000', email: null }),
     } as unknown as jest.Mocked<NotificationsRepository>;
     sender = { channel: 'test', send: jest.fn().mockResolvedValue(undefined) };
-    service = new NotificationsService(repo, [sender]);
+    // Real dispatcher + queue in inline mode: notify() delivers synchronously.
+    const dispatcher = new NotificationDispatcher(repo, [sender]);
+    const queue = new NotificationQueue(testConfig, dispatcher);
+    queue.onModuleInit();
+    service = new NotificationsService(repo, queue);
   });
 
   it('lists notifications mapped to the response shape', async () => {

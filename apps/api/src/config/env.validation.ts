@@ -20,6 +20,9 @@ export const envSchema = z.object({
 
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  // Notification fan-out: `redis` = durable BullMQ queue (default outside
+  // tests), `inline` = synchronous in-process delivery (no Redis needed).
+  NOTIFICATIONS_QUEUE: z.enum(['inline', 'redis']).optional(),
 
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default('900s'),

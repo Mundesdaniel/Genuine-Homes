@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../config/env.validation';
+import { NotificationDispatcher } from './notification-dispatcher';
+import { NotificationQueue } from './notification-queue';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsRepository } from './notifications.repository';
 import { NotificationsService } from './notifications.service';
@@ -13,9 +15,10 @@ import { SmsNotificationSender } from './senders/sms-notification-sender';
 
 /**
  * Notifications module. Subscribes to domain events (payment settled, an
- * installment due/overdue) and writes in-app notifications, fanning each one
- * out to the registered delivery channels (Strategy). The log channel is always
- * on; SMS (Africa's Talking) is added when credentials are configured.
+ * installment due/overdue) and writes in-app notifications, handing the
+ * fan-out to a durable BullMQ queue (NotificationQueue) whose worker delivers
+ * through the registered channels (Strategy). The log channel is always on;
+ * SMS (Africa's Talking) is added when credentials are configured.
  *
  * Exports NotificationsService so other modules can notify directly. No DI
  * dependency on payments/installments — cross-module reactions arrive via the
@@ -26,6 +29,8 @@ import { SmsNotificationSender } from './senders/sms-notification-sender';
   providers: [
     NotificationsService,
     NotificationsRepository,
+    NotificationDispatcher,
+    NotificationQueue,
     {
       provide: NOTIFICATION_SENDERS,
       inject: [ConfigService],
