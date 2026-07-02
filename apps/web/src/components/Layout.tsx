@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Home, Menu, X } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
@@ -12,8 +13,21 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 // Mobile links are full-width touch targets, not desktop text links.
 const mobileNavClass = ({ isActive }: { isActive: boolean }) =>
   `block rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-    isActive ? 'bg-brand/10 text-brand' : 'text-stone-700 hover:bg-stone-50'
+    isActive ? 'bg-brand-50 text-brand' : 'text-stone-700 hover:bg-stone-50'
   }`;
+
+function Wordmark() {
+  return (
+    <>
+      <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+        <Home className="h-4 w-4" strokeWidth={2.5} />
+      </span>
+      <span className="font-display text-lg font-bold tracking-tight text-pine-dark">
+        Genuine&nbsp;Homes
+      </span>
+    </>
+  );
+}
 
 export function Layout() {
   const { t } = useTranslation();
@@ -62,17 +76,16 @@ export function Layout() {
     </>
   );
 
+  const footerLink = 'text-sm text-stone-400 transition hover:text-gold';
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-[1000] border-b border-stone-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+        {/* Brand accent line. */}
+        <div className="h-0.5 bg-gradient-to-r from-brand-600 via-gold to-brand-600" />
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
           <Link to="/" className="flex items-center gap-2" onClick={closeMenu}>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand font-bold text-white">
-              G
-            </span>
-            <span className="text-lg font-bold tracking-tight text-brand-dark">
-              Genuine&nbsp;Homes
-            </span>
+            <Wordmark />
           </Link>
 
           {/* Desktop navigation */}
@@ -85,7 +98,7 @@ export function Layout() {
                 <span className="text-sm text-stone-600">
                   {user?.fullName ?? t('nav.account')}
                   {user?.role && (
-                    <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">
+                    <span className="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand">
                       {titleCase(user.role)}
                     </span>
                   )}
@@ -115,29 +128,7 @@ export function Layout() {
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             onClick={() => setMenuOpen((open) => !open)}
           >
-            {menuOpen ? (
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
-            ) : (
-              <svg
-                viewBox="0 0 24 24"
-                className="h-6 w-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              >
-                <path d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            )}
+            {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
@@ -174,13 +165,97 @@ export function Layout() {
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10">
         <Outlet />
       </main>
 
-      <footer className="border-t border-stone-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-stone-500">
-          Genuine Homes — rent · buy · buy in installments. East Africa.
+      <footer className="mt-12 bg-pine-deep text-stone-300">
+        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                <Home className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+              <span className="font-display text-lg font-bold tracking-tight text-white">
+                Genuine&nbsp;Homes
+              </span>
+            </div>
+            <p className="mt-3 max-w-xs text-sm text-stone-400">{t('footer.tagline')}</p>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+              {t('footer.explore')}
+            </h3>
+            <ul className="mt-3 space-y-2">
+              <li>
+                <Link to="/" className={footerLink}>
+                  {t('nav.browse')}
+                </Link>
+              </li>
+              <li>
+                <Link to="/favorites" className={footerLink}>
+                  {t('nav.saved')}
+                </Link>
+              </li>
+              <li>
+                <Link to="/messages" className={footerLink}>
+                  {t('nav.messages')}
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+              {t('footer.account')}
+            </h3>
+            <ul className="mt-3 space-y-2">
+              {token ? (
+                <>
+                  <li>
+                    <Link to="/dashboard" className={footerLink}>
+                      {t('nav.dashboard')}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/payments" className={footerLink}>
+                      {t('nav.payments')}
+                    </Link>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link to="/login" className={footerLink}>
+                      {t('nav.login')}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/register" className={footerLink}>
+                      {t('nav.signup')}
+                    </Link>
+                  </li>
+                </>
+              )}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+              {t('footer.languages')}
+            </h3>
+            <div className="mt-3">
+              <LanguageSwitcher />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10">
+          <div className="mx-auto max-w-7xl px-4 py-4 text-xs text-stone-500">
+            © {new Date().getFullYear()} Genuine Homes — rent · buy · buy in installments. East
+            Africa.
+          </div>
         </div>
       </footer>
     </div>
