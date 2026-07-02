@@ -5,7 +5,7 @@ import { propertiesApi } from '@/api/properties';
 import { FavoriteButton } from '@/components/FavoriteButton';
 import { InstallmentPanel } from '@/components/InstallmentPanel';
 import { ResultsMap } from '@/components/ResultsMap';
-import { Badge, ErrorState, Spinner } from '@/components/ui';
+import { Badge, ErrorState, Spinner, statusTone } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
 
@@ -30,11 +30,7 @@ export function ListingDetailPage() {
 
   if (listingQuery.isLoading) return <Spinner label="Loading listing…" />;
   if (listingQuery.isError || !listingQuery.data) {
-    return (
-      <ErrorState
-        message={apiErrorMessage(listingQuery.error) || 'Listing not found'}
-      />
-    );
+    return <ErrorState message={apiErrorMessage(listingQuery.error) || 'Listing not found'} />;
   }
 
   const listing = listingQuery.data;
@@ -44,7 +40,7 @@ export function ListingDetailPage() {
   const amenities = Object.entries(p.amenities).filter(([, on]) => on);
   const suffix =
     listing.listingType === 'rent' && listing.rentPeriod
-      ? PERIOD_SUFFIX[listing.rentPeriod] ?? ''
+      ? (PERIOD_SUFFIX[listing.rentPeriod] ?? '')
       : '';
 
   return (
@@ -64,7 +60,10 @@ export function ListingDetailPage() {
         </div>
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-1">
           {images.slice(1, 4).map((img) => (
-            <div key={img.id} className="aspect-square overflow-hidden rounded-lg bg-stone-100">
+            <div
+              key={img.id}
+              className="aspect-square overflow-hidden rounded-lg bg-stone-100"
+            >
               <img src={img.url} alt="" className="h-full w-full object-cover" />
             </div>
           ))}
@@ -75,9 +74,12 @@ export function ListingDetailPage() {
         <div className="space-y-5">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge label={titleCase(listing.listingType)} tone={listing.listingType} />
+              <Badge
+                label={titleCase(listing.listingType)}
+                tone={statusTone(listing.listingType)}
+              />
               {p.verificationStatus === 'verified' && (
-                <Badge label="Verified" tone="verified" />
+                <Badge label="Verified" tone="success" />
               )}
               <Badge label={titleCase(p.type)} />
             </div>
@@ -103,10 +105,7 @@ export function ListingDetailPage() {
               <h2 className="mb-2 font-semibold text-stone-800">Amenities</h2>
               <div className="flex flex-wrap gap-2">
                 {amenities.map(([name]) => (
-                  <span
-                    key={name}
-                    className="chip bg-stone-100 text-stone-700"
-                  >
+                  <span key={name} className="chip bg-stone-100 text-stone-700">
                     {titleCase(name)}
                   </span>
                 ))}
@@ -114,7 +113,7 @@ export function ListingDetailPage() {
             </div>
           )}
 
-          {(p.latitude != null && p.longitude != null) && (
+          {p.latitude != null && p.longitude != null && (
             <div>
               <h2 className="mb-2 font-semibold text-stone-800">Location</h2>
               <ResultsMap items={[listing]} center={[p.latitude, p.longitude]} />
@@ -130,19 +129,16 @@ export function ListingDetailPage() {
               {formatMoney(listing.price, listing.currency)}
               <span className="text-base font-medium text-stone-400">{suffix}</span>
             </p>
-            {listing.listingType === 'installment' &&
-              listing.minDepositPercent != null && (
-                <p className="mt-2 text-sm text-stone-600">
-                  From {listing.minDepositPercent}% deposit · up to{' '}
-                  {listing.maxInstallmentMonths} months
-                </p>
-              )}
+            {listing.listingType === 'installment' && listing.minDepositPercent != null && (
+              <p className="mt-2 text-sm text-stone-600">
+                From {listing.minDepositPercent}% deposit · up to{' '}
+                {listing.maxInstallmentMonths} months
+              </p>
+            )}
             <button
               className="btn-primary mt-4 w-full"
               type="button"
-              onClick={() =>
-                navigate(`/messages?to=${p.ownerId}&listingId=${listing.id}`)
-              }
+              onClick={() => navigate(`/messages?to=${p.ownerId}&listingId=${listing.id}`)}
             >
               Contact seller
             </button>
@@ -151,9 +147,7 @@ export function ListingDetailPage() {
             </div>
           </div>
 
-          {listing.listingType === 'installment' && (
-            <InstallmentPanel listing={listing} />
-          )}
+          {listing.listingType === 'installment' && <InstallmentPanel listing={listing} />}
 
           {property && property.listings.length > 1 && (
             <div className="card p-5">

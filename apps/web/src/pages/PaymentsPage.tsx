@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { PaymentResponse } from '@genuine-homes/shared';
 import { paymentsApi } from '@/api/payments';
-import { Badge, EmptyState, ErrorState, Spinner } from '@/components/ui';
+import { Badge, EmptyState, ErrorState, Spinner, statusTone } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
 
@@ -13,13 +13,7 @@ const formatDate = (iso: string) =>
     year: 'numeric',
   });
 
-function Receipt({
-  payment,
-  onClose,
-}: {
-  payment: PaymentResponse;
-  onClose: () => void;
-}) {
+function Receipt({ payment, onClose }: { payment: PaymentResponse; onClose: () => void }) {
   return (
     <div className="card mb-4 p-5 print:border-0 print:shadow-none">
       <div className="flex items-start justify-between">
@@ -27,7 +21,7 @@ function Receipt({
           <p className="text-xs uppercase tracking-wide text-stone-400">Receipt</p>
           <h2 className="text-lg font-bold text-stone-800">Genuine Homes</h2>
         </div>
-        <Badge label={titleCase(payment.status)} tone={payment.status} />
+        <Badge label={titleCase(payment.status)} tone={statusTone(payment.status)} />
       </div>
       <dl className="mt-4 grid grid-cols-2 gap-y-2 text-sm">
         <dt className="text-stone-500">Amount</dt>
@@ -69,7 +63,8 @@ export function PaymentsPage() {
   });
 
   if (isLoading) return <Spinner label="Loading payments…" />;
-  if (isError) return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
+  if (isError)
+    return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
 
   const payments = data?.items ?? [];
 
@@ -112,7 +107,7 @@ export function PaymentsPage() {
                     {formatMoney(p.amount, p.currency)}
                   </td>
                   <td className="py-2 pr-4">
-                    <Badge label={titleCase(p.status)} tone={p.status} />
+                    <Badge label={titleCase(p.status)} tone={statusTone(p.status)} />
                   </td>
                   <td className="py-2 text-right">
                     {p.status === 'successful' && (

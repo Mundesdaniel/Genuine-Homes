@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import type { ListingSearchItem } from '@genuine-homes/shared';
 import { formatDistance, formatMoney, titleCase } from '@/lib/format';
 import { FavoriteButton } from './FavoriteButton';
-import { Badge } from './ui';
+import { Badge, statusTone } from './ui';
 
 const PERIOD_SUFFIX: Record<string, string> = { monthly: '/mo', yearly: '/yr' };
 
@@ -11,7 +11,7 @@ export function ListingCard({ item }: { item: ListingSearchItem }) {
   const distance = formatDistance(item.distanceM);
   const suffix =
     item.listingType === 'rent' && item.rentPeriod
-      ? PERIOD_SUFFIX[item.rentPeriod] ?? ''
+      ? (PERIOD_SUFFIX[item.rentPeriod] ?? '')
       : '';
   const specs = [
     p.bedrooms != null ? `${p.bedrooms} bd` : null,
@@ -35,17 +35,13 @@ export function ListingCard({ item }: { item: ListingSearchItem }) {
             className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="grid h-full place-items-center text-sm text-stone-400">
-            No photo
-          </div>
+          <div className="grid h-full place-items-center text-sm text-stone-400">No photo</div>
         )}
       </div>
       <div className="space-y-2 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge label={titleCase(item.listingType)} tone={item.listingType} />
-          {p.verificationStatus === 'verified' && (
-            <Badge label="Verified" tone="verified" />
-          )}
+          <Badge label={titleCase(item.listingType)} tone={statusTone(item.listingType)} />
+          {p.verificationStatus === 'verified' && <Badge label="Verified" tone="success" />}
         </div>
         <h3 className="line-clamp-1 font-semibold text-stone-800">{p.title}</h3>
         <p className="text-sm text-stone-500">

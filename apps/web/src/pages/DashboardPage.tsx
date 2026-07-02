@@ -7,7 +7,7 @@ import { PaymentsTrendChart, PropertiesStatusChart } from '@/components/charts';
 import { NewListingForm } from '@/components/NewListingForm';
 import { PropertyForm } from '@/components/PropertyForm';
 import { PlanCard } from '@/components/PlanCard';
-import { Badge, EmptyState, ErrorState, Spinner } from '@/components/ui';
+import { Badge, EmptyState, ErrorState, Spinner, statusTone } from '@/components/ui';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
@@ -248,9 +248,9 @@ export function DashboardPage() {
                   </div>
                   <div className="space-y-2 p-4">
                     <div className="flex flex-wrap gap-2">
-                      <Badge label={titleCase(p.status)} />
+                      <Badge label={titleCase(p.status)} tone={statusTone(p.status)} />
                       {p.verificationStatus === 'verified' && (
-                        <Badge label="Verified" tone="verified" />
+                        <Badge label="Verified" tone="success" />
                       )}
                     </div>
                     <h3 className="line-clamp-1 font-semibold text-stone-800">{p.title}</h3>

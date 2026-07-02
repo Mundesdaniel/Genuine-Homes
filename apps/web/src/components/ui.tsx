@@ -9,13 +9,7 @@ export function Spinner({ label = 'Loading…' }: { label?: string }) {
   );
 }
 
-export function ErrorState({
-  message,
-  onRetry,
-}: {
-  message: string;
-  onRetry?: () => void;
-}) {
+export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
       <p className="text-sm font-medium text-red-700">{message}</p>
@@ -55,19 +49,59 @@ export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
-const TONE: Record<string, string> = {
-  rent: 'bg-emerald-100 text-emerald-800',
-  sale: 'bg-amber-100 text-amber-800',
-  installment: 'bg-indigo-100 text-indigo-800',
-  verified: 'bg-emerald-100 text-emerald-800',
-  // Payment statuses.
-  successful: 'bg-emerald-100 text-emerald-800',
-  pending: 'bg-amber-100 text-amber-800',
-  failed: 'bg-red-100 text-red-700',
-  refunded: 'bg-stone-200 text-stone-700',
-  default: 'bg-stone-100 text-stone-700',
+/**
+ * Badge tones are *intents*, not domain values — status colour is risk
+ * communication on a payments product. Pages map their domain values through
+ * `statusTone` so a defaulted plan can never accidentally render in a benign
+ * colour just because some other domain value happened to share a key.
+ */
+export type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+
+const TONE: Record<BadgeTone, string> = {
+  success: 'bg-emerald-100 text-emerald-800',
+  warning: 'bg-amber-100 text-amber-800',
+  danger: 'bg-red-100 text-red-700',
+  info: 'bg-indigo-100 text-indigo-800',
+  neutral: 'bg-stone-100 text-stone-700',
 };
 
-export function Badge({ label, tone }: { label: string; tone?: string }) {
-  return <span className={`chip ${TONE[tone ?? 'default'] ?? TONE.default}`}>{label}</span>;
+/** One domain→intent map for every status/category rendered as a badge. */
+const STATUS_INTENT: Record<string, BadgeTone> = {
+  // Listing categories (colour-coded for scanability, matching the old palette)
+  rent: 'success',
+  sale: 'warning',
+  installment: 'info',
+  // Verification
+  verified: 'success',
+  rejected: 'danger',
+  unverified: 'neutral',
+  // Payment statuses
+  successful: 'success',
+  failed: 'danger',
+  refunded: 'neutral',
+  // Plan lifecycle
+  active: 'success',
+  completed: 'success',
+  pending_deposit: 'warning',
+  pending: 'warning',
+  defaulted: 'danger',
+  cancelled: 'neutral',
+  // Installment schedule items
+  paid: 'success',
+  upcoming: 'neutral',
+  late: 'warning',
+  missed: 'danger',
+  // Property lifecycle
+  draft: 'neutral',
+  rented: 'info',
+  sold: 'info',
+  suspended: 'danger',
+};
+
+export function statusTone(value: string): BadgeTone {
+  return STATUS_INTENT[value] ?? 'neutral';
+}
+
+export function Badge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
+  return <span className={`chip ${TONE[tone]}`}>{label}</span>;
 }

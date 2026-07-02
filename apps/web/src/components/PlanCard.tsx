@@ -1,20 +1,14 @@
 import { Link } from 'react-router-dom';
 import type { InstallmentPlanDetail } from '@genuine-homes/shared';
 import { formatMoney, titleCase } from '@/lib/format';
-import { Badge } from './ui';
-
-const STATUS_TONE: Record<string, string> = {
-  active: 'verified',
-  completed: 'rent',
-  pending_deposit: 'sale',
-};
+import { Badge, statusTone } from './ui';
 
 export function PlanCard({ plan }: { plan: InstallmentPlanDetail }) {
   const pct = plan.months ? Math.round((plan.paidCount / plan.months) * 100) : 0;
   return (
     <Link to={`/plans/${plan.id}`} className="card card-hover block p-4">
       <div className="flex items-center justify-between">
-        <Badge label={titleCase(plan.status)} tone={STATUS_TONE[plan.status]} />
+        <Badge label={titleCase(plan.status)} tone={statusTone(plan.status)} />
         <span className="text-xs text-stone-400">{plan.months} months</span>
       </div>
       <p className="mt-2 text-lg font-bold text-brand-dark">

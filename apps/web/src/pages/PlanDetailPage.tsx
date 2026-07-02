@@ -2,14 +2,10 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {
-  PaymentProvider,
-  enumValues,
-  type PayViaInput,
-} from '@genuine-homes/shared';
+import { PaymentProvider, enumValues, type PayViaInput } from '@genuine-homes/shared';
 import { installmentsApi } from '@/api/installments';
 import { ProgressDonut } from '@/components/charts';
-import { Badge, ErrorState, Spinner } from '@/components/ui';
+import { Badge, ErrorState, Spinner, statusTone } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { goToCheckout } from '@/lib/checkout';
 import { formatMoney, titleCase } from '@/lib/format';
@@ -19,7 +15,12 @@ export function PlanDetailPage() {
   const navigate = useNavigate();
   const [provider, setProvider] = useState<string>('mtn_momo');
 
-  const { data: plan, isLoading, isError, error } = useQuery({
+  const {
+    data: plan,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ['plan', id],
     queryFn: () => installmentsApi.get(id as string),
     enabled: Boolean(id),
@@ -61,7 +62,7 @@ export function PlanDetailPage() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold text-stone-800">Installment plan</h1>
-            <Badge label={titleCase(plan.status)} tone={plan.status === 'active' ? 'verified' : 'sale'} />
+            <Badge label={titleCase(plan.status)} tone={statusTone(plan.status)} />
           </div>
 
           <div className="card overflow-hidden">
@@ -84,10 +85,7 @@ export function PlanDetailPage() {
                       {formatMoney(item.amount, plan.currency)}
                     </td>
                     <td className="px-4 py-2">
-                      <Badge
-                        label={titleCase(item.status)}
-                        tone={item.status === 'paid' ? 'rent' : 'default'}
-                      />
+                      <Badge label={titleCase(item.status)} tone={statusTone(item.status)} />
                     </td>
                     <td className="px-4 py-2 text-right">
                       {plan.status === 'active' && item.status !== 'paid' && (
@@ -124,19 +122,27 @@ export function PlanDetailPage() {
           <div className="card space-y-3 p-5">
             <div className="flex justify-between text-sm">
               <span className="text-stone-500">Total</span>
-              <span className="font-semibold">{formatMoney(plan.totalPrice, plan.currency)}</span>
+              <span className="font-semibold">
+                {formatMoney(plan.totalPrice, plan.currency)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-stone-500">Deposit</span>
-              <span className="font-semibold">{formatMoney(plan.depositAmount, plan.currency)}</span>
+              <span className="font-semibold">
+                {formatMoney(plan.depositAmount, plan.currency)}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-stone-500">Monthly</span>
-              <span className="font-semibold">{formatMoney(plan.monthlyAmount, plan.currency)}</span>
+              <span className="font-semibold">
+                {formatMoney(plan.monthlyAmount, plan.currency)}
+              </span>
             </div>
 
             <div>
-              <label className="label" htmlFor="provider">Pay with</label>
+              <label className="label" htmlFor="provider">
+                Pay with
+              </label>
               <select
                 id="provider"
                 className="input"
@@ -144,7 +150,9 @@ export function PlanDetailPage() {
                 onChange={(e) => setProvider(e.target.value)}
               >
                 {enumValues(PaymentProvider).map((p) => (
-                  <option key={p} value={p}>{titleCase(p)}</option>
+                  <option key={p} value={p}>
+                    {titleCase(p)}
+                  </option>
                 ))}
               </select>
             </div>

@@ -1,9 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  UserRole,
-  enumValues,
-  type UserProfileResponse,
-} from '@genuine-homes/shared';
+import { UserRole, enumValues, type UserProfileResponse } from '@genuine-homes/shared';
 import { adminApi } from '@/api/admin';
 import { usersApi } from '@/api/users';
 import { verificationsApi } from '@/api/verifications';
@@ -37,7 +33,10 @@ function OverviewSection() {
       <Stat label="Active listings" value={data.activeListings} />
       <Stat label="Active plans" value={data.activePlans} />
       <Stat label="Pending verifications" value={data.pendingVerifications} />
-      <Stat label="Revenue (settled)" value={formatMoney(data.revenue.total, data.revenue.currency)} />
+      <Stat
+        label="Revenue (settled)"
+        value={formatMoney(data.revenue.total, data.revenue.currency)}
+      />
     </div>
   );
 }
@@ -59,7 +58,8 @@ function VerificationsSection() {
   });
 
   if (isLoading) return <Spinner label="Loading verification queue…" />;
-  if (isError) return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
+  if (isError)
+    return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
   const items = data?.items ?? [];
   if (items.length === 0)
     return <EmptyState title="No pending verifications" hint="The queue is clear." />;
@@ -116,7 +116,8 @@ function UsersSection() {
   });
 
   if (isLoading) return <Spinner label="Loading users…" />;
-  if (isError) return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
+  if (isError)
+    return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
   const users = data?.items ?? [];
 
   return (
@@ -162,7 +163,7 @@ function UsersSection() {
                 >
                   <Badge
                     label={u.isVerified ? 'Verified' : 'Unverified'}
-                    tone={u.isVerified ? 'verified' : 'default'}
+                    tone={u.isVerified ? 'success' : 'neutral'}
                   />
                 </button>
               </td>
