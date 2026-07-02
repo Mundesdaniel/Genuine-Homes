@@ -11,16 +11,16 @@ transparent **installment ownership** engine.
 
 ## Tech stack
 
-| Layer            | Choice                                                                 |
-| ---------------- | ---------------------------------------------------------------------- |
-| Web frontend     | React + TypeScript + Vite + Tailwind + TanStack Query + Zustand        |
-| Mobile (later)   | React Native (Expo) — Android first                                    |
-| Backend          | NestJS (TypeScript) + Prisma — **modular monolith**                    |
-| Database         | PostgreSQL (+ PostGIS) + Redis                                          |
-| Payments         | Flutterwave (MTN MoMo, Airtel Money, cards)                            |
-| Media            | Cloudinary                                                             |
-| Notifications    | Firebase Cloud Messaging + Africa's Talking SMS                        |
-| Core patterns    | Layered architecture · Repository · Strategy (payments) · State machine (plans) · Event-driven notifications · RBAC |
+| Layer          | Choice                                                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Web frontend   | React + TypeScript + Vite + Tailwind + TanStack Query + Zustand                                                     |
+| Mobile (later) | React Native (Expo) — Android first                                                                                 |
+| Backend        | NestJS (TypeScript) + Prisma — **modular monolith**                                                                 |
+| Database       | PostgreSQL (+ PostGIS) + Redis                                                                                      |
+| Payments       | Flutterwave (MTN MoMo, Airtel Money, cards)                                                                         |
+| Media          | Cloudinary                                                                                                          |
+| Notifications  | Firebase Cloud Messaging + Africa's Talking SMS                                                                     |
+| Core patterns  | Layered architecture · Repository · Strategy (payments) · State machine (plans) · Event-driven notifications · RBAC |
 
 ## Repository layout (pnpm monorepo)
 
@@ -50,10 +50,16 @@ cp apps/api/.env.example apps/api/.env   # then edit secrets
 # 4. Run database migrations + generate the Prisma client
 pnpm db:migrate
 
-# 5. Start the backend (and, later, the web app)
-pnpm dev:api
-pnpm dev:web
+# 5. Build the shared package, seed demo data, then run both apps
+pnpm build:shared
+pnpm db:seed
+pnpm dev:api    # API → http://localhost:3100/api
+pnpm dev:web    # Web → http://localhost:5173
 ```
+
+> **Running the web app?** See **[`apps/web/README.md`](./apps/web/README.md)**
+> for a full step-by-step guide, demo logins (`roro@gmail.com` / `Password123!`),
+> and troubleshooting.
 
 ## Build roadmap
 

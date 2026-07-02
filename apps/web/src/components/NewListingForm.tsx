@@ -9,6 +9,11 @@ import {
   type PropertySummary,
 } from '@genuine-homes/shared';
 import { propertiesApi } from '@/api/properties';
+import {
+  ImageUploader,
+  hasPendingUploads,
+  type GalleryImage,
+} from '@/components/ImageUploader';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { titleCase } from '@/lib/format';
 
@@ -27,11 +32,15 @@ export function NewListingForm({
   const [rentPeriod, setRentPeriod] = useState('monthly');
   const [minDepositPercent, setMinDepositPercent] = useState('20');
   const [maxInstallmentMonths, setMaxInstallmentMonths] = useState('24');
+  const [images, setImages] = useState<GalleryImage[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!propertyId) throw new Error('Choose a property first');
+      if (hasPendingUploads(images)) {
+        throw new Error('Wait for photos to finish uploading');
+      }
       const input: Record<string, unknown> = {
         listingType,
         price: numOrUndef(price),
@@ -46,10 +55,18 @@ export function NewListingForm({
       if (!parsed.success) {
         throw new Error(parsed.error.issues[0]?.message ?? 'Invalid input');
       }
-      return propertiesApi.addListing(propertyId, parsed.data);
+      const listing = await propertiesApi.addListing(propertyId, parsed.data);
+      // Any photos added here are appended to the selected property's gallery.
+      for (const img of images) {
+        if (img.status === 'ready' && img.url) {
+          await propertiesApi.addImage(propertyId, img.url);
+        }
+      }
+      return listing;
     },
     onSuccess: () => {
       setPrice('');
+      setImages([]);
       toast.success('Listing added');
       onCreated();
     },
@@ -82,17 +99,29 @@ export function NewListingForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label">Property</label>
-          <select className="input" value={propertyId} onChange={(e) => setPropertyId(e.target.value)}>
+          <select
+            className="input"
+            value={propertyId}
+            onChange={(e) => setPropertyId(e.target.value)}
+          >
             {properties.map((p) => (
-              <option key={p.id} value={p.id}>{p.title}</option>
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
             ))}
           </select>
         </div>
         <div>
           <label className="label">Listing type</label>
-          <select className="input" value={listingType} onChange={(e) => setListingType(e.target.value)}>
+          <select
+            className="input"
+            value={listingType}
+            onChange={(e) => setListingType(e.target.value)}
+          >
             {enumValues(ListingType).map((t) => (
-              <option key={t} value={t}>{titleCase(t)}</option>
+              <option key={t} value={t}>
+                {titleCase(t)}
+              </option>
             ))}
           </select>
         </div>
@@ -101,14 +130,26 @@ export function NewListingForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label">Price (UGX)</label>
-          <input className="input" type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} />
+          <input
+            className="input"
+            type="number"
+            min={1}
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+          />
         </div>
         {listingType === 'rent' && (
           <div>
             <label className="label">Rent period</label>
-            <select className="input" value={rentPeriod} onChange={(e) => setRentPeriod(e.target.value)}>
+            <select
+              className="input"
+              value={rentPeriod}
+              onChange={(e) => setRentPeriod(e.target.value)}
+            >
               {enumValues(RentPeriod).map((t) => (
-                <option key={t} value={t}>{titleCase(t)}</option>
+                <option key={t} value={t}>
+                  {titleCase(t)}
+                </option>
               ))}
             </select>
           </div>
@@ -119,18 +160,39 @@ export function NewListingForm({
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">Min deposit (%)</label>
-            <input className="input" type="number" value={minDepositPercent} onChange={(e) => setMinDepositPercent(e.target.value)} />
+            <input
+              className="input"
+              type="number"
+              value={minDepositPercent}
+              onChange={(e) => setMinDepositPercent(e.target.value)}
+            />
           </div>
           <div>
             <label className="label">Max months</label>
-            <input className="input" type="number" value={maxInstallmentMonths} onChange={(e) => setMaxInstallmentMonths(e.target.value)} />
+            <input
+              className="input"
+              type="number"
+              value={maxInstallmentMonths}
+              onChange={(e) => setMaxInstallmentMonths(e.target.value)}
+            />
           </div>
         </div>
       )}
 
+      <div className="border-t border-stone-100 pt-4">
+        <ImageUploader images={images} setImages={setImages} disabled={mutation.isPending} />
+        <p className="mt-1 text-xs text-stone-400">
+          Photos are added to the selected property’s gallery.
+        </p>
+      </div>
+
       {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
-      <button className="btn-primary" type="submit" disabled={mutation.isPending}>
+      <button
+        className="btn-primary"
+        type="submit"
+        disabled={mutation.isPending || hasPendingUploads(images)}
+      >
         {mutation.isPending ? 'Adding…' : 'Add listing'}
       </button>
     </form>

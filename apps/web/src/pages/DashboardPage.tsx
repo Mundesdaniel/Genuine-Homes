@@ -5,7 +5,7 @@ import { paymentsApi } from '@/api/payments';
 import { propertiesApi } from '@/api/properties';
 import { PaymentsTrendChart, PropertiesStatusChart } from '@/components/charts';
 import { NewListingForm } from '@/components/NewListingForm';
-import { NewPropertyForm } from '@/components/NewPropertyForm';
+import { PropertyForm } from '@/components/PropertyForm';
 import { PlanCard } from '@/components/PlanCard';
 import { Badge, EmptyState, ErrorState, Spinner } from '@/components/ui';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -24,11 +24,51 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Loads the full property (with its gallery) before mounting the edit form.
+function EditPropertyPanel({
+  id,
+  onSaved,
+  onCancel,
+}: {
+  id: string;
+  onSaved: () => void;
+  onCancel: () => void;
+}) {
+  const query = useQuery({
+    queryKey: ['property', id],
+    queryFn: () => propertiesApi.get(id),
+  });
+  if (query.isLoading) {
+    return (
+      <div className="card p-5">
+        <Spinner label="Loading property…" />
+      </div>
+    );
+  }
+  if (query.isError || !query.data) {
+    return (
+      <ErrorState
+        message={apiErrorMessage(query.error) || 'Could not load property'}
+        onRetry={() => query.refetch()}
+      />
+    );
+  }
+  return (
+    <PropertyForm
+      key={id}
+      initialProperty={query.data}
+      onSaved={onSaved}
+      onCancel={onCancel}
+    />
+  );
+}
+
 export function DashboardPage() {
   useCurrentUser();
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [panel, setPanel] = useState<'none' | 'property' | 'listing'>('none');
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const seller = Boolean(user?.role && SELLER_ROLES.includes(user.role));
 
@@ -68,6 +108,14 @@ export function DashboardPage() {
     setPanel('none');
   };
 
+  const onEditSaved = () => {
+    queryClient.invalidateQueries({ queryKey: ['mine'] });
+    if (editingId) {
+      queryClient.invalidateQueries({ queryKey: ['property', editingId] });
+    }
+    setEditingId(null);
+  };
+
   return (
     <div className="animate-fade-in space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -76,7 +124,9 @@ export function DashboardPage() {
             Hi, {user?.fullName?.split(' ')[0] ?? 'there'} 👋
           </h1>
           <p className="text-sm text-stone-500">
-            {seller ? 'Manage your properties and track payments.' : 'Track your home-ownership journey.'}
+            {seller
+              ? 'Manage your properties and track payments.'
+              : 'Track your home-ownership journey.'}
           </p>
         </div>
         {seller && (
@@ -84,14 +134,20 @@ export function DashboardPage() {
             <button
               className={panel === 'property' ? 'btn-primary' : 'btn-outline'}
               type="button"
-              onClick={() => setPanel(panel === 'property' ? 'none' : 'property')}
+              onClick={() => {
+                setEditingId(null);
+                setPanel(panel === 'property' ? 'none' : 'property');
+              }}
             >
               + Property
             </button>
             <button
               className={panel === 'listing' ? 'btn-primary' : 'btn-outline'}
               type="button"
-              onClick={() => setPanel(panel === 'listing' ? 'none' : 'listing')}
+              onClick={() => {
+                setEditingId(null);
+                setPanel(panel === 'listing' ? 'none' : 'listing');
+              }}
             >
               + Listing
             </button>
@@ -99,8 +155,20 @@ export function DashboardPage() {
         )}
       </div>
 
-      {panel === 'property' && <NewPropertyForm onCreated={refresh} />}
-      {panel === 'listing' && <NewListingForm properties={properties} onCreated={refresh} />}
+      {editingId ? (
+        <EditPropertyPanel
+          id={editingId}
+          onSaved={onEditSaved}
+          onCancel={() => setEditingId(null)}
+        />
+      ) : (
+        <>
+          {panel === 'property' && <PropertyForm onSaved={refresh} />}
+          {panel === 'listing' && (
+            <NewListingForm properties={properties} onCreated={refresh} />
+          )}
+        </>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -167,30 +235,52 @@ export function DashboardPage() {
                 <div key={p.id} className="card card-hover overflow-hidden">
                   <div className="aspect-[4/3] bg-stone-100">
                     {p.coverImageUrl ? (
-                      <img src={p.coverImageUrl} alt={p.title} className="h-full w-full object-cover" />
+                      <img
+                        src={p.coverImageUrl}
+                        alt={p.title}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <div className="grid h-full place-items-center text-sm text-stone-400">No photo</div>
+                      <div className="grid h-full place-items-center text-sm text-stone-400">
+                        No photo
+                      </div>
                     )}
                   </div>
                   <div className="space-y-2 p-4">
                     <div className="flex flex-wrap gap-2">
                       <Badge label={titleCase(p.status)} />
-                      {p.verificationStatus === 'verified' && <Badge label="Verified" tone="verified" />}
+                      {p.verificationStatus === 'verified' && (
+                        <Badge label="Verified" tone="verified" />
+                      )}
                     </div>
                     <h3 className="line-clamp-1 font-semibold text-stone-800">{p.title}</h3>
                     <p className="text-sm text-stone-500">
                       {[p.area, p.district].filter(Boolean).join(', ')}
                     </p>
-                    <button
-                      className="btn-outline w-full"
-                      type="button"
-                      disabled={removeMutation.isPending}
-                      onClick={() => {
-                        if (window.confirm(`Delete "${p.title}"?`)) removeMutation.mutate(p.id);
-                      }}
-                    >
-                      Delete
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        className="btn-outline w-full"
+                        type="button"
+                        onClick={() => {
+                          setPanel('none');
+                          setEditingId(p.id);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn-outline w-full"
+                        type="button"
+                        disabled={removeMutation.isPending}
+                        onClick={() => {
+                          if (window.confirm(`Delete "${p.title}"?`))
+                            removeMutation.mutate(p.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
