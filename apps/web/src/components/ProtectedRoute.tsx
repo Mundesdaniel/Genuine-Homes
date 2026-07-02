@@ -20,7 +20,10 @@ export function ProtectedRoute({
   const location = useLocation();
 
   if (!token) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Keep the query string so intents like /messages?to=…&listingId=… survive login.
+    return (
+      <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
+    );
   }
 
   if (requireRole) {

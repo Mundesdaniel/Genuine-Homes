@@ -26,7 +26,8 @@ export function FavoriteButton({
     e.preventDefault();
     e.stopPropagation();
     if (!token) {
-      navigate('/login', { state: { from: location } });
+      // Same contract as ProtectedRoute: `from` is a path string.
+      navigate('/login', { state: { from: location.pathname + location.search } });
       return;
     }
     toggle.mutate({ propertyId, saved });

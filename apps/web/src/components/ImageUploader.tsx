@@ -46,16 +46,30 @@ export function ImageUploader({
   const atCap = images.length >= IMAGE_UPLOAD.MAX_PER_PROPERTY;
   const remaining = IMAGE_UPLOAD.MAX_PER_PROPERTY - images.length;
 
-  const remove = (key: string) => {
-    const found = images.find((i) => i.key === key);
-    if (found?.previewUrl) URL.revokeObjectURL(found.previewUrl);
-    // In edit mode, delete the persisted image from the property too.
-    if (propertyId && found?.imageId) {
-      propertiesApi.removeImage(propertyId, found.imageId).catch((e) => {
-        toast.error(`Couldn't remove photo: ${apiErrorMessage(e)}`);
-      });
-    }
+  const remove = async (key: string) => {
+    const index = images.findIndex((i) => i.key === key);
+    const found = index >= 0 ? images[index] : undefined;
+    if (!found) return;
+
+    // Optimistic remove…
     setImages((prev) => prev.filter((i) => i.key !== key));
+
+    // …but in edit mode the gallery is live: if the delete fails, put the
+    // thumbnail back where it was so the UI never lies about what's persisted.
+    if (propertyId && found.imageId) {
+      try {
+        await propertiesApi.removeImage(propertyId, found.imageId);
+      } catch (e) {
+        toast.error(`Couldn't remove photo: ${apiErrorMessage(e)}`);
+        setImages((prev) => {
+          const next = [...prev];
+          next.splice(Math.min(index, next.length), 0, found);
+          return next;
+        });
+        return;
+      }
+    }
+    if (found.previewUrl) URL.revokeObjectURL(found.previewUrl);
   };
 
   const handleFiles = (fileList: FileList | null) => {
@@ -165,10 +179,10 @@ export function ImageUploader({
               )}
               <button
                 type="button"
-                onClick={() => remove(img.key)}
+                onClick={() => void remove(img.key)}
                 disabled={disabled}
                 aria-label="Remove photo"
-                className="absolute right-1 top-1 rounded-full bg-black/55 px-1.5 text-sm leading-5 text-white opacity-0 transition group-hover:opacity-100 focus:opacity-100"
+                className="absolute right-1 top-1 rounded-full bg-black/55 px-1.5 text-sm leading-5 text-white transition focus:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
               >
                 ×
               </button>

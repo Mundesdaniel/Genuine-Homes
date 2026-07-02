@@ -26,7 +26,16 @@ export function NewListingForm({
   properties: PropertySummary[];
   onCreated: () => void;
 }) {
-  const [propertyId, setPropertyId] = useState(properties[0]?.id ?? '');
+  // `properties` can arrive after mount (the dashboard renders this form while
+  // the list is still loading), so the selection is *derived*: an explicit user
+  // choice wins while it exists in the list, otherwise the first property.
+  // Storing the initial id in useState would freeze '' and make submit reject a
+  // selection the user can see in the select.
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const propertyId =
+    chosenId && properties.some((p) => p.id === chosenId)
+      ? chosenId
+      : (properties[0]?.id ?? '');
   const [listingType, setListingType] = useState('rent');
   const [price, setPrice] = useState('');
   const [rentPeriod, setRentPeriod] = useState('monthly');
@@ -102,7 +111,7 @@ export function NewListingForm({
           <select
             className="input"
             value={propertyId}
-            onChange={(e) => setPropertyId(e.target.value)}
+            onChange={(e) => setChosenId(e.target.value)}
           >
             {properties.map((p) => (
               <option key={p.id} value={p.id}>
