@@ -1,0 +1,16 @@
+**/node_modules
+**/dist
+**/coverage
+.git
+.github
+.husky
+docs
+scripts
+uploads
+**/*.docx
+_doc1_documentation.txt
+_doc2_architecture.txt
+**/.env
+**/.env.*
+!**/.env.example
+apps/web/dev-dist

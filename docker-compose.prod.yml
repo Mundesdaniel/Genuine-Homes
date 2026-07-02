@@ -1,0 +1,73 @@
+# Production-shaped stack: Postgres+PostGIS, Redis, API (migrate-on-start),
+# web (nginx serving the SPA + reverse proxy).
+#
+#   1. cp .env.production.example .env.production   # fill in real secrets
+#   2. docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Only the web container is exposed; API/DB/Redis stay on the internal network.
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-genuine}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-genuine_homes}
+    volumes:
+      - gh_prod_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-genuine} -d ${POSTGRES_DB:-genuine_homes}',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - gh_prod_redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-genuine}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-genuine_homes}?schema=public
+      REDIS_URL: redis://redis:6379
+    volumes:
+      # Locally stored uploads survive restarts (unused with Cloudinary).
+      - gh_prod_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-80}:80'
+    depends_on:
+      - api
+
+volumes:
+  gh_prod_pgdata:
+  gh_prod_redisdata:
+  gh_prod_uploads:

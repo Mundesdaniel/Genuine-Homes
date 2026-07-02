@@ -14,6 +14,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Prisma
 apps/api/prisma/*.db
