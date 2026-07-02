@@ -8,6 +8,9 @@ import './index.css';
 import './lib/i18n';
 import App from './App';
 import { queryClient } from './lib/queryClient';
+import { initSentry } from './lib/sentry';
+
+initSentry();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

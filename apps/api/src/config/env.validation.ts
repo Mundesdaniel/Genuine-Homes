@@ -5,14 +5,10 @@ import { z } from 'zod';
  * with a clear error instead of misbehaving at runtime with a missing secret.
  */
 export const envSchema = z.object({
-  NODE_ENV: z
-    .enum(['development', 'test', 'production'])
-    .default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   // pino level; defaults to debug in dev, info in production.
-  LOG_LEVEL: z
-    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
-    .optional(),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).optional(),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   // Absolute origin the API is reachable at, used to build URLs for locally
   // stored uploads (e.g. http://localhost:3100). Defaults to localhost:PORT.
@@ -33,6 +29,9 @@ export const envSchema = z.object({
   // key is present, else `mock`. Production refuses the mock unless it was
   // chosen explicitly (a conscious, visible decision in the environment).
   PAYMENT_GATEWAY: z.enum(['mock', 'flutterwave']).optional(),
+
+  // Error monitoring. Unset → Sentry disabled (captureException is a no-op).
+  SENTRY_DSN: z.string().url().optional(),
 
   // Optional integrations — required only once their stage ships.
   FLUTTERWAVE_SECRET_KEY: z.string().optional(),

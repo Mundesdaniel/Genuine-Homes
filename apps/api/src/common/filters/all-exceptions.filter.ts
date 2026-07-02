@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import * as Sentry from '@sentry/node';
 import type { Request, Response } from 'express';
 import { requestContext } from '../request-context';
 
@@ -44,21 +45,35 @@ export class AllExceptionsFilter implements ExceptionFilter {
           `${req.method} ${req.url} → ${status}: ${exception.message}`,
           exception.stack,
         );
+        this.captureToSentry(exception, req, requestId);
       }
       res.status(status).json({ ...payload, requestId });
       return;
     }
 
-    // Unknown error: full details to the log, nothing to the client.
+    // Unknown error: full details to the log (and Sentry), nothing to the client.
     const message = exception instanceof Error ? exception.message : String(exception);
     this.logger.error(
       `Unhandled exception on ${req.method} ${req.url}: ${message}`,
       exception instanceof Error ? exception.stack : undefined,
     );
+    this.captureToSentry(exception, req, requestId);
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       message: 'Internal server error',
       requestId,
+    });
+  }
+
+  // No-op unless SENTRY_DSN was configured at boot.
+  private captureToSentry(
+    exception: unknown,
+    req: Request,
+    requestId: string | undefined,
+  ): void {
+    Sentry.captureException(exception, {
+      tags: { requestId: requestId ?? 'none' },
+      extra: { method: req.method, url: req.url },
     });
   }
 }

@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as Sentry from '@sentry/node';
 import helmet from 'helmet';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
@@ -12,6 +13,15 @@ import type { Env } from './config/env.validation';
 import { UPLOADS_DIR, UPLOADS_ROUTE } from './uploads/uploads.constants';
 
 async function bootstrap(): Promise<void> {
+  // Sentry first, so even bootstrap failures are captured. No DSN → disabled
+  // (init skipped; captureException calls elsewhere become no-ops).
+  if (process.env.SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV ?? 'development',
+    });
+  }
+
   // bufferLogs: hold early logs until pino takes over as the app logger.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
@@ -73,10 +83,7 @@ async function bootstrap(): Promise<void> {
 
   const port = config.get('PORT', { infer: true });
   await app.listen(port);
-  Logger.log(
-    `Genuine Homes API listening on http://localhost:${port}/api`,
-    'Bootstrap',
-  );
+  Logger.log(`Genuine Homes API listening on http://localhost:${port}/api`, 'Bootstrap');
 }
 
 void bootstrap();

@@ -1,16 +1,9 @@
-import {
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import * as Sentry from '@sentry/node';
 import { Queue, Worker, type ConnectionOptions } from 'bullmq';
 import type { Env } from '../config/env.validation';
-import {
-  NotificationDispatcher,
-  type QueuedNotification,
-} from './notification-dispatcher';
+import { NotificationDispatcher, type QueuedNotification } from './notification-dispatcher';
 
 const QUEUE_NAME = 'notifications';
 
@@ -93,6 +86,13 @@ export class NotificationQueue implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         `Notification job ${job?.id ?? '?'} attempt ${job?.attemptsMade ?? '?'} failed: ${err.message}`,
       );
+      // Only alert once retries are exhausted — transient flaps self-heal.
+      if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {
+        Sentry.captureException(err, {
+          tags: { queue: QUEUE_NAME },
+          extra: { jobId: job.id, userId: job.data.userId, type: job.data.type },
+        });
+      }
     });
     this.logger.log('Notification queue: BullMQ (redis)');
   }
@@ -116,19 +116,14 @@ export class NotificationQueue implements OnModuleInit, OnModuleDestroy {
       // channel send — preferable to a lost payment reminder.)
       await this.withTimeout(this.queue.add('deliver', payload), 3_000);
     } catch (err) {
-      this.logger.warn(
-        `Enqueue failed (${String(err)}) — delivering inline as fallback`,
-      );
+      this.logger.warn(`Enqueue failed (${String(err)}) — delivering inline as fallback`);
       await this.dispatcher.deliver(payload);
     }
   }
 
   private withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`timed out after ${ms}ms`)),
-        ms,
-      );
+      const timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms);
       timer.unref?.();
       promise.then(resolve, reject).finally(() => clearTimeout(timer));
     });
