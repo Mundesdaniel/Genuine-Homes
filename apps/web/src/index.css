@@ -7,47 +7,64 @@
     @apply text-ink antialiased;
   }
   body {
-    @apply bg-stone-50 font-sans;
+    @apply bg-canvas font-sans;
+  }
+  /* Headings carry the display face; body text stays on Inter. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display tracking-tight;
+  }
+  /* One visible, consistent keyboard-focus treatment everywhere. Inputs keep
+     their own focus ring (see .input below). */
+  a:focus-visible,
+  button:focus-visible,
+  [role='button']:focus-visible {
+    @apply outline-none ring-2 ring-brand-500/70 ring-offset-2 ring-offset-canvas;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-brand text-white hover:bg-brand-dark;
+    @apply btn bg-brand text-white shadow-sm hover:bg-brand-dark hover:shadow;
   }
   .btn-outline {
     @apply btn border border-stone-300 bg-white text-stone-700 hover:border-brand hover:text-brand;
   }
   .btn-ghost {
-    @apply btn text-brand hover:bg-brand/10;
+    @apply btn text-brand hover:bg-brand-50;
   }
   .input {
-    @apply w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20;
+    @apply w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/20;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-stone-700;
   }
   .card {
-    @apply rounded-xl border border-stone-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-stone-200/70 bg-white shadow-card;
   }
   /* Clickable cards lift on hover for a livelier feel. */
   .card-hover {
-    @apply transition duration-200 hover:-translate-y-1 hover:shadow-lg;
+    @apply transition duration-200 hover:-translate-y-1 hover:shadow-card-hover;
   }
   .chip {
     @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
   }
-  /* Loading placeholder block. */
+  /* Loading placeholder block with a light shimmer sweep. */
   .skeleton {
-    @apply animate-pulse rounded-md bg-stone-200;
+    @apply relative overflow-hidden rounded-md bg-stone-200/80;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent;
   }
 }
 
 /* Keep the Leaflet map above nothing weird and rounded within its card. */
 .leaflet-container {
-  @apply rounded-xl;
+  @apply rounded-2xl;
   font: inherit;
 }

@@ -148,7 +148,7 @@ export function ChatPage() {
                         >
                           <p className="whitespace-pre-wrap break-words">{m.body}</p>
                           <p
-                            className={`mt-1 text-right text-[10px] ${mine ? 'text-emerald-50/80' : 'text-stone-400'}`}
+                            className={`mt-1 text-right text-[10px] ${mine ? 'text-amber-100/80' : 'text-stone-400'}`}
                           >
                             {time(m.createdAt)}
                           </p>
