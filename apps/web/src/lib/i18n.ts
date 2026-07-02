@@ -34,9 +34,19 @@ const en = {
     account: 'Account',
   },
   hero: {
+    eyebrow: 'Rent · Buy · Installments',
     title: 'Find your next home in Uganda',
     subtitle:
       'Rent, buy outright, or buy in installments — from verified listings, paid with Mobile Money.',
+    searchPlaceholder: 'Search by district, e.g. Kampala',
+    anyType: 'Any type',
+    search: 'Search',
+  },
+  footer: {
+    tagline: 'Rent, buy, or buy in installments — verified homes across East Africa.',
+    explore: 'Explore',
+    account: 'Account',
+    languages: 'Language',
   },
 };
 
@@ -55,9 +65,19 @@ const sw: typeof en = {
     account: 'Akaunti',
   },
   hero: {
+    eyebrow: 'Kodisha · Nunua · Kwa Awamu',
     title: 'Pata nyumba yako ijayo nchini Uganda',
     subtitle:
       'Kodisha, nunua moja kwa moja, au nunua kwa awamu — kutoka matangazo yaliyothibitishwa, kulipa kwa Pesa za Simu.',
+    searchPlaceholder: 'Tafuta kwa wilaya, mf. Kampala',
+    anyType: 'Aina yoyote',
+    search: 'Tafuta',
+  },
+  footer: {
+    tagline: 'Kodisha, nunua, au nunua kwa awamu — nyumba zilizothibitishwa Afrika Mashariki.',
+    explore: 'Vinjari',
+    account: 'Akaunti',
+    languages: 'Lugha',
   },
 };
 

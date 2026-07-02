@@ -1,5 +1,6 @@
 // Small presentational helpers used across pages.
 import { useEffect, useRef, useState } from 'react';
+import { SearchX } from 'lucide-react';
 
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
   return (
@@ -41,11 +42,28 @@ export function CardSkeletonGrid({ count = 6 }: { count?: number }) {
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({
+  title,
+  hint,
+  action,
+}: {
+  title: string;
+  hint?: string;
+  /** Optional way out — e.g. "Clear filters" — so an empty view is never a dead end. */
+  action?: { label: string; onClick: () => void };
+}) {
   return (
-    <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center">
-      <p className="font-medium text-stone-700">{title}</p>
+    <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-brand-50 text-brand">
+        <SearchX className="h-6 w-6" strokeWidth={1.75} />
+      </div>
+      <p className="mt-3 font-medium text-stone-700">{title}</p>
       {hint && <p className="mt-1 text-sm text-stone-500">{hint}</p>}
+      {action && (
+        <button className="btn-outline mt-4" type="button" onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }
