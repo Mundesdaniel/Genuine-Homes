@@ -8,14 +8,16 @@ Senior-dev review of what's missing, grouped by category. Severity: 🔴 critica
 
 ---
 
-## A. Features not built  — ✅ DONE (Stage 7 commits)
+## A. Features not built — ✅ DONE (Stage 7 commits)
 
 Roadmap-deferred (expected — README says Stage 7+):
+
 - [x] 🟠 **Verification module** — anti-fraud "verified badge". _Done: submit/review workflow + admin approval + owner notification (`6ca27e0`)._
 - [x] 🟠 **Chat / messaging** — _Done: Socket.IO gateway (JWT handshake auth) + REST send + `/messages` UI; "Contact seller" wired (`7b0ae2f`)._
 - [ ] 🟡 **Mobile app (React Native)** — not started; fine for now. **(still outstanding)**
 
 Gaps inside "completed" scope:
+
 - [x] 🔴 **Notifications module** — _Done: event listeners (payment success/fail, due-soon, overdue) write in-app notifications + pluggable senders (log now, Africa's Talking SMS when configured); nightly reminder sweep (`c9227d2`)._ FCM push is still a stub sender.
 - [x] 🟠 **Rentals module** — _Done: agreement from rent listing, pay-rent via ledger, auto-activate on settle (`68b6058`)._
 - [x] 🟠 **Admin panel + users module** — _Done: `/admin/overview` analytics + role-gated web page (queue, users); users profile + admin role/verify (`b1b2345`, `c30d632`)._
@@ -39,11 +41,11 @@ _(These matter most because they're in "done" code.)_
 
 ---
 
-## C. Production / DevOps  (essentially absent — ~35% ready)
+## C. Production / DevOps (essentially absent — ~35% ready)
 
 - [ ] 🔴 **No CI/CD.** No `.github/workflows`. Add a pipeline that runs build + test + lint (and `prisma migrate deploy`) on push/PR.
 - [ ] 🔴 **No Dockerfiles.** `docker-compose.yml` is dev-only (Postgres+Redis). Add API + web Dockerfiles, a prod compose / Cloud Run / K8s manifest, and IaC.
-- [ ] 🟠 **No ESLint / Prettier / pre-commit hooks.** `lint` is just `tsc --noEmit`. Add ESLint + Prettier + husky/lint-staged.
+- [x] 🟠 **No ESLint / Prettier / pre-commit hooks.** — _Done:_ workspace-wide flat-config ESLint (`eslint.config.mjs`: JS + typescript-eslint recommended, react-hooks for web, prettier-compat) with all findings fixed; Prettier (`.prettierrc.json`); husky pre-commit running lint-staged (eslint --fix + prettier on staged files). Root `pnpm lint` = per-package `tsc --noEmit` **+** `eslint .`.
 - [ ] 🟠 **No observability** — no Sentry, no structured logging (pino/winston), no metrics/uptime. Spec calls Sentry "non-negotiable for catching payment failures."
 - [ ] 🟠 **No backup/restore strategy** documented, and no migrate-on-deploy step.
 
@@ -72,12 +74,11 @@ _(These matter most because they're in "done" code.)_
 ## Suggested order to tackle B–E
 
 **Before payments can be called "done":**
+
 1. Prove one real Flutterwave **sandbox** round-trip (B).
 2. Define + implement the **`defaulted`** policy (B).
 3. Remove `.env` from git history; move uploads to **private + signed URLs** (E).
 
-**Before any deploy:**
-4. CI pipeline (build/test/lint) + Dockerfiles + Sentry + structured logging (C).
-5. ESLint/Prettier + a smoke-level **e2e test on the payment path** (C, D).
+**Before any deploy:** 4. CI pipeline (build/test/lint) + Dockerfiles + Sentry + structured logging (C). 5. ESLint/Prettier + a smoke-level **e2e test on the payment path** (C, D).
 
 **Then:** audit log + Redis/BullMQ queue (B), frontend tests + image lazy-loading (D), httpOnly cookie + saved-search/viewing features (A/E).

@@ -20,7 +20,11 @@
     "dev:web": "pnpm --filter @genuine-homes/web dev",
     "build": "pnpm -r build",
     "build:shared": "pnpm --filter @genuine-homes/shared build",
-    "lint": "pnpm -r lint",
+    "lint": "pnpm -r lint && eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky",
     "test": "pnpm -r test",
     "db:up": "docker compose up -d postgres redis",
     "db:down": "docker compose down",
@@ -29,7 +33,24 @@
     "db:seed": "pnpm --filter @genuine-homes/api prisma:seed",
     "slides": "node scripts/generate-presentations.mjs"
   },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
   "devDependencies": {
-    "pptxgenjs": "^4.0.1"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "pptxgenjs": "^4.0.1",
+    "prettier": "^3.9.4",
+    "typescript-eslint": "^8.62.1"
   }
 }

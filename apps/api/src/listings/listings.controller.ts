@@ -7,21 +7,15 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type {
-  ListingResponse,
-  ListingSearchItem,
-  Paginated,
-} from '@genuine-homes/shared';
+import type { ListingResponse, ListingSearchItem, Paginated } from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { SELLER_ROLES } from '../common/roles';
-import { CreateListingDto } from './dto/create-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingsService } from './listings.service';
@@ -34,9 +28,7 @@ export class ListingsController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'Search active listings (facets + "near me")' })
-  search(
-    @Query() query: SearchListingsDto,
-  ): Promise<Paginated<ListingSearchItem>> {
+  search(@Query() query: SearchListingsDto): Promise<Paginated<ListingSearchItem>> {
     return this.listings.search(query);
   }
 

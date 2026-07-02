@@ -9,7 +9,6 @@
 import { z } from 'zod';
 import { INSTALLMENT } from '../constants';
 import {
-  InstallmentPaymentStatus,
   InstallmentPlanStatus,
   PaymentProvider,
   enumValues,
@@ -36,23 +35,21 @@ export const payViaSchema = z.object({
 export type PayViaInput = z.infer<typeof payViaSchema>;
 
 /** Allowed plan state transitions (also enforced server-side). */
-export const PLAN_TRANSITIONS: Record<
-  InstallmentPlanStatusType,
-  InstallmentPlanStatusType[]
-> = {
-  [InstallmentPlanStatus.PENDING_DEPOSIT]: [
-    InstallmentPlanStatus.ACTIVE,
-    InstallmentPlanStatus.CANCELLED,
-  ],
-  [InstallmentPlanStatus.ACTIVE]: [
-    InstallmentPlanStatus.COMPLETED,
-    InstallmentPlanStatus.DEFAULTED,
-    InstallmentPlanStatus.CANCELLED,
-  ],
-  [InstallmentPlanStatus.COMPLETED]: [],
-  [InstallmentPlanStatus.DEFAULTED]: [],
-  [InstallmentPlanStatus.CANCELLED]: [],
-};
+export const PLAN_TRANSITIONS: Record<InstallmentPlanStatusType, InstallmentPlanStatusType[]> =
+  {
+    [InstallmentPlanStatus.PENDING_DEPOSIT]: [
+      InstallmentPlanStatus.ACTIVE,
+      InstallmentPlanStatus.CANCELLED,
+    ],
+    [InstallmentPlanStatus.ACTIVE]: [
+      InstallmentPlanStatus.COMPLETED,
+      InstallmentPlanStatus.DEFAULTED,
+      InstallmentPlanStatus.CANCELLED,
+    ],
+    [InstallmentPlanStatus.COMPLETED]: [],
+    [InstallmentPlanStatus.DEFAULTED]: [],
+    [InstallmentPlanStatus.CANCELLED]: [],
+  };
 
 export interface InstallmentPaymentItem {
   id: string;

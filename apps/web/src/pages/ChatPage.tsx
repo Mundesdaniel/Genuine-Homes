@@ -21,7 +21,9 @@ export function ChatPage() {
   const [selected, setSelected] = useState<string | null>(params.get('to'));
   const [body, setBody] = useState('');
   const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
 
   const conversations = useQuery({
     queryKey: ['chat', 'conversations'],
@@ -112,7 +114,10 @@ export function ChatPage() {
         <section className="card flex h-[70vh] flex-col">
           {!selected ? (
             <div className="grid flex-1 place-items-center">
-              <EmptyState title="Select a conversation" hint="Pick someone on the left to chat." />
+              <EmptyState
+                title="Select a conversation"
+                hint="Pick someone on the left to chat."
+              />
             </div>
           ) : (
             <>
@@ -132,14 +137,19 @@ export function ChatPage() {
                   messages.map((m) => {
                     const mine = m.senderId === meId;
                     return (
-                      <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        key={m.id}
+                        className={`flex ${mine ? 'justify-end' : 'justify-start'}`}
+                      >
                         <div
                           className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
                             mine ? 'bg-brand text-white' : 'bg-stone-100 text-stone-800'
                           }`}
                         >
                           <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                          <p className={`mt-1 text-right text-[10px] ${mine ? 'text-emerald-50/80' : 'text-stone-400'}`}>
+                          <p
+                            className={`mt-1 text-right text-[10px] ${mine ? 'text-emerald-50/80' : 'text-stone-400'}`}
+                          >
                             {time(m.createdAt)}
                           </p>
                         </div>
@@ -162,7 +172,11 @@ export function ChatPage() {
                   onChange={(e) => setBody(e.target.value)}
                   maxLength={2000}
                 />
-                <button className="btn-primary" type="submit" disabled={send.isPending || !body.trim()}>
+                <button
+                  className="btn-primary"
+                  type="submit"
+                  disabled={send.isPending || !body.trim()}
+                >
                   Send
                 </button>
               </form>

@@ -19,10 +19,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapPlan, mapPlanDetail } from '../common/mappers';
-import {
-  PAYMENT_SUCCEEDED,
-  type PaymentSucceededEvent,
-} from '../payments/payment-events';
+import { PAYMENT_SUCCEEDED, type PaymentSucceededEvent } from '../payments/payment-events';
 import { PaymentsService } from '../payments/payments.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import {
@@ -35,7 +32,6 @@ import {
 } from './installment-events';
 import { PayViaDto } from './dto/pay-via.dto';
 import {
-  type DefaultEligiblePlan,
   InstallmentsRepository,
   type ScheduledPaymentWithPlan,
 } from './installments.repository';
@@ -49,22 +45,16 @@ export interface DefaultEligiblePlanResponse {
 
 // Add n calendar months to a date (UTC).
 function addMonths(date: Date, n: number): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()),
-  );
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()));
 }
 
 // Midnight UTC of the given date — `date` columns are stored at UTC midnight.
 function startOfUtcDay(date: Date): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
 function addDays(date: Date, n: number): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + n),
-  );
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + n));
 }
 
 @Injectable()
@@ -101,9 +91,7 @@ export class InstallmentsService {
     const total = listing.price;
     const deposit = total.mul(dto.depositPercent).div(100).toDecimalPlaces(2);
     const financed = total.minus(deposit);
-    const baseMonthly = financed
-      .div(dto.months)
-      .toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
+    const baseMonthly = financed.div(dto.months).toDecimalPlaces(2, Prisma.Decimal.ROUND_DOWN);
 
     const start = new Date();
     const schedule = [];
@@ -130,10 +118,7 @@ export class InstallmentsService {
     return this.getDetail(user, planId);
   }
 
-  async getDetail(
-    user: AuthenticatedUser,
-    planId: string,
-  ): Promise<InstallmentPlanDetail> {
+  async getDetail(user: AuthenticatedUser, planId: string): Promise<InstallmentPlanDetail> {
     const plan = await this.repo.findPlanDetail(planId);
     if (!plan) throw new NotFoundException('Plan not found');
     this.assertBuyer(plan.buyerId, user);
@@ -204,10 +189,7 @@ export class InstallmentsService {
     });
   }
 
-  async cancel(
-    user: AuthenticatedUser,
-    planId: string,
-  ): Promise<InstallmentPlanDetail> {
+  async cancel(user: AuthenticatedUser, planId: string): Promise<InstallmentPlanDetail> {
     const plan = await this.repo.findPlanById(planId);
     if (!plan) throw new NotFoundException('Plan not found');
     this.assertBuyer(plan.buyerId, user);
@@ -254,9 +236,7 @@ export class InstallmentsService {
     // Grace period elapsed → late becomes missed.
     const graceCutoff = addDays(today, -INSTALLMENT.DEFAULT_GRACE_DAYS);
     const beyondGrace = await this.repo.findLateBeyond(graceCutoff);
-    const markedMissed = await this.repo.markPaymentsMissed(
-      beyondGrace.map((i) => i.id),
-    );
+    const markedMissed = await this.repo.markPaymentsMissed(beyondGrace.map((i) => i.id));
 
     this.logger.log(
       `Overdue sweep: ${dueSoon.length} due-soon reminder(s), ${markedLate} marked late, ${markedMissed} escalated to missed`,
@@ -361,9 +341,7 @@ export class InstallmentsService {
     return this.getDetail(actor, planId);
   }
 
-  private toReminderEvent(
-    item: ScheduledPaymentWithPlan,
-  ): InstallmentReminderEvent {
+  private toReminderEvent(item: ScheduledPaymentWithPlan): InstallmentReminderEvent {
     return {
       buyerId: item.plan.buyerId,
       planId: item.plan.id,
@@ -395,7 +373,11 @@ export class InstallmentsService {
           await this.repo.markInstallmentPaid(item.id, event.paymentId);
           const { nextDue, allPaid } = await this.repo.scheduleProgress(item.planId);
           if (allPaid) {
-            await this.repo.updatePlanStatus(item.planId, InstallmentPlanStatus.COMPLETED, null);
+            await this.repo.updatePlanStatus(
+              item.planId,
+              InstallmentPlanStatus.COMPLETED,
+              null,
+            );
             this.logger.log(`Plan ${item.planId} completed`);
           } else {
             await this.repo.setNextDueDate(item.planId, nextDue);
