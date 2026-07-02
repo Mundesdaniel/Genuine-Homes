@@ -7,7 +7,14 @@ import { PaymentsTrendChart, PropertiesStatusChart } from '@/components/charts';
 import { NewListingForm } from '@/components/NewListingForm';
 import { PropertyForm } from '@/components/PropertyForm';
 import { PlanCard } from '@/components/PlanCard';
-import { Badge, EmptyState, ErrorState, Spinner, statusTone } from '@/components/ui';
+import {
+  Badge,
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  Spinner,
+  statusTone,
+} from '@/components/ui';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
@@ -69,6 +76,7 @@ export function DashboardPage() {
   const queryClient = useQueryClient();
   const [panel, setPanel] = useState<'none' | 'property' | 'listing'>('none');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const seller = Boolean(user?.role && SELLER_ROLES.includes(user.role));
 
@@ -91,7 +99,10 @@ export function DashboardPage() {
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => propertiesApi.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mine'] }),
+    onSuccess: () => {
+      setDeleteTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ['mine'] });
+    },
   });
 
   const properties = propertiesQuery.data?.items ?? [];
@@ -273,10 +284,7 @@ export function DashboardPage() {
                         className="btn-outline w-full"
                         type="button"
                         disabled={removeMutation.isPending}
-                        onClick={() => {
-                          if (window.confirm(`Delete "${p.title}"?`))
-                            removeMutation.mutate(p.id);
-                        }}
+                        onClick={() => setDeleteTarget({ id: p.id, title: p.title })}
                       >
                         Delete
                       </button>
@@ -288,6 +296,17 @@ export function DashboardPage() {
           )}
         </section>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={`Delete “${deleteTarget?.title ?? ''}”?`}
+        body="The property and its listings will no longer be visible. This cannot be undone from here."
+        confirmLabel="Delete"
+        danger
+        busy={removeMutation.isPending}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && removeMutation.mutate(deleteTarget.id)}
+      />
     </div>
   );
 }

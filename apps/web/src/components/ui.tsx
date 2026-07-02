@@ -1,4 +1,5 @@
 // Small presentational helpers used across pages.
+import { useEffect, useRef, useState } from 'react';
 
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
   return (
@@ -104,4 +105,104 @@ export function statusTone(value: string): BadgeTone {
 
 export function Badge({ label, tone = 'neutral' }: { label: string; tone?: BadgeTone }) {
   return <span className={`chip ${TONE[tone]}`}>{label}</span>;
+}
+
+/**
+ * In-app confirmation dialog — replaces `window.confirm` (unstylable, jarring)
+ * for destructive or consequential actions. Optionally collects a note (e.g. a
+ * rejection reason). ESC or the backdrop cancels; the panel takes focus on open.
+ */
+export function ConfirmDialog({
+  open,
+  title,
+  body,
+  confirmLabel = 'Confirm',
+  danger = false,
+  notes,
+  busy = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  body?: string;
+  confirmLabel?: string;
+  /** Red confirm button for destructive actions. */
+  danger?: boolean;
+  /** Show a textarea and pass its value to onConfirm. */
+  notes?: { label: string; placeholder?: string };
+  busy?: boolean;
+  onConfirm: (notes?: string) => void;
+  onCancel: () => void;
+}) {
+  const [noteText, setNoteText] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const cancel = () => {
+    setNoteText('');
+    onCancel();
+  };
+  const confirm = () => {
+    const value = noteText.trim() || undefined;
+    setNoteText('');
+    onConfirm(value);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    panelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+  return (
+    <div
+      className="fixed inset-0 z-[1100] grid place-items-center bg-black/40 p-4"
+      onClick={cancel}
+    >
+      <div
+        ref={panelRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="card w-full max-w-sm p-6 outline-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-lg font-bold text-stone-800">{title}</h2>
+        {body && <p className="mt-2 text-sm text-stone-600">{body}</p>}
+        {notes && (
+          <div className="mt-4">
+            <label className="label" htmlFor="confirm-dialog-notes">
+              {notes.label}
+            </label>
+            <textarea
+              id="confirm-dialog-notes"
+              className="input min-h-[70px]"
+              placeholder={notes.placeholder}
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+            />
+          </div>
+        )}
+        <div className="mt-6 flex justify-end gap-2">
+          <button className="btn-outline" type="button" onClick={cancel} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className={danger ? 'btn bg-red-600 text-white hover:bg-red-700' : 'btn-primary'}
+            type="button"
+            disabled={busy}
+            onClick={confirm}
+          >
+            {busy ? 'Working…' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -1,9 +1,10 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserRole, enumValues, type UserProfileResponse } from '@genuine-homes/shared';
 import { adminApi } from '@/api/admin';
 import { usersApi } from '@/api/users';
 import { verificationsApi } from '@/api/verifications';
-import { Badge, EmptyState, ErrorState, Spinner } from '@/components/ui';
+import { Badge, ConfirmDialog, EmptyState, ErrorState, Spinner } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
 
@@ -43,15 +44,24 @@ function OverviewSection() {
 
 function VerificationsSection() {
   const queryClient = useQueryClient();
+  const [rejecting, setRejecting] = useState<{ id: string; title: string } | null>(null);
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'verifications'],
     queryFn: () => verificationsApi.pending(1, 50),
   });
 
   const review = useMutation({
-    mutationFn: ({ id, decision }: { id: string; decision: 'verified' | 'rejected' }) =>
-      verificationsApi.review(id, decision),
+    mutationFn: ({
+      id,
+      decision,
+      notes,
+    }: {
+      id: string;
+      decision: 'verified' | 'rejected';
+      notes?: string;
+    }) => verificationsApi.review(id, decision, notes),
     onSuccess: () => {
+      setRejecting(null);
       void queryClient.invalidateQueries({ queryKey: ['admin', 'verifications'] });
       void queryClient.invalidateQueries({ queryKey: ['admin', 'overview'] });
     },
@@ -65,45 +75,76 @@ function VerificationsSection() {
     return <EmptyState title="No pending verifications" hint="The queue is clear." />;
 
   return (
-    <ul className="space-y-2">
-      {items.map((v) => (
-        <li
-          key={v.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3"
-        >
-          <div>
-            <p className="font-medium text-stone-800">{v.propertyTitle}</p>
-            <p className="text-sm text-stone-500">
-              {v.documents.length} document{v.documents.length === 1 ? '' : 's'} ·{' '}
-              {v.documents.map((d) => titleCase(d.kind)).join(', ')}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="btn-primary"
-              type="button"
-              disabled={review.isPending}
-              onClick={() => review.mutate({ id: v.id, decision: 'verified' })}
-            >
-              Approve
-            </button>
-            <button
-              className="btn-outline"
-              type="button"
-              disabled={review.isPending}
-              onClick={() => review.mutate({ id: v.id, decision: 'rejected' })}
-            >
-              Reject
-            </button>
-          </div>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="space-y-2">
+        {items.map((v) => (
+          <li
+            key={v.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3"
+          >
+            <div className="min-w-0">
+              <p className="font-medium text-stone-800">{v.propertyTitle}</p>
+              {/* The whole point of this queue is reviewing the documents —
+                  link each one so the admin can actually open them. */}
+              <div className="mt-1 flex flex-wrap gap-2">
+                {v.documents.map((d, i) => (
+                  <a
+                    key={i}
+                    href={d.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="chip bg-stone-100 text-stone-700 underline-offset-2 transition hover:bg-stone-200 hover:underline"
+                  >
+                    {titleCase(d.kind)} ↗
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={review.isPending}
+                onClick={() => review.mutate({ id: v.id, decision: 'verified' })}
+              >
+                Approve
+              </button>
+              <button
+                className="btn-outline"
+                type="button"
+                disabled={review.isPending}
+                onClick={() => setRejecting({ id: v.id, title: v.propertyTitle })}
+              >
+                Reject
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={rejecting !== null}
+        title={`Reject verification for “${rejecting?.title ?? ''}”?`}
+        body="The owner will be notified. A short reason helps them fix the submission."
+        confirmLabel="Reject"
+        danger
+        busy={review.isPending}
+        notes={{ label: 'Reason (optional)', placeholder: 'e.g. land title is illegible' }}
+        onCancel={() => setRejecting(null)}
+        onConfirm={(notes) =>
+          rejecting && review.mutate({ id: rejecting.id, decision: 'rejected', notes })
+        }
+      />
+    </>
   );
 }
 
 function UsersSection() {
   const queryClient = useQueryClient();
+  const [roleChange, setRoleChange] = useState<{
+    user: UserProfileResponse;
+    role: UserRole;
+  } | null>(null);
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin', 'users'],
     queryFn: () => usersApi.list(1, 50),
@@ -112,7 +153,10 @@ function UsersSection() {
   const update = useMutation({
     mutationFn: ({ id, ...input }: { id: string; role?: UserRole; isVerified?: boolean }) =>
       usersApi.adminUpdate(id, input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+    onSuccess: () => {
+      setRoleChange(null);
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
   });
 
   if (isLoading) return <Spinner label="Loading users…" />;
@@ -144,8 +188,10 @@ function UsersSection() {
                   className="input w-auto py-1"
                   value={u.role}
                   disabled={update.isPending}
+                  aria-label={`Role for ${u.fullName}`}
                   onChange={(e) =>
-                    update.mutate({ id: u.id, role: e.target.value as UserRole })
+                    // Role changes grant/revoke real capabilities — confirm first.
+                    setRoleChange({ user: u, role: e.target.value as UserRole })
                   }
                 >
                   {enumValues(UserRole).map((r) => (
@@ -171,6 +217,22 @@ function UsersSection() {
           ))}
         </tbody>
       </table>
+
+      <ConfirmDialog
+        open={roleChange !== null}
+        title={`Change ${roleChange?.user.fullName ?? ''}'s role?`}
+        body={
+          roleChange
+            ? `${titleCase(roleChange.user.role)} → ${titleCase(roleChange.role)}. This changes what they can do immediately.`
+            : undefined
+        }
+        confirmLabel="Change role"
+        busy={update.isPending}
+        onCancel={() => setRoleChange(null)}
+        onConfirm={() =>
+          roleChange && update.mutate({ id: roleChange.user.id, role: roleChange.role })
+        }
+      />
     </div>
   );
 }
