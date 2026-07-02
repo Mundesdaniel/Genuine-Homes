@@ -27,8 +27,18 @@ export function PlanDetailPage() {
     refetchInterval: 15_000, // reflect settlements without a manual refresh
   });
 
+  // The hosted checkout sends the payer back here once they've paid.
+  const returnUrl = `${window.location.origin}/payments/return`;
+
   const deposit = useMutation({
-    mutationFn: () => installmentsApi.payDeposit(id as string, { provider } as PayViaInput),
+    mutationFn: () =>
+      installmentsApi.payDeposit(
+        id as string,
+        {
+          provider,
+          redirectUrl: returnUrl,
+        } as PayViaInput,
+      ),
     onSuccess: (res) => {
       toast.success('Opening checkout…');
       goToCheckout(res.redirectUrl, navigate);
@@ -38,7 +48,10 @@ export function PlanDetailPage() {
 
   const payItem = useMutation({
     mutationFn: (installmentId: string) =>
-      installmentsApi.payInstallment(id as string, installmentId, { provider } as PayViaInput),
+      installmentsApi.payInstallment(id as string, installmentId, {
+        provider,
+        redirectUrl: returnUrl,
+      } as PayViaInput),
     onSuccess: (res) => {
       toast.success('Opening checkout…');
       goToCheckout(res.redirectUrl, navigate);

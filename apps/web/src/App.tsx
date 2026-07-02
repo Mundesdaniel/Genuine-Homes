@@ -12,6 +12,7 @@ import { PaymentsPage } from '@/pages/PaymentsPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MockCheckoutPage } from '@/pages/MockCheckoutPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 
@@ -68,6 +69,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <PlanDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="payments/return"
+          element={
+            <ProtectedRoute>
+              <PaymentReturnPage />
             </ProtectedRoute>
           }
         />

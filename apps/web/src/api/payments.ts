@@ -8,6 +8,7 @@ export const paymentsApi = {
         params: { page, pageSize },
       })
       .then((r) => r.data),
+  get: (id: string) => api.get<PaymentResponse>(`/payments/${id}`).then((r) => r.data),
   /**
    * DEV ONLY: stand in for the payment gateway's webhook from the mock checkout
    * page. With the real gateway, signature verification would reject this.

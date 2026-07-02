@@ -19,7 +19,9 @@ export function MockCheckoutPage() {
     onSuccess: (_data, status) => {
       if (status === 'successful') toast.success('Payment approved');
       else toast.error('Payment declined');
-      navigate('/dashboard');
+      // Land on the same return page the real gateway redirects to, so both
+      // flows confirm the outcome and offer the right next step.
+      navigate(`/payments/return?tx_ref=${paymentId}`, { replace: true });
     },
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
@@ -32,9 +34,8 @@ export function MockCheckoutPage() {
           Approve this Mobile Money payment?
         </h1>
         <p className="mt-2 text-sm text-stone-500">
-          This stands in for the real MTN&nbsp;MoMo / Airtel prompt you'd approve
-          on your phone. Approving posts the gateway webhook and settles the
-          payment.
+          This stands in for the real MTN&nbsp;MoMo / Airtel prompt you'd approve on your
+          phone. Approving posts the gateway webhook and settles the payment.
         </p>
         <div className="mt-6 flex gap-3">
           <button

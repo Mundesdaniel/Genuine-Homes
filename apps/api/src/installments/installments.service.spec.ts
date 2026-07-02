@@ -130,32 +130,41 @@ describe('InstallmentsService', () => {
     });
 
     it('rejects a deposit below the listing minimum', async () => {
-      await expect(service.createPlan(buyer, dto({ depositPercent: 10 }))).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.createPlan(buyer, dto({ depositPercent: 10 })),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
   describe('payDeposit', () => {
     it('starts a deposit payment for a pending plan', async () => {
-      await service.payDeposit(buyer, 'plan-1', { provider: 'mtn_momo' });
+      await service.payDeposit(buyer, 'plan-1', {
+        provider: 'mtn_momo',
+        redirectUrl: 'https://app.test/payments/return',
+      });
       expect(payments.initiate).toHaveBeenCalledWith(
         buyer,
-        expect.objectContaining({ purpose: PaymentPurpose.DEPOSIT, referenceId: 'plan-1', amount: 16_000_000 }),
+        expect.objectContaining({
+          purpose: PaymentPurpose.DEPOSIT,
+          referenceId: 'plan-1',
+          amount: 16_000_000,
+          // The checkout return URL travels through to the gateway.
+          redirectUrl: 'https://app.test/payments/return',
+        }),
       );
     });
 
     it('rejects paying the deposit twice', async () => {
       repo.findPlanById.mockResolvedValue(plan({ status: 'active' }));
-      await expect(service.payDeposit(buyer, 'plan-1', { provider: 'mtn_momo' })).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.payDeposit(buyer, 'plan-1', { provider: 'mtn_momo' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it("forbids paying someone else's plan", async () => {
-      await expect(service.payDeposit(stranger, 'plan-1', { provider: 'mtn_momo' })).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        service.payDeposit(stranger, 'plan-1', { provider: 'mtn_momo' }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 
@@ -202,9 +211,7 @@ describe('InstallmentsService', () => {
 
   describe('sweepOverdue', () => {
     it('emits a due-soon reminder for each upcoming payment in the window', async () => {
-      repo.findDueSoon.mockResolvedValue([
-        scheduledPayment({ id: 'item-due' }),
-      ]);
+      repo.findDueSoon.mockResolvedValue([scheduledPayment({ id: 'item-due' })]);
       const result = await service.sweepOverdue(new Date('2026-05-30'));
       expect(events.emit).toHaveBeenCalledWith(
         INSTALLMENT_DUE_SOON,
@@ -262,7 +269,10 @@ describe('InstallmentsService', () => {
           actorId: admin.id,
           action: 'plan.defaulted',
           entityId: 'plan-1',
-          metadata: expect.objectContaining({ reason: 'No payment since March', missedCount: 4 }),
+          metadata: expect.objectContaining({
+            reason: 'No payment since March',
+            missedCount: 4,
+          }),
         }),
       );
       expect(events.emit).toHaveBeenCalledWith(

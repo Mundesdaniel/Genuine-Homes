@@ -31,6 +31,9 @@ export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export const payViaSchema = z.object({
   provider: z.enum(enumValues(PaymentProvider)),
   phone: phoneSchema.optional(),
+  /** Where the hosted checkout should send the payer afterwards (the web
+   *  app's /payments/return page). Optional — API default applies if unset. */
+  redirectUrl: z.string().url().optional(),
 });
 export type PayViaInput = z.infer<typeof payViaSchema>;
 

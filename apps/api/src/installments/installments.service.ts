@@ -157,6 +157,7 @@ export class InstallmentsService {
       currency: plan.currency,
       provider: dto.provider,
       phone: dto.phone,
+      redirectUrl: dto.redirectUrl,
     });
   }
 
@@ -186,6 +187,7 @@ export class InstallmentsService {
       currency: plan.currency,
       provider: dto.provider,
       phone: dto.phone,
+      redirectUrl: dto.redirectUrl,
     });
   }
 
