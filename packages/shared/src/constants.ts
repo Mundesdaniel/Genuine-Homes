@@ -19,6 +19,19 @@ export const INSTALLMENT = {
   MAX_MONTHS: 48,
   /** Days before a due date to send the "installment due soon" reminder. */
   REMINDER_LEAD_DAYS: 3,
+  /**
+   * Default policy — grace period: a `late` installment left unpaid this many
+   * days past its due date is escalated to `missed` by the nightly sweep.
+   */
+  DEFAULT_GRACE_DAYS: 30,
+  /**
+   * Default policy — an active plan with at least this many `missed`
+   * installments becomes *eligible* for default. The `defaulted` transition
+   * itself is always an explicit, audited admin action (it is a contractual /
+   * legal decision), never automatic. Money already paid stays in the ledger;
+   * refund or forfeiture follows the signed agreement, outside the state machine.
+   */
+  DEFAULT_MISSED_THRESHOLD: 3,
 } as const;
 
 /** Property gallery image-upload rules (shared by the API validator and the

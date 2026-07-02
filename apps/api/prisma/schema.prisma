@@ -115,6 +115,8 @@ enum NotificationType {
   payment_failed
   installment_due_soon
   installment_overdue
+  plan_defaulted
+  plan_reinstated
   listing_verified
   new_message
   viewing_scheduled

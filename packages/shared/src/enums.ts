@@ -135,6 +135,8 @@ export const NotificationType = {
   PAYMENT_FAILED: 'payment_failed',
   INSTALLMENT_DUE_SOON: 'installment_due_soon',
   INSTALLMENT_OVERDUE: 'installment_overdue',
+  PLAN_DEFAULTED: 'plan_defaulted',
+  PLAN_REINSTATED: 'plan_reinstated',
   LISTING_VERIFIED: 'listing_verified',
   NEW_MESSAGE: 'new_message',
   VIEWING_SCHEDULED: 'viewing_scheduled',

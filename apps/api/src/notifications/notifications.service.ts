@@ -13,7 +13,10 @@ import { mapNotification } from '../common/mappers';
 import {
   INSTALLMENT_DUE_SOON,
   INSTALLMENT_OVERDUE,
+  PLAN_DEFAULTED,
+  PLAN_REINSTATED,
   type InstallmentReminderEvent,
+  type PlanStatusChangeEvent,
 } from '../installments/installment-events';
 import {
   PAYMENT_FAILED,
@@ -160,6 +163,32 @@ export class NotificationsService {
         'Installment overdue',
         `Installment ${event.sequence} of ${formatAmount(event.currency, event.amount)} was due on ${event.dueDate} and is now overdue.`,
         { planId: event.planId, installmentId: event.installmentId, sequence: event.sequence, dueDate: event.dueDate },
+      );
+    });
+  }
+
+  @OnEvent(PLAN_DEFAULTED)
+  async onPlanDefaulted(event: PlanStatusChangeEvent): Promise<void> {
+    await this.guard(PLAN_DEFAULTED, async () => {
+      await this.notify(
+        event.buyerId,
+        NotificationType.PLAN_DEFAULTED,
+        'Installment plan defaulted',
+        `Your installment plan has been marked as defaulted${event.reason ? `: ${event.reason}` : ''}. Please contact support to discuss your options.`,
+        { planId: event.planId, reason: event.reason },
+      );
+    });
+  }
+
+  @OnEvent(PLAN_REINSTATED)
+  async onPlanReinstated(event: PlanStatusChangeEvent): Promise<void> {
+    await this.guard(PLAN_REINSTATED, async () => {
+      await this.notify(
+        event.buyerId,
+        NotificationType.PLAN_REINSTATED,
+        'Installment plan reinstated',
+        'Your installment plan is active again. Outstanding installments remain payable from your plan page.',
+        { planId: event.planId, reason: event.reason },
       );
     });
   }

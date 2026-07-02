@@ -16,8 +16,9 @@ import {
   PaymentPurpose,
   UserRole,
 } from '@genuine-homes/shared';
+import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
-import { mapPlanDetail } from '../common/mappers';
+import { mapPlan, mapPlanDetail } from '../common/mappers';
 import {
   PAYMENT_SUCCEEDED,
   type PaymentSucceededEvent,
@@ -27,13 +28,24 @@ import { CreatePlanDto } from './dto/create-plan.dto';
 import {
   INSTALLMENT_DUE_SOON,
   INSTALLMENT_OVERDUE,
+  PLAN_DEFAULTED,
+  PLAN_REINSTATED,
   type InstallmentReminderEvent,
+  type PlanStatusChangeEvent,
 } from './installment-events';
 import { PayViaDto } from './dto/pay-via.dto';
 import {
+  type DefaultEligiblePlan,
   InstallmentsRepository,
   type ScheduledPaymentWithPlan,
 } from './installments.repository';
+
+/** Row in the admin "eligible for default" review queue. */
+export interface DefaultEligiblePlanResponse {
+  plan: ReturnType<typeof mapPlan>;
+  buyer: { id: string; fullName: string; phone: string };
+  missedCount: number;
+}
 
 // Add n calendar months to a date (UTC).
 function addMonths(date: Date, n: number): Date {
@@ -63,6 +75,7 @@ export class InstallmentsService {
     private readonly repo: InstallmentsRepository,
     private readonly payments: PaymentsService,
     private readonly events: EventEmitter2,
+    private readonly audit: AuditService,
   ) {}
 
   // Turn an installment listing into a plan: compute the deposit + an exact
@@ -209,17 +222,21 @@ export class InstallmentsService {
    * Nightly sweep over active plans:
    *  - schedule items due within REMINDER_LEAD_DAYS emit a "due soon" reminder;
    *  - items whose due date has passed are marked `late` and emit an "overdue"
-   *    reminder.
+   *    reminder;
+   *  - items still `late` DEFAULT_GRACE_DAYS after their due date escalate to
+   *    `missed` — the input to the default-eligibility policy (a plan with
+   *    DEFAULT_MISSED_THRESHOLD missed installments appears in the admin
+   *    review queue).
    *
    * Pure data work + event emission — the notifications module turns the events
    * into in-app/SMS/push messages. Returns counts so the scheduler can log them
    * and tests can assert on them. Marking plans `defaulted` is deliberately left
-   * to an explicit admin action: it is a legal/contractual decision, not a
-   * mechanical one.
+   * to an explicit admin action (`markDefaulted`): it is a legal/contractual
+   * decision, not a mechanical one.
    */
   async sweepOverdue(
     now: Date = new Date(),
-  ): Promise<{ dueSoon: number; markedLate: number }> {
+  ): Promise<{ dueSoon: number; markedLate: number; markedMissed: number }> {
     const today = startOfUtcDay(now);
     const soonEnd = addDays(today, INSTALLMENT.REMINDER_LEAD_DAYS);
 
@@ -234,10 +251,114 @@ export class InstallmentsService {
       this.events.emit(INSTALLMENT_OVERDUE, this.toReminderEvent(item));
     }
 
-    this.logger.log(
-      `Overdue sweep: ${dueSoon.length} due-soon reminder(s), ${markedLate} marked late`,
+    // Grace period elapsed → late becomes missed.
+    const graceCutoff = addDays(today, -INSTALLMENT.DEFAULT_GRACE_DAYS);
+    const beyondGrace = await this.repo.findLateBeyond(graceCutoff);
+    const markedMissed = await this.repo.markPaymentsMissed(
+      beyondGrace.map((i) => i.id),
     );
-    return { dueSoon: dueSoon.length, markedLate };
+
+    this.logger.log(
+      `Overdue sweep: ${dueSoon.length} due-soon reminder(s), ${markedLate} marked late, ${markedMissed} escalated to missed`,
+    );
+    return { dueSoon: dueSoon.length, markedLate, markedMissed };
+  }
+
+  // ── Default policy (admin) ───────────────────────────────────────────────
+  //
+  // Policy: an installment left unpaid DEFAULT_GRACE_DAYS past its due date is
+  // `missed`; a plan with >= DEFAULT_MISSED_THRESHOLD missed installments is
+  // *eligible* for default and surfaces in the admin queue below. The
+  // transition itself is always an explicit, audited admin decision. Money
+  // already paid stays in the payments ledger — refund or forfeiture follows
+  // the signed agreement and is handled outside this state machine.
+
+  /** Admin queue: active plans that have crossed the missed threshold. */
+  async listDefaultEligible(
+    page: number,
+    pageSize: number,
+  ): Promise<Paginated<DefaultEligiblePlanResponse>> {
+    const [rows, total] = await this.repo.findDefaultEligible(
+      INSTALLMENT.DEFAULT_MISSED_THRESHOLD,
+      (page - 1) * pageSize,
+      pageSize,
+    );
+    return {
+      items: rows.map((row) => ({
+        plan: mapPlan(row),
+        buyer: row.buyer,
+        missedCount: row.missedCount,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /**
+   * Explicit admin action: mark an active plan `defaulted`. Requires a reason
+   * (it goes to the audit trail and the buyer's notification). Terminal state —
+   * reversible only via `reinstate`.
+   */
+  async markDefaulted(
+    actor: AuthenticatedUser,
+    planId: string,
+    reason: string,
+  ): Promise<InstallmentPlanDetail> {
+    const plan = await this.repo.findPlanById(planId);
+    if (!plan) throw new NotFoundException('Plan not found');
+    if (plan.status !== InstallmentPlanStatus.ACTIVE) {
+      throw new BadRequestException('Only an active plan can be marked defaulted');
+    }
+    const missedCount = await this.repo.countMissed(planId);
+    await this.repo.updatePlanStatus(planId, InstallmentPlanStatus.DEFAULTED, null);
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'plan.defaulted',
+      entityType: 'installment_plan',
+      entityId: planId,
+      metadata: { reason, missedCount, buyerId: plan.buyerId },
+    });
+    this.events.emit(PLAN_DEFAULTED, {
+      buyerId: plan.buyerId,
+      planId,
+      reason,
+    } satisfies PlanStatusChangeEvent);
+    this.logger.warn(`Plan ${planId} marked defaulted by ${actor.id}: ${reason}`);
+    return this.getDetail(actor, planId);
+  }
+
+  /**
+   * Reverse a default after a negotiated recovery: the plan returns to
+   * `active` and its next due date is recomputed from the schedule. Missed /
+   * late items stay payable.
+   */
+  async reinstate(
+    actor: AuthenticatedUser,
+    planId: string,
+    reason: string | null,
+  ): Promise<InstallmentPlanDetail> {
+    const plan = await this.repo.findPlanById(planId);
+    if (!plan) throw new NotFoundException('Plan not found');
+    if (plan.status !== InstallmentPlanStatus.DEFAULTED) {
+      throw new BadRequestException('Only a defaulted plan can be reinstated');
+    }
+    const { nextDue } = await this.repo.scheduleProgress(planId);
+    await this.repo.updatePlanStatus(planId, InstallmentPlanStatus.ACTIVE, nextDue);
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'plan.reinstated',
+      entityType: 'installment_plan',
+      entityId: planId,
+      metadata: { reason, buyerId: plan.buyerId },
+    });
+    this.events.emit(PLAN_REINSTATED, {
+      buyerId: plan.buyerId,
+      planId,
+      reason,
+    } satisfies PlanStatusChangeEvent);
+    this.logger.log(`Plan ${planId} reinstated by ${actor.id}`);
+    return this.getDetail(actor, planId);
   }
 
   private toReminderEvent(

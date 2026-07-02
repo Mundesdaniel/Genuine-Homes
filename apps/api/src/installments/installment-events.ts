@@ -7,6 +7,8 @@
 
 export const INSTALLMENT_DUE_SOON = 'installment.due_soon';
 export const INSTALLMENT_OVERDUE = 'installment.overdue';
+export const PLAN_DEFAULTED = 'plan.defaulted';
+export const PLAN_REINSTATED = 'plan.reinstated';
 
 export interface InstallmentReminderEvent {
   buyerId: string;
@@ -17,4 +19,11 @@ export interface InstallmentReminderEvent {
   currency: string;
   /** Due date as an ISO `YYYY-MM-DD` string. */
   dueDate: string;
+}
+
+/** Emitted when an admin marks a plan defaulted or reinstates it. */
+export interface PlanStatusChangeEvent {
+  buyerId: string;
+  planId: string;
+  reason: string | null;
 }

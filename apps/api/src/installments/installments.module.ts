@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { PaymentsModule } from '../payments/payments.module';
+import { AdminInstallmentsController } from './admin-installments.controller';
 import { InstallmentsController } from './installments.controller';
 import { InstallmentsRepository } from './installments.repository';
 import { InstallmentsScheduler } from './installments.scheduler';
@@ -13,7 +14,7 @@ import { InstallmentsService } from './installments.service';
  */
 @Module({
   imports: [PaymentsModule],
-  controllers: [InstallmentsController],
+  controllers: [InstallmentsController, AdminInstallmentsController],
   providers: [InstallmentsService, InstallmentsRepository, InstallmentsScheduler],
 })
 export class InstallmentsModule {}

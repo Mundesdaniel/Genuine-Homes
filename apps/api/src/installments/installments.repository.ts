@@ -33,6 +33,12 @@ export type ScheduledPaymentWithPlan = InstallmentPayment & {
   plan: Pick<InstallmentPlan, 'id' | 'buyerId' | 'currency' | 'status'>;
 };
 
+/** An active plan that has crossed the missed-installment threshold. */
+export type DefaultEligiblePlan = InstallmentPlan & {
+  buyer: { id: string; fullName: string; phone: string };
+  missedCount: number;
+};
+
 @Injectable()
 export class InstallmentsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -178,6 +184,72 @@ export class InstallmentsRepository {
       data: { status: 'late' },
     });
     return count;
+  }
+
+  // `late` payments of active plans whose due date is past the grace cutoff —
+  // these escalate to `missed` (the input to the default-eligibility policy).
+  findLateBeyond(cutoff: Date): Promise<ScheduledPaymentWithPlan[]> {
+    return this.prisma.installmentPayment.findMany({
+      where: {
+        status: 'late',
+        dueDate: { lt: cutoff },
+        plan: { status: 'active' },
+      },
+      include: {
+        plan: { select: { id: true, buyerId: true, currency: true, status: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+  }
+
+  async markPaymentsMissed(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const { count } = await this.prisma.installmentPayment.updateMany({
+      where: { id: { in: ids }, status: 'late' },
+      data: { status: 'missed' },
+    });
+    return count;
+  }
+
+  // Active plans with >= `threshold` missed installments, worst offenders
+  // first. Grouped in SQL, then hydrated with buyer contact info for the
+  // admin review queue.
+  async findDefaultEligible(
+    threshold: number,
+    skip: number,
+    take: number,
+  ): Promise<[DefaultEligiblePlan[], number]> {
+    const groups = await this.prisma.installmentPayment.groupBy({
+      by: ['planId'],
+      where: { status: 'missed', plan: { status: 'active' } },
+      _count: { _all: true },
+      having: { planId: { _count: { gte: threshold } } },
+    });
+    const sorted = groups.sort((a, b) => b._count._all - a._count._all);
+    const pageIds = sorted.slice(skip, skip + take).map((g) => g.planId);
+    if (pageIds.length === 0) return [[], groups.length];
+
+    const plans = await this.prisma.installmentPlan.findMany({
+      where: { id: { in: pageIds } },
+      include: { buyer: { select: { id: true, fullName: true, phone: true } } },
+    });
+    const byId = new Map(plans.map((p) => [p.id, p]));
+    const rows = pageIds
+      .map((id) => {
+        const p = byId.get(id);
+        if (!p) return null;
+        const missedCount =
+          sorted.find((g) => g.planId === id)?._count._all ?? 0;
+        return { ...p, missedCount };
+      })
+      .filter((p): p is DefaultEligiblePlan => p !== null);
+    return [rows, groups.length];
+  }
+
+  countMissed(planId: string): Promise<number> {
+    return this.prisma.installmentPayment.count({
+      where: { planId, status: 'missed' },
+    });
   }
 
   // Earliest still-unpaid due date + whether the whole schedule is paid.
