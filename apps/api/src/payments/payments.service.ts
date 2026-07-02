@@ -16,6 +16,7 @@ import {
   PaymentStatus,
   UserRole,
 } from '@genuine-homes/shared';
+import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapPayment } from '../common/mappers';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
@@ -39,6 +40,7 @@ export class PaymentsService {
     private readonly repo: PaymentsRepository,
     @Inject(PAYMENT_GATEWAY) private readonly gateway: PaymentGateway,
     private readonly events: EventEmitter2,
+    private readonly audit: AuditService,
   ) {}
 
   // Create a pending ledger row, then ask the gateway to start the charge.
@@ -77,12 +79,32 @@ export class PaymentsService {
     } catch {
       await this.repo.markFailed(payment.id);
       this.logger.error(`Payment ${payment.id} initiation failed at the gateway`);
+      await this.audit.record({
+        actorId: user.id,
+        action: 'payment.initiation_failed',
+        entityType: 'payment',
+        entityId: payment.id,
+        metadata: { purpose: dto.purpose, amount: dto.amount, currency, gateway: this.gateway.name },
+      });
       throw new BadGatewayException('Could not start the payment. Please try again.');
     }
 
     if (result.providerRef) {
       await this.repo.setProviderRef(payment.id, result.providerRef);
     }
+    await this.audit.record({
+      actorId: user.id,
+      action: 'payment.initiated',
+      entityType: 'payment',
+      entityId: payment.id,
+      metadata: {
+        purpose: dto.purpose,
+        amount: dto.amount,
+        currency,
+        provider: dto.provider,
+        gateway: this.gateway.name,
+      },
+    });
     const fresh = (await this.repo.findById(payment.id)) ?? payment;
     return { payment: mapPayment(fresh), redirectUrl: result.redirectUrl };
   }
@@ -93,6 +115,11 @@ export class PaymentsService {
     body: unknown,
   ): Promise<{ received: true }> {
     if (!this.gateway.verifySignature(headers)) {
+      await this.audit.record({
+        action: 'payment.webhook_rejected',
+        entityType: 'payment',
+        metadata: { gateway: this.gateway.name, reason: 'invalid signature' },
+      });
       throw new UnauthorizedException('Invalid webhook signature');
     }
     const event = this.gateway.parseWebhook(body);
@@ -108,6 +135,16 @@ export class PaymentsService {
     );
     if (changed) {
       this.logger.log(`Payment ${event.txRef} settled as ${event.status}`);
+      await this.audit.record({
+        action: 'payment.settled',
+        entityType: 'payment',
+        entityId: event.txRef,
+        metadata: {
+          status: event.status,
+          providerRef: event.providerRef,
+          gateway: this.gateway.name,
+        },
+      });
       if (event.status === PaymentStatus.SUCCESSFUL) {
         await this.announceSuccess(event.txRef);
       } else if (event.status === PaymentStatus.FAILED) {

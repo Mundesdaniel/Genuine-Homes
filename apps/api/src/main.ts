@@ -5,13 +5,23 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { requestContextMiddleware } from './common/request-context';
 import type { Env } from './config/env.validation';
 import { UPLOADS_DIR, UPLOADS_ROUTE } from './uploads/uploads.constants';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // bufferLogs: hold early logs until pino takes over as the app logger.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(PinoLogger));
   const config = app.get(ConfigService<Env, true>);
+
+  // Correlation id + AsyncLocalStorage context — must precede the request
+  // logger and everything else that reads the id.
+  app.use(requestContextMiddleware);
 
   // Security headers (HSTS, no-sniff, etc.) — financial platform = high standards.
   // crossOriginResourcePolicy is relaxed so the web app (a different dev origin)

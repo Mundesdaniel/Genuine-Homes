@@ -34,7 +34,10 @@ describe('UsersService', () => {
       update: jest.fn().mockResolvedValue(user({ fullName: 'Ada N.' })),
       list: jest.fn().mockResolvedValue([[user()], 1]),
     } as unknown as jest.Mocked<UsersRepository>;
-    service = new UsersService(repo);
+    const audit = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as import('../audit/audit.service').AuditService;
+    service = new UsersService(repo, audit);
   });
 
   it('returns the current profile', async () => {

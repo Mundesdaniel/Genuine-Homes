@@ -12,6 +12,7 @@ import {
   VerificationStatus,
   UserRole,
 } from '@genuine-homes/shared';
+import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapVerification } from '../common/mappers';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -26,6 +27,7 @@ export class VerificationsService {
   constructor(
     private readonly repo: VerificationsRepository,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   // Owner submits ownership/title documents; the property moves to `pending`.
@@ -84,6 +86,18 @@ export class VerificationsService {
       status,
       dto.notes ?? null,
     );
+
+    await this.audit.record({
+      actorId: reviewer.id,
+      action: 'verification.reviewed',
+      entityType: 'verification',
+      entityId: id,
+      metadata: {
+        decision: status,
+        propertyId: verification.propertyId,
+        notes: dto.notes ?? null,
+      },
+    });
 
     if (status === VerificationStatus.VERIFIED) {
       await this.notifications.notify(

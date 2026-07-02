@@ -10,6 +10,7 @@ import {
   type UserProfileResponse,
   type UserRole,
 } from '@genuine-homes/shared';
+import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapUserProfile } from '../common/mappers';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
@@ -18,7 +19,10 @@ import { UsersRepository } from './users.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly repo: UsersRepository) {}
+  constructor(
+    private readonly repo: UsersRepository,
+    private readonly audit: AuditService,
+  ) {}
 
   async getMe(user: AuthenticatedUser): Promise<UserProfileResponse> {
     return this.getProfile(user.id);
@@ -68,6 +72,18 @@ export class UsersService {
     const updated = await this.repo.update(id, {
       role: dto.role,
       isVerified: dto.isVerified,
+    });
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'user.admin_updated',
+      entityType: 'user',
+      entityId: id,
+      metadata: {
+        role: dto.role,
+        isVerified: dto.isVerified,
+        previousRole: existing.role,
+        previousIsVerified: existing.isVerified,
+      },
     });
     return mapUserProfile(updated);
   }

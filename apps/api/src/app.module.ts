@@ -1,13 +1,17 @@
+import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
 import { AdminModule } from './admin/admin.module';
+import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
-import { validateEnv } from './config/env.validation';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { type Env, validateEnv } from './config/env.validation';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HealthModule } from './health/health.module';
 import { InstallmentsModule } from './installments/installments.module';
@@ -36,6 +40,38 @@ import { VerificationsModule } from './verifications/verifications.module';
       validate: validateEnv,
       cache: true,
     }),
+    // Structured request logging (pino). Every line carries the request id set
+    // by requestContextMiddleware, so a payment can be traced end to end.
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => {
+        const isProd = config.get('NODE_ENV', { infer: true }) === 'production';
+        return {
+          pinoHttp: {
+            level:
+              config.get('LOG_LEVEL', { infer: true }) ??
+              (isProd ? 'info' : 'debug'),
+            // Reuse the correlation id minted by requestContextMiddleware.
+            genReqId: (req) =>
+              (req.headers['x-request-id'] as string | undefined) ?? randomUUID(),
+            redact: {
+              paths: ['req.headers.authorization', 'req.headers.cookie'],
+              remove: true,
+            },
+            autoLogging: {
+              // Health checks poll frequently — keep them out of the logs.
+              ignore: (req) => req.url === '/api/health',
+            },
+            transport: isProd
+              ? undefined
+              : {
+                  target: 'pino-pretty',
+                  options: { singleLine: true, translateTime: 'SYS:HH:MM:ss' },
+                },
+          },
+        };
+      },
+    }),
     // Default rate limit applied to every route (100 req/min/IP); auth
     // endpoints tighten this with @Throttle. ttl is in milliseconds.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
@@ -44,6 +80,7 @@ import { VerificationsModule } from './verifications/verifications.module';
     // Cron scheduling (nightly installment overdue/due-soon sweep).
     ScheduleModule.forRoot(),
     PrismaModule,
+    AuditModule,
     AuthModule,
     PropertiesModule,
     ListingsModule,
@@ -63,6 +100,8 @@ import { VerificationsModule } from './verifications/verifications.module';
   providers: [
     // App-wide rate limiting; auth's JwtAuthGuard/RolesGuard are added in AuthModule.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Uniform error responses + correlation ids; 500s never leak internals.
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule {}

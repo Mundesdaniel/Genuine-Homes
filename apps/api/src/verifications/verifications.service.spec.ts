@@ -47,7 +47,10 @@ describe('VerificationsService', () => {
       review: jest.fn().mockResolvedValue(withOwner('verified')),
     } as unknown as jest.Mocked<VerificationsRepository>;
     notifications = { notify: jest.fn().mockResolvedValue(undefined) } as unknown as jest.Mocked<NotificationsService>;
-    service = new VerificationsService(repo, notifications);
+    const audit = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as import('../audit/audit.service').AuditService;
+    service = new VerificationsService(repo, notifications, audit);
   });
 
   it('lets an owner submit documents (stamped with uploadedAt)', async () => {

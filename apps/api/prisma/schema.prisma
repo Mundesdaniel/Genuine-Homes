@@ -151,6 +151,7 @@ model User {
   payments              Payment[]
   verificationsReviewed Verification[]    @relation("VerificationReviewer")
   refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]        @relation("AuditActor")
 
   @@index([role])
   @@map("users")
@@ -415,6 +416,31 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// Append-only audit trail of payment events and admin actions (spec
+// requirement). `actorId` is null for system-initiated events (webhooks,
+// scheduled sweeps). `entityId` is plain text so it can hold provider refs
+// as well as our UUIDs. Rows are never updated or deleted.
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  // Dotted verb, e.g. "payment.settled", "user.admin_updated".
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json     @default("{}")
+  ip         String?
+  requestId  String?  @map("request_id")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
 
 // Hashed refresh tokens for JWT rotation (added for the auth module). Storing a

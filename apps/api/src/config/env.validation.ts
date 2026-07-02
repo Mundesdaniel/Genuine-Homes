@@ -9,6 +9,10 @@ export const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
+  // pino level; defaults to debug in dev, info in production.
+  LOG_LEVEL: z
+    .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace'])
+    .optional(),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   // Absolute origin the API is reachable at, used to build URLs for locally
   // stored uploads (e.g. http://localhost:3100). Defaults to localhost:PORT.

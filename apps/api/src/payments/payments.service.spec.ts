@@ -84,7 +84,10 @@ describe('PaymentsService', () => {
     } as unknown as jest.Mocked<PaymentsRepository>;
     gateway = new FakeGateway();
     const events = { emit: jest.fn() } as unknown as import('@nestjs/event-emitter').EventEmitter2;
-    service = new PaymentsService(repo, gateway, events);
+    const audit = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as import('../audit/audit.service').AuditService;
+    service = new PaymentsService(repo, gateway, events, audit);
   });
 
   describe('initiate', () => {
