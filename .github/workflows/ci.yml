@@ -1,0 +1,73 @@
+# CI: build + lint + test on every push/PR, with Prisma migrations validated
+# against a real PostGIS database and the notification queue against Redis —
+# the same images docker-compose uses in development.
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: genuine
+          POSTGRES_PASSWORD: genuine_dev_pw
+          POSTGRES_DB: genuine_homes
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U genuine -d genuine_homes"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://genuine:genuine_dev_pw@localhost:5432/genuine_homes?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-only-access-secret-at-least-32-characters-long
+      JWT_REFRESH_SECRET: ci-only-refresh-secret-at-least-32-characters-long
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4 # version comes from package.json "packageManager"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @genuine-homes/api prisma:generate
+
+      - name: Build (shared → api → web)
+        run: pnpm build
+
+      - name: Lint (tsc per package + eslint)
+        run: pnpm lint
+
+      - name: Apply migrations (prisma migrate deploy)
+        run: pnpm --filter @genuine-homes/api prisma:deploy
+
+      - name: Seed against the migrated schema
+        run: pnpm --filter @genuine-homes/api prisma:seed
+
+      - name: Test
+        run: pnpm test

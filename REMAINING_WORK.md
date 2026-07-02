@@ -43,7 +43,7 @@ _(These matter most because they're in "done" code.)_
 
 ## C. Production / DevOps (essentially absent — ~35% ready)
 
-- [ ] 🔴 **No CI/CD.** No `.github/workflows`. Add a pipeline that runs build + test + lint (and `prisma migrate deploy`) on push/PR.
+- [x] 🔴 **No CI/CD.** — _Done:_ `.github/workflows/ci.yml` — pnpm install → prisma generate → build → lint (tsc + eslint) → **`prisma migrate deploy` + seed against a real PostGIS service container** → tests (Redis service available for the queue), on every push/PR. _Note: repo has no GitHub remote yet — the pipeline runs on first push._
 - [ ] 🔴 **No Dockerfiles.** `docker-compose.yml` is dev-only (Postgres+Redis). Add API + web Dockerfiles, a prod compose / Cloud Run / K8s manifest, and IaC.
 - [x] 🟠 **No ESLint / Prettier / pre-commit hooks.** — _Done:_ workspace-wide flat-config ESLint (`eslint.config.mjs`: JS + typescript-eslint recommended, react-hooks for web, prettier-compat) with all findings fixed; Prettier (`.prettierrc.json`); husky pre-commit running lint-staged (eslint --fix + prettier on staged files). Root `pnpm lint` = per-package `tsc --noEmit` **+** `eslint .`.
 - [ ] 🟠 **No observability** — no Sentry, no structured logging (pino/winston), no metrics/uptime. Spec calls Sentry "non-negotiable for catching payment failures."
