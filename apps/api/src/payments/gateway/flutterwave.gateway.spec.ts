@@ -48,4 +48,44 @@ describe('FlutterwaveGateway', () => {
       expect(gateway.parseWebhook({ data: { id: 1, status: 'successful' } })).toBeNull();
     });
   });
+
+  describe('verifyTransaction', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('maps a confirmed successful transaction', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'success',
+          data: { tx_ref: 'pay-123', status: 'successful', amount: 500000, currency: 'UGX' },
+        }),
+      } as unknown as Response);
+
+      const verified = await gateway.verifyTransaction('99');
+      expect(fetch).toHaveBeenCalledWith(
+        'https://api.flutterwave.com/v3/transactions/99/verify',
+        expect.objectContaining({
+          headers: { authorization: 'Bearer FLWSECK_TEST-xxxx' },
+        }),
+      );
+      expect(verified).toEqual({
+        txRef: 'pay-123',
+        status: PaymentStatus.SUCCESSFUL,
+        amount: 500000,
+        currency: 'UGX',
+      });
+    });
+
+    it('returns null on an API error', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({ status: 'error' }),
+      } as unknown as Response);
+      await expect(gateway.verifyTransaction('99')).resolves.toBeNull();
+    });
+  });
 });

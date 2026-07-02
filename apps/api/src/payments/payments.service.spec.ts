@@ -57,6 +57,17 @@ class FakeGateway implements PaymentGateway {
   }
 }
 
+// Gateway that also re-verifies transactions server-to-server (like Flutterwave).
+class VerifyingGateway extends FakeGateway {
+  verified: import('./gateway/payment-gateway.interface').VerifiedTransaction | null = {
+    txRef: 'pay-1',
+    status: PaymentStatus.SUCCESSFUL,
+    amount: 1_500_000,
+    currency: 'UGX',
+  };
+  verifyTransaction = jest.fn(async () => this.verified);
+}
+
 const dto: InitiatePaymentDto = {
   purpose: 'deposit',
   amount: 1_500_000,
@@ -142,6 +153,52 @@ describe('PaymentsService', () => {
       const res = await service.handleWebhook({ 'verif-hash': 'x' }, {});
       expect(repo.settle).not.toHaveBeenCalled();
       expect(res).toEqual({ received: true });
+    });
+  });
+
+  describe('handleWebhook with server-to-server verification', () => {
+    let verifying: VerifyingGateway;
+    let audit: { record: jest.Mock };
+
+    beforeEach(() => {
+      verifying = new VerifyingGateway();
+      audit = { record: jest.fn().mockResolvedValue(undefined) };
+      const events = { emit: jest.fn() } as unknown as import('@nestjs/event-emitter').EventEmitter2;
+      service = new PaymentsService(
+        repo,
+        verifying,
+        events,
+        audit as unknown as import('../audit/audit.service').AuditService,
+      );
+    });
+
+    it('settles when the provider API confirms amount, currency and tx_ref', async () => {
+      const res = await service.handleWebhook({ 'verif-hash': 'x' }, {});
+      expect(verifying.verifyTransaction).toHaveBeenCalledWith('flw_1');
+      expect(repo.settle).toHaveBeenCalledWith('pay-1', 'flw_1', PaymentStatus.SUCCESSFUL);
+      expect(res).toEqual({ received: true });
+    });
+
+    it('refuses to settle when the verified amount is lower than the ledger amount', async () => {
+      verifying.verified = { ...verifying.verified!, amount: 100 };
+      await service.handleWebhook({ 'verif-hash': 'x' }, {});
+      expect(repo.settle).not.toHaveBeenCalled();
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'payment.verification_mismatch', entityId: 'pay-1' }),
+      );
+    });
+
+    it('refuses to settle when the provider API cannot confirm the transaction', async () => {
+      verifying.verified = null;
+      await service.handleWebhook({ 'verif-hash': 'x' }, {});
+      expect(repo.settle).not.toHaveBeenCalled();
+    });
+
+    it('does not call the verify API for failure webhooks', async () => {
+      verifying.event = { txRef: 'pay-1', providerRef: 'flw_1', status: PaymentStatus.FAILED };
+      await service.handleWebhook({ 'verif-hash': 'x' }, {});
+      expect(verifying.verifyTransaction).not.toHaveBeenCalled();
+      expect(repo.settle).toHaveBeenCalledWith('pay-1', 'flw_1', PaymentStatus.FAILED);
     });
   });
 

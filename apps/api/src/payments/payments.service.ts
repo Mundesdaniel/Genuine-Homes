@@ -128,6 +128,42 @@ export class PaymentsService {
       return { received: true };
     }
 
+    // Before settling a *success*, re-fetch the transaction from the gateway's
+    // API and check it against our ledger row. A signed-but-tampered (or
+    // replayed-with-edits) webhook can never mark a payment paid: the money
+    // decision is based on what the provider's API confirms.
+    if (event.status === PaymentStatus.SUCCESSFUL && this.gateway.verifyTransaction) {
+      const payment = await this.repo.findById(event.txRef);
+      if (!payment) {
+        this.logger.warn(`Webhook for unknown payment ${event.txRef} ignored`);
+        return { received: true };
+      }
+      const verified = await this.gateway.verifyTransaction(event.providerRef);
+      const ok =
+        verified !== null &&
+        verified.status === PaymentStatus.SUCCESSFUL &&
+        verified.txRef === event.txRef &&
+        verified.currency === payment.currency &&
+        verified.amount >= payment.amount.toNumber();
+      if (!ok) {
+        this.logger.error(
+          `Webhook verification mismatch for payment ${event.txRef} (provider ref ${event.providerRef}) — not settling`,
+        );
+        await this.audit.record({
+          action: 'payment.verification_mismatch',
+          entityType: 'payment',
+          entityId: event.txRef,
+          metadata: {
+            gateway: this.gateway.name,
+            providerRef: event.providerRef,
+            expected: { amount: payment.amount.toNumber(), currency: payment.currency },
+            verified,
+          },
+        });
+        return { received: true };
+      }
+    }
+
     const changed = await this.repo.settle(
       event.txRef,
       event.providerRef,

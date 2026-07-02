@@ -30,6 +30,14 @@ export interface WebhookEvent {
   status: PaymentStatus;
 }
 
+/** Transaction details re-fetched from the gateway's API (server-to-server). */
+export interface VerifiedTransaction {
+  txRef: string;
+  status: PaymentStatus;
+  amount: number;
+  currency: string;
+}
+
 /**
  * A payment gateway. Swapping providers (or running a mock in dev) is just a
  * different implementation behind this interface.
@@ -41,4 +49,12 @@ export interface PaymentGateway {
   verifySignature(headers: Record<string, unknown>): boolean;
   /** Normalise a webhook body into an event, or null if unrecognised. */
   parseWebhook(body: unknown): WebhookEvent | null;
+  /**
+   * Re-fetch the transaction from the provider's API before settling a
+   * *successful* webhook — webhooks prove authenticity (signature), this
+   * proves amount/currency/status against tampering or truncation. Optional:
+   * gateways without a verify endpoint (the mock) omit it and the webhook is
+   * trusted as-is.
+   */
+  verifyTransaction?(providerRef: string): Promise<VerifiedTransaction | null>;
 }

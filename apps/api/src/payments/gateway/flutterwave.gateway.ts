@@ -7,10 +7,12 @@ import type {
   InitiateChargeInput,
   InitiateChargeResult,
   PaymentGateway,
+  VerifiedTransaction,
   WebhookEvent,
 } from './payment-gateway.interface';
 
-const FLW_PAYMENTS_URL = 'https://api.flutterwave.com/v3/payments';
+const FLW_API_BASE = 'https://api.flutterwave.com/v3';
+const FLW_PAYMENTS_URL = `${FLW_API_BASE}/payments`;
 
 // Map our payment method to Flutterwave's `payment_options`.
 const PAYMENT_OPTIONS: Record<string, string> = {
@@ -91,5 +93,40 @@ export class FlutterwaveGateway implements PaymentGateway {
           ? PaymentStatus.FAILED
           : PaymentStatus.PENDING;
     return { txRef, providerRef: String(id), status };
+  }
+
+  /**
+   * Server-to-server confirmation: GET /transactions/:id/verify. Called before
+   * settling a successful webhook so a forged/tampered body can never mark a
+   * payment paid — the settle decision uses what Flutterwave's API says, not
+   * what the webhook claimed.
+   */
+  async verifyTransaction(providerRef: string): Promise<VerifiedTransaction | null> {
+    const response = await fetch(
+      `${FLW_API_BASE}/transactions/${encodeURIComponent(providerRef)}/verify`,
+      { headers: { authorization: `Bearer ${this.secret}` } },
+    );
+    const json = (await response.json().catch(() => null)) as {
+      status?: string;
+      data?: { tx_ref?: string; status?: string; amount?: number; currency?: string };
+    } | null;
+    if (!response.ok || json?.status !== 'success' || !json.data?.tx_ref) {
+      this.logger.error(
+        `Flutterwave transaction verify failed for ${providerRef} (HTTP ${response.status})`,
+      );
+      return null;
+    }
+    const raw = String(json.data.status ?? '').toLowerCase();
+    return {
+      txRef: json.data.tx_ref,
+      status:
+        raw === 'successful'
+          ? PaymentStatus.SUCCESSFUL
+          : raw === 'failed'
+            ? PaymentStatus.FAILED
+            : PaymentStatus.PENDING,
+      amount: Number(json.data.amount ?? 0),
+      currency: String(json.data.currency ?? ''),
+    };
   }
 }
