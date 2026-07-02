@@ -36,6 +36,7 @@ export {
   MAX_PAGE_SIZE,
   INSTALLMENT,
   IMAGE_UPLOAD,
+  DOCUMENT_UPLOAD,
   SRID_WGS84,
   DEFAULT_SEARCH_RADIUS_M,
 } from './constants';
@@ -115,28 +116,18 @@ export type {
 } from './schemas/installment';
 
 // ── Notifications ─────────────────────────────────────────────────────────────
-export type {
-  NotificationResponse,
-  UnreadCountResponse,
-} from './schemas/notification';
+export type { NotificationResponse, UnreadCountResponse } from './schemas/notification';
 
 // ── Favorites ─────────────────────────────────────────────────────────────────
 export type { FavoriteIdsResponse } from './schemas/favorite';
 
 // ── Reviews ───────────────────────────────────────────────────────────────────
 export { REVIEW, createReviewSchema } from './schemas/review';
-export type {
-  CreateReviewInput,
-  ReviewResponse,
-  ReviewSummary,
-} from './schemas/review';
+export type { CreateReviewInput, ReviewResponse, ReviewSummary } from './schemas/review';
 
 // ── Rentals ───────────────────────────────────────────────────────────────────
 export { RENTAL, createRentalSchema } from './schemas/rental';
-export type {
-  CreateRentalInput,
-  RentalAgreementResponse,
-} from './schemas/rental';
+export type { CreateRentalInput, RentalAgreementResponse } from './schemas/rental';
 
 // ── Verifications ─────────────────────────────────────────────────────────────
 export {
@@ -149,6 +140,7 @@ export type {
   VerificationDocumentInput,
   SubmitVerificationInput,
   ReviewVerificationInput,
+  DocumentUploadResponse,
   VerificationDocument,
   VerificationResponse,
 } from './schemas/verification';
@@ -166,8 +158,4 @@ export type { AdminOverviewResponse } from './schemas/admin';
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
 export { CHAT, CHAT_MESSAGE_EVENT, sendMessageSchema } from './schemas/chat';
-export type {
-  SendMessageInput,
-  MessageResponse,
-  ConversationSummary,
-} from './schemas/chat';
+export type { SendMessageInput, MessageResponse, ConversationSummary } from './schemas/chat';

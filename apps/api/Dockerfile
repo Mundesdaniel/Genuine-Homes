@@ -35,7 +35,8 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=build --chown=app:app /out .
 COPY --chown=app:app apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
-RUN chmod +x docker-entrypoint.sh && mkdir -p uploads && chown app:app uploads
+RUN chmod +x docker-entrypoint.sh && mkdir -p uploads uploads-private \
+ && chown app:app uploads uploads-private
 USER app
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]

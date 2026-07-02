@@ -1,9 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   NotificationType,
@@ -16,6 +11,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapVerification } from '../common/mappers';
 import { NotificationsService } from '../notifications/notifications.service';
+import { UrlSignerService } from '../uploads/url-signer.service';
 import { ReviewVerificationDto } from './dto/review-verification.dto';
 import { SubmitVerificationDto } from './dto/submit-verification.dto';
 import { VerificationsRepository } from './verifications.repository';
@@ -28,7 +24,13 @@ export class VerificationsService {
     private readonly repo: VerificationsRepository,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly signer: UrlSignerService,
   ) {}
+
+  // Documents live in private storage as opaque keys; every response gets
+  // freshly signed, expiring links so nothing durable is ever handed out.
+  private readonly signDocumentUrl = (key: string): string =>
+    this.signer.signedDocumentPath(key);
 
   // Owner submits ownership/title documents; the property moves to `pending`.
   async submit(
@@ -44,26 +46,30 @@ export class VerificationsService {
     const uploadedAt = new Date().toISOString();
     const documents = dto.documents.map((d) => ({
       kind: d.kind,
-      url: d.url,
+      key: d.key,
       uploadedAt,
     })) as unknown as Prisma.InputJsonValue;
 
     const verification = await this.repo.createSubmission(dto.propertyId, documents);
-    this.logger.log(`Verification ${verification.id} submitted for property ${dto.propertyId}`);
-    return mapVerification(verification);
+    this.logger.log(
+      `Verification ${verification.id} submitted for property ${dto.propertyId}`,
+    );
+    return mapVerification(verification, this.signDocumentUrl);
   }
 
   // Admin queue (oldest first).
-  async listPending(
-    page: number,
-    pageSize: number,
-  ): Promise<Paginated<VerificationResponse>> {
+  async listPending(page: number, pageSize: number): Promise<Paginated<VerificationResponse>> {
     const [rows, total] = await this.repo.listByStatus(
       VerificationStatus.PENDING,
       (page - 1) * pageSize,
       pageSize,
     );
-    return { items: rows.map(mapVerification), total, page, pageSize };
+    return {
+      items: rows.map((row) => mapVerification(row, this.signDocumentUrl)),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   // Admin decision: approve or reject, update the badge, and tell the owner.
@@ -76,16 +82,9 @@ export class VerificationsService {
     if (!existing) throw new NotFoundException('Verification not found');
 
     const status =
-      dto.decision === 'verified'
-        ? VerificationStatus.VERIFIED
-        : VerificationStatus.REJECTED;
+      dto.decision === 'verified' ? VerificationStatus.VERIFIED : VerificationStatus.REJECTED;
 
-    const verification = await this.repo.review(
-      id,
-      reviewer.id,
-      status,
-      dto.notes ?? null,
-    );
+    const verification = await this.repo.review(id, reviewer.id, status, dto.notes ?? null);
 
     await this.audit.record({
       actorId: reviewer.id,
@@ -111,6 +110,6 @@ export class VerificationsService {
       this.logger.log(`Verification ${id} rejected${dto.notes ? `: ${dto.notes}` : ''}`);
     }
 
-    return mapVerification(verification);
+    return mapVerification(verification, this.signDocumentUrl);
   }
 }

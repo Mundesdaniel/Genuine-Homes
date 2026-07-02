@@ -51,6 +51,18 @@ export const IMAGE_UPLOAD = {
   MAX_PER_PROPERTY: 12,
 } as const;
 
+/** Verification document-upload rules (`POST /uploads/documents`). Documents
+ *  land in private storage and are only reachable through signed, expiring
+ *  URLs — unlike gallery images, they are never served publicly. */
+export const DOCUMENT_UPLOAD = {
+  /** Max size of a single document (scans/photos of titles run large). */
+  MAX_BYTES: 10 * 1024 * 1024,
+  /** MIME types accepted: the gallery image formats plus PDF. */
+  ACCEPTED_MIME_TYPES: [...IMAGE_UPLOAD.ACCEPTED_MIME_TYPES, 'application/pdf'] as const,
+  /** Storage keys are `<uuid>.<ext>` — the pattern both sides validate. */
+  KEY_PATTERN: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]{2,5}$/,
+} as const;
+
 /** WGS84 spatial reference id used for all PostGIS geography columns. */
 export const SRID_WGS84 = 4326;
 

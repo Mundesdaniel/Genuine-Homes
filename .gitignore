@@ -44,3 +44,4 @@ _doc*.txt
 
 # Cloud / uploads
 uploads/
+uploads-private/

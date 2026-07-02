@@ -25,6 +25,11 @@ export const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_REFRESH_TTL: z.string().default('30d'),
 
+  // Signs the expiring URLs that guard private document uploads. Unset → a
+  // dedicated key is derived from JWT_ACCESS_SECRET (fine for most deploys;
+  // set it explicitly to rotate document links independently of JWTs).
+  UPLOADS_SIGNING_SECRET: z.string().min(32).optional(),
+
   // Payment gateway selection. Unset → inferred: `flutterwave` when a secret
   // key is present, else `mock`. Production refuses the mock unless it was
   // chosen explicitly (a conscious, visible decision in the environment).

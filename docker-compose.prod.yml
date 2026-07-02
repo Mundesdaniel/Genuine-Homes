@@ -51,6 +51,8 @@ services:
     volumes:
       # Locally stored uploads survive restarts (unused with Cloudinary).
       - gh_prod_uploads:/app/uploads
+      # Private documents (land titles, IDs) — served only via signed URLs.
+      - gh_prod_uploads_private:/app/uploads-private
     depends_on:
       postgres:
         condition: service_healthy
@@ -71,3 +73,4 @@ volumes:
   gh_prod_pgdata:
   gh_prod_redisdata:
   gh_prod_uploads:
+  gh_prod_uploads_private:

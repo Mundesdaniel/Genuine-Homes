@@ -65,7 +65,7 @@ _(These matter most because they're in "done" code.)_
 ## E. Security & compliance
 
 - [ ] 🔴 **`apps/api/.env` is committed to git** (dev placeholder secrets). Gitignored going forward, but the tracked file must be removed (`git rm --cached apps/api/.env`) before any real secret lands.
-- [ ] 🟠 **Uploaded files served publicly** at `/uploads/<uuid>` with no auth or expiry. Spec requires **private storage with signed, expiring URLs** for sensitive docs (land titles, IDs) — a real trust/legal issue.
+- [x] 🟠 **Uploaded files served publicly** — _Done (Stage 9):_ sensitive documents now upload to `POST /uploads/documents` into a **private** `uploads-private/` dir (a sibling of the public static mount, never served directly). Verification submissions reference the opaque storage key; every API response mints **HMAC-signed, 15-minute URLs** (`/api/uploads/documents/:key?exp&sig`, signature covers key+expiry, verified constant-time; `UPLOADS_SIGNING_SECRET` env, derived from `JWT_ACCESS_SECRET` when unset). Legacy rows that stored plain URLs pass through unchanged. Property gallery images remain public by design.
 - [ ] 🟠 **Refresh tokens in `localStorage`** (XSS-exposed). Move to an httpOnly refresh-token cookie for production.
 - [x] ✅ **Genuinely solid:** helmet, CORS allowlist, rate limiting (tight on auth), argon2 hashing, env validation at boot, parameterized Prisma queries, constant-time login.
 

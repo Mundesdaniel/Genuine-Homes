@@ -59,9 +59,7 @@ export function mapListing(listing: Listing): ListingResponse {
     currency: listing.currency,
     rentPeriod: listing.rentPeriod,
     minDepositPercent:
-      listing.minDepositPercent != null
-        ? listing.minDepositPercent.toNumber()
-        : null,
+      listing.minDepositPercent != null ? listing.minDepositPercent.toNumber() : null,
     maxInstallmentMonths: listing.maxInstallmentMonths ?? null,
     isActive: listing.isActive,
     createdAt: listing.createdAt.toISOString(),
@@ -112,12 +110,28 @@ export function mapUserProfile(user: User): UserProfileResponse {
   };
 }
 
+// What the `documents` JSON column actually holds: new rows store a private
+// storage `key`; rows from before signed URLs stored a plain `url`.
+interface StoredVerificationDocument {
+  kind: string;
+  uploadedAt: string;
+  key?: string;
+  url?: string;
+}
+
 export function mapVerification(
   verification: Verification & { property: { title: string } },
+  signDocumentUrl?: (key: string) => string,
 ): VerificationResponse {
-  const documents = Array.isArray(verification.documents)
-    ? (verification.documents as unknown as VerificationDocument[])
+  const stored = Array.isArray(verification.documents)
+    ? (verification.documents as unknown as StoredVerificationDocument[])
     : [];
+  const documents: VerificationDocument[] = stored.map((d) => ({
+    kind: d.kind,
+    // Keys become short-lived signed links; legacy URL entries pass through.
+    url: d.key && signDocumentUrl ? signDocumentUrl(d.key) : (d.url ?? ''),
+    uploadedAt: d.uploadedAt,
+  }));
   return {
     id: verification.id,
     propertyId: verification.propertyId,
@@ -131,9 +145,7 @@ export function mapVerification(
   };
 }
 
-export function mapRentalAgreement(
-  agreement: RentalAgreement,
-): RentalAgreementResponse {
+export function mapRentalAgreement(agreement: RentalAgreement): RentalAgreementResponse {
   return {
     id: agreement.id,
     listingId: agreement.listingId,
@@ -175,9 +187,7 @@ export function mapPayment(payment: Payment): PaymentResponse {
   };
 }
 
-export function mapInstallmentPayment(
-  item: InstallmentPayment,
-): InstallmentPaymentItem {
+export function mapInstallmentPayment(item: InstallmentPayment): InstallmentPaymentItem {
   return {
     id: item.id,
     sequence: item.sequence,
@@ -281,8 +291,7 @@ export function mapListingSearchItem(
   opts: { coords?: Coords | null; distanceM?: number | null } = {},
 ): ListingSearchItem {
   const cover =
-    [...listing.property.images].sort((a, b) => a.position - b.position)[0]
-      ?.url ?? null;
+    [...listing.property.images].sort((a, b) => a.position - b.position)[0]?.url ?? null;
   return {
     ...mapListing(listing),
     property: mapPropertySummary(listing.property, {
