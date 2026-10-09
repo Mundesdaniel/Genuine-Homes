@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Genuine Homes — Deployment Procedure</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1a1a1a; font-size: 10.5pt; line-height: 1.5; margin: 0; }
+  h1 { font-size: 21pt; margin: 0 0 2px; color: #0f172a; }
+  .sub { color: #555; font-size: 10pt; margin: 0 0 2px; }
+  h2 { font-size: 13pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 2px solid #15803d; color: #14532d; }
+  code, .mono { font-family: "Consolas","Courier New",monospace; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 9.3pt; }
+  a { color: #1d4ed8; text-decoration: none; word-break: break-all; }
+  ol { margin: 4px 0 4px 18px; padding: 0; } li { margin: 3px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+  th, td { border: 1px solid #d4d4d8; padding: 5px 9px; text-align: left; font-size: 9.6pt; vertical-align: top; }
+  th { background: #f0fdf4; }
+  .box { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid #d97706; padding: 7px 11px; margin: 8px 0; border-radius: 4px; font-size: 9.8pt; }
+  .ok { color: #15803d; font-weight: 600; }
+  .step { background:#15803d; color:#fff; border-radius:50%; display:inline-block; width:18px; height:18px; text-align:center; font-size:9pt; line-height:18px; margin-right:4px; }
+  .footer { margin-top: 16px; padding-top: 6px; border-top: 1px solid #e5e7eb; color: #777; font-size: 8.3pt; }
+</style>
+</head>
+<body>
+
+<h1>Genuine Homes — Deployment Procedure</h1>
+<p class="sub">A brief, repeatable guide to deploy the full stack on free tiers.</p>
+<p class="sub">Frontend → Vercel · Backend (API + PostgreSQL + Redis) → Render · Repo: <a href="https://github.com/Mundesdaniel/Genuine-Homes">github.com/Mundesdaniel/Genuine-Homes</a></p>
+
+<h2>Overview</h2>
+<p>The React frontend is hosted on <b>Vercel</b> and proxies <code>/api</code> and <code>/uploads</code> to the <b>NestJS API</b>
+on <b>Render</b> (configured in <code>vercel.json</code>). Both read the repo's <code>vercel.json</code> / <code>render.yaml</code>,
+so deployment is mostly connect-the-repo-and-go. End result:
+<a href="https://genuine-homes.vercel.app">https://genuine-homes.vercel.app</a>.</p>
+
+<h2>Step 1 — Backend on Render</h2>
+<ol>
+  <li>Sign in at <a href="https://render.com">render.com</a> with <b>GitHub</b>.</li>
+  <li><b>New +</b> → <b>Blueprint</b> → select repo <span class="mono">Mundesdaniel/Genuine-Homes</span>. Render reads
+      <code>render.yaml</code> and lists 3 resources (API, PostgreSQL, Redis).</li>
+  <li>Leave the <code>CORS_ORIGINS</code>, <code>PUBLIC_WEB_URL</code>, <code>PUBLIC_API_URL</code> fields <b>blank</b> for now, click
+      <b>Deploy Blueprint</b>. First build ~5–8 min.</li>
+  <li>When <span class="mono">genuine-homes-api</span> is <b>Live</b>, copy its URL
+      (<span class="mono">https://genuine-homes-api.onrender.com</span>).</li>
+  <li>Verify: open <span class="mono">&lt;API&gt;/api/health</span> → should return <code>{"status":"ok"}</code>.</li>
+</ol>
+
+<h2>Step 2 — Frontend on Vercel</h2>
+<ol>
+  <li>Sign in at <a href="https://vercel.com">vercel.com</a> with <b>GitHub</b> → <b>Add New… → Project</b> → import
+      <span class="mono">Mundesdaniel/Genuine-Homes</span>.</li>
+  <li><b>Critical settings</b> (Project → Settings → Build and Deployment):
+    <table>
+      <tr><th>Setting</th><th>Value</th></tr>
+      <tr><td>Root Directory</td><td><b>blank</b> (repo root) — <u>not</u> <span class="mono">apps/api</span> or <span class="mono">apps/web</span></td></tr>
+      <tr><td>Framework Preset</td><td><b>Other</b> (not NestJS/Vite) — lets <code>vercel.json</code> control the build</td></tr>
+      <tr><td>Node.js Version</td><td><b>22.x</b></td></tr>
+      <tr><td>Build / Install / Output</td><td>leave as defaults — defined in <code>vercel.json</code></td></tr>
+    </table>
+  </li>
+  <li><b>Deploy.</b> Build ~2–3 min. The production URL is
+      <a href="https://genuine-homes.vercel.app">https://genuine-homes.vercel.app</a>.</li>
+  <li>Settings → <b>Deployment Protection</b> → turn <b>Vercel Authentication OFF</b> so the app is publicly viewable.</li>
+</ol>
+
+<h2>Step 3 — Connect the two &amp; finish</h2>
+<ol>
+  <li>In Render → <span class="mono">genuine-homes-api</span> → <b>Environment</b>, set and save:
+    <table>
+      <tr><th>Key</th><th>Value</th></tr>
+      <tr><td><code>PUBLIC_API_URL</code></td><td><span class="mono">https://genuine-homes-api.onrender.com</span></td></tr>
+      <tr><td><code>PUBLIC_WEB_URL</code></td><td><span class="mono">https://genuine-homes.vercel.app</span></td></tr>
+      <tr><td><code>CORS_ORIGINS</code></td><td><span class="mono">https://genuine-homes.vercel.app</span></td></tr>
+    </table>
+  </li>
+  <li><b>Load demo data:</b> Render → <span class="mono">genuine-homes-api</span> → <b>Shell</b> → run <code>pnpm db:seed</code>.
+      Then log in with <span class="mono">admin@genuinehomes.ug</span> / <code>Password123!</code>.</li>
+  <li>From now on, every <code>git push</code> to <code>main</code> auto-deploys both services.</li>
+</ol>
+
+<h2>Gotchas encountered &amp; fixes</h2>
+<table>
+  <tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr>
+  <tr>
+    <td>Render build fails: <span class="mono">TS2307 Cannot find module './uploads/...'</span></td>
+    <td>The <code>.gitignore</code> rule <code>uploads/</code> (for runtime storage) also ignored the source folder
+        <span class="mono">apps/api/src/uploads/</span>, so it was never pushed.</td>
+    <td>Anchor the ignore to runtime paths (<code>/apps/api/uploads/</code>) and commit the source module. (Commit <code>9953c05</code>.)</td>
+  </tr>
+  <tr>
+    <td>Vercel build fails; production URL 404</td>
+    <td>Project Root Directory was <span class="mono">apps/api</span> and framework <span class="mono">nestjs</span> — it built the
+        <i>backend</i> as the website.</td>
+    <td>Set Root Directory to blank (repo root) and Framework to Other; redeploy.</td>
+  </tr>
+  <tr>
+    <td>Site shows "Login – Vercel"</td>
+    <td>Vercel Authentication (SSO protection) was enabled on all deployments.</td>
+    <td>Settings → Deployment Protection → disable Vercel Authentication.</td>
+  </tr>
+</table>
+
+<div class="box">
+  <b>Tip:</b> because this is a pnpm monorepo, the Vercel <b>Root Directory must stay at the repo root</b> so the build can run
+  <code>pnpm build:shared</code> before building the web app. Setting it to a sub-folder breaks the workspace build.
+</div>
+
+<h2>Live URLs</h2>
+<table>
+  <tr><th>What</th><th>URL</th></tr>
+  <tr><td>App (share this)</td><td><a href="https://genuine-homes.vercel.app">https://genuine-homes.vercel.app</a></td></tr>
+  <tr><td>API base</td><td><span class="mono">https://genuine-homes-api.onrender.com/api</span></td></tr>
+  <tr><td>API health</td><td><span class="mono">https://genuine-homes-api.onrender.com/api/health</span> → <span class="ok">{"status":"ok"}</span></td></tr>
+</table>
+
+<p class="footer">Free-tier notes: the Render API sleeps after ~15 min idle (first request then ~50s to wake); uploaded images are
+ephemeral; live chat/WebSockets are not proxied. · Generated 2026-10-09.</p>
+
+</body>
+</html>
