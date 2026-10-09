@@ -42,6 +42,12 @@ Thumbs.db
 # Local doc text extractions (helper files)
 _doc*.txt
 
-# Cloud / uploads
-uploads/
-uploads-private/
+# Cloud / uploads — runtime file storage for user uploads; never commit these.
+# Anchored to the runtime locations so they do NOT ignore the source module
+# apps/api/src/uploads/ (same folder name, but it is code and must be tracked).
+/uploads/
+/uploads-private/
+/apps/api/uploads/
+/apps/api/uploads-private/
+
+.vercel
