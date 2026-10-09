@@ -10,6 +10,11 @@ export type VerificationWithProperty = Verification & {
 export type VerificationWithOwner = Verification & {
   property: { title: string; ownerId: string };
 };
+// After a review we also pull the property's first live listing (if any) so the
+// owner's "Property verified" notification can deep-link to the house.
+export type VerificationReviewed = Verification & {
+  property: { title: string; ownerId: string; listings: { id: string }[] };
+};
 
 @Injectable()
 export class VerificationsRepository {
@@ -74,12 +79,25 @@ export class VerificationsRepository {
     reviewerId: string,
     status: VerificationStatus,
     notes: string | null,
-  ): Promise<VerificationWithOwner> {
+  ): Promise<VerificationReviewed> {
     return this.prisma.$transaction(async (tx) => {
       const verification = await tx.verification.update({
         where: { id },
         data: { status, reviewerId, notes },
-        include: { property: { select: { title: true, ownerId: true } } },
+        include: {
+          property: {
+            select: {
+              title: true,
+              ownerId: true,
+              listings: {
+                where: { isActive: true, deletedAt: null },
+                select: { id: true },
+                orderBy: { createdAt: 'asc' },
+                take: 1,
+              },
+            },
+          },
+        },
       });
       await tx.property.update({
         where: { id: verification.propertyId },

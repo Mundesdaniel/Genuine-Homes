@@ -4,7 +4,7 @@ import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import type { NotificationsService } from '../notifications/notifications.service';
 import type { UrlSignerService } from '../uploads/url-signer.service';
 import type {
-  VerificationWithOwner,
+  VerificationReviewed,
   VerificationWithProperty,
   VerificationsRepository,
 } from './verifications.repository';
@@ -28,13 +28,13 @@ const withProperty = (): VerificationWithProperty =>
     property: { title: 'A home' },
   }) as unknown as VerificationWithProperty;
 
-const withOwner = (status = 'verified'): VerificationWithOwner =>
+const withOwner = (status = 'verified'): VerificationReviewed =>
   ({
     ...withProperty(),
     status,
     reviewerId: admin.id,
-    property: { title: 'A home', ownerId: owner.id },
-  }) as unknown as VerificationWithOwner;
+    property: { title: 'A home', ownerId: owner.id, listings: [{ id: 'listing-1' }] },
+  }) as unknown as VerificationReviewed;
 
 describe('VerificationsService', () => {
   let repo: jest.Mocked<VerificationsRepository>;
@@ -132,7 +132,7 @@ describe('VerificationsService', () => {
       NotificationType.LISTING_VERIFIED,
       expect.any(String),
       expect.any(String),
-      expect.objectContaining({ propertyId: 'prop-1' }),
+      expect.objectContaining({ propertyId: 'prop-1', listingId: 'listing-1' }),
     );
   });
 

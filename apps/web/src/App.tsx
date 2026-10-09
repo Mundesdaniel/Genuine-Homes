@@ -3,10 +3,13 @@ import { UserRole } from '@genuine-homes/shared';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AdminPage } from '@/pages/AdminPage';
+import { BookingsPage } from '@/pages/BookingsPage';
 import { ChatPage } from '@/pages/ChatPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { FavoritesPage } from '@/pages/FavoritesPage';
+import { ForgotPasswordPage } from '@/pages/ForgotPasswordPage';
 import { HomePage } from '@/pages/HomePage';
+import { IdentityVerificationPage } from '@/pages/IdentityVerificationPage';
 import { ListingDetailPage } from '@/pages/ListingDetailPage';
 import { PaymentsPage } from '@/pages/PaymentsPage';
 import { LoginPage } from '@/pages/LoginPage';
@@ -15,6 +18,7 @@ import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
 import { RegisterPage } from '@/pages/RegisterPage';
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
 
 export default function App() {
   return (
@@ -24,11 +28,21 @@ export default function App() {
         <Route path="listings/:id" element={<ListingDetailPage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route
           path="dashboard"
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="identity"
+          element={
+            <ProtectedRoute>
+              <IdentityVerificationPage />
             </ProtectedRoute>
           }
         />
@@ -53,6 +67,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="bookings"
+          element={
+            <ProtectedRoute>
+              <BookingsPage />
             </ProtectedRoute>
           }
         />

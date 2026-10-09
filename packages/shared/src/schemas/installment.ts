@@ -40,6 +40,10 @@ export type PayViaInput = z.infer<typeof payViaSchema>;
 /** Allowed plan state transitions (also enforced server-side). */
 export const PLAN_TRANSITIONS: Record<InstallmentPlanStatusType, InstallmentPlanStatusType[]> =
   {
+    [InstallmentPlanStatus.PENDING_APPROVAL]: [
+      InstallmentPlanStatus.PENDING_DEPOSIT,
+      InstallmentPlanStatus.CANCELLED,
+    ],
     [InstallmentPlanStatus.PENDING_DEPOSIT]: [
       InstallmentPlanStatus.ACTIVE,
       InstallmentPlanStatus.CANCELLED,
@@ -86,4 +90,11 @@ export interface InstallmentPlanDetail extends InstallmentPlanResponse {
   remainingCount: number;
   paidAmount: number;
   remainingAmount: number;
+}
+
+/** A buyer-requested plan awaiting the landlord's decision (approval queue). */
+export interface PlanRequestResponse {
+  plan: InstallmentPlanResponse;
+  buyer: { id: string; fullName: string; phone: string };
+  propertyTitle: string;
 }

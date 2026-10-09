@@ -13,6 +13,9 @@ export const envSchema = z.object({
   // Absolute origin the API is reachable at, used to build URLs for locally
   // stored uploads (e.g. http://localhost:3100). Defaults to localhost:PORT.
   PUBLIC_API_URL: z.string().url().optional(),
+  // Absolute origin of the web app, used in links sent to users (password
+  // reset). Defaults to the first CORS_ORIGINS entry.
+  PUBLIC_WEB_URL: z.string().url().optional(),
 
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url().default('redis://localhost:6379'),
@@ -29,6 +32,12 @@ export const envSchema = z.object({
   // dedicated key is derived from JWT_ACCESS_SECRET (fine for most deploys;
   // set it explicitly to rotate document links independently of JWTs).
   UPLOADS_SIGNING_SECRET: z.string().min(32).optional(),
+
+  // Keys the HMAC that stores National IDs as hashes (identity/KYC module).
+  // Unset → derived from JWT_ACCESS_SECRET. WARNING: rotating this key orphans
+  // existing NIN hashes (duplicate detection resets) — set it explicitly in
+  // production and treat it as long-lived.
+  IDENTITY_HASH_SECRET: z.string().min(32).optional(),
 
   // Payment gateway selection. Unset → inferred: `flutterwave` when a secret
   // key is present, else `mock`. Production refuses the mock unless it was

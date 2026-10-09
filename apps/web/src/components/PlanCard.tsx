@@ -11,7 +11,7 @@ export function PlanCard({ plan }: { plan: InstallmentPlanDetail }) {
         <Badge label={titleCase(plan.status)} tone={statusTone(plan.status)} />
         <span className="text-xs text-stone-400">{plan.months} months</span>
       </div>
-      <p className="mt-2 text-lg font-bold text-brand-dark">
+      <p className="mt-2 font-display text-lg font-bold tabular-nums text-brand-dark">
         {formatMoney(plan.totalPrice, plan.currency)}
       </p>
       <p className="text-xs text-stone-500">

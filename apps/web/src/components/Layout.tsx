@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Home, Menu, X } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
+import { NotificationBell } from '@/components/NotificationBell';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 import { titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
@@ -60,6 +61,9 @@ export function Layout() {
           <NavLink to="/messages" className={cls} onClick={close}>
             {t('nav.messages')}
           </NavLink>
+          <NavLink to="/bookings" className={cls} onClick={close}>
+            {t('nav.bookings')}
+          </NavLink>
           <NavLink to="/payments" className={cls} onClick={close}>
             {t('nav.payments')}
           </NavLink>
@@ -95,6 +99,7 @@ export function Layout() {
             <LanguageSwitcher />
             {token ? (
               <>
+                <NotificationBell />
                 <span className="text-sm text-stone-600">
                   {user?.fullName ?? t('nav.account')}
                   {user?.role && (
@@ -119,17 +124,20 @@ export function Layout() {
             )}
           </div>
 
-          {/* Mobile: hamburger */}
-          <button
-            type="button"
-            className="grid h-10 w-10 place-items-center rounded-lg text-stone-700 hover:bg-stone-100 md:hidden"
-            aria-expanded={menuOpen}
-            aria-controls="mobile-nav"
-            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+          {/* Mobile: notification bell + hamburger */}
+          <div className="flex items-center gap-1 md:hidden">
+            {token && <NotificationBell />}
+            <button
+              type="button"
+              className="grid h-10 w-10 place-items-center rounded-lg text-stone-700 hover:bg-stone-100"
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </div>
 
         {/* Mobile menu panel */}

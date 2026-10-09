@@ -34,6 +34,7 @@ enum UserRole {
 
 enum PropertyType {
   house
+  furnished_house
   apartment
   villa
   land
@@ -50,6 +51,7 @@ enum VerificationStatus {
 enum PropertyStatus {
   draft
   active
+  reserved
   rented
   sold
   suspended
@@ -67,6 +69,7 @@ enum RentPeriod {
 }
 
 enum InstallmentPlanStatus {
+  pending_approval
   pending_deposit
   active
   completed
@@ -85,6 +88,7 @@ enum PaymentPurpose {
   rent
   installment
   deposit
+  purchase
   verification_fee
   featured_listing
 }
@@ -118,9 +122,22 @@ enum NotificationType {
   plan_defaulted
   plan_reinstated
   listing_verified
+  identity_verified
+  identity_rejected
+  password_reset
   new_message
   viewing_scheduled
   saved_search_match
+}
+
+// A viewing booking walks a small state machine:
+//   pending -> accepted | declined   (owner's decision)
+//   pending | accepted -> cancelled  (buyer withdraws)
+enum BookingStatus {
+  pending
+  accepted
+  declined
+  cancelled
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -137,6 +154,9 @@ model User {
   passwordHash String    @map("password_hash")
   role         UserRole  @default(user)
   isVerified   Boolean   @default(false) @map("is_verified")
+  // Stamped when an admin approves the user's National ID (KYC) submission.
+  // Sellers need this before a property may be published (`active`).
+  identityVerifiedAt DateTime? @map("identity_verified_at") @db.Timestamptz(6)
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
@@ -152,8 +172,13 @@ model User {
   rentalAgreements      RentalAgreement[] @relation("AgreementTenant")
   payments              Payment[]
   verificationsReviewed Verification[]    @relation("VerificationReviewer")
+  identityVerifications IdentityVerification[] @relation("IdentitySubject")
+  identityReviews       IdentityVerification[] @relation("IdentityReviewer")
   refreshTokens         RefreshToken[]
+  passwordResetTokens   PasswordResetToken[]
   auditLogs             AuditLog[]        @relation("AuditActor")
+  bookingsMade          Booking[]         @relation("BookingBuyer")
+  bookingsReceived      Booking[]         @relation("BookingOwner")
 
   @@index([role])
   @@map("users")
@@ -168,6 +193,10 @@ model Property {
   district    String
   city        String
   area        String?
+  // Public "listed by" contact — the landlord/agent/owner name shown on the
+  // listing. Defaults to the poster's account name but is editable (e.g. an
+  // agent listing on behalf of a landlord).
+  contactName String?      @map("contact_name")
   // PostGIS point (lng,lat) in WGS84 (SRID 4326). Nullable until geocoded.
   location    Unsupported("geography(Point, 4326)")?
   sizeSqm     Decimal?     @map("size_sqm") @db.Decimal(12, 2)
@@ -187,6 +216,7 @@ model Property {
   listings      Listing[]
   verifications Verification[]
   favoritedBy   Favorite[]
+  bookings      Booking[]
 
   @@index([ownerId])
   @@index([district, type])
@@ -218,6 +248,7 @@ model Listing {
   installmentPlans InstallmentPlan[]
   rentalAgreements RentalAgreement[]
   messages         Message[]
+  bookings         Booking[]
 
   @@index([propertyId])
   @@index([listingType, isActive, price])
@@ -356,6 +387,41 @@ model Verification {
   @@map("verifications")
 }
 
+// Identity (KYC) verification of the person behind an account. The raw NIN is
+// never stored — only a masked form for display and an HMAC hash for duplicate
+// detection. Approval stamps `users.identity_verified_at`, which gates
+// publishing properties. Developers are companies: their rows also carry KYB
+// fields (URSB registration + TIN), with the NIN belonging to the authorized
+// representative.
+model IdentityVerification {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @map("user_id") @db.Uuid
+  legalName          String             @map("legal_name")
+  // e.g. "**********1234" — safe to show back to the user and to admins.
+  ninMasked          String             @map("nin_masked")
+  // HMAC-SHA256 of the normalized NIN (dedicated secret) — lets us block the
+  // same NIN from being verified on two accounts without persisting it.
+  ninHash            String             @map("nin_hash")
+  organizationName   String?            @map("organization_name")
+  registrationNumber String?            @map("registration_number")
+  tin                String?
+  // Submitted documents: [{ kind: 'national_id_front', key, uploadedAt }, ...]
+  documents          Json               @default("[]")
+  status             VerificationStatus @default(pending)
+  reviewerId         String?            @map("reviewer_id") @db.Uuid
+  notes              String?            @db.Text
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User  @relation("IdentitySubject", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("IdentityReviewer", fields: [reviewerId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([ninHash])
+  @@map("identity_verifications")
+}
+
 model Favorite {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String   @map("user_id") @db.Uuid
@@ -420,6 +486,34 @@ model Notification {
   @@map("notifications")
 }
 
+// A buyer's request to view a property in person. `ownerId` is denormalised
+// from the property (the seller/agent/landlord who posted it) so the owner's
+// "incoming viewings" queue is a single indexed lookup. The owner accepts or
+// declines; the buyer may cancel while it is still pending/accepted.
+model Booking {
+  id          String        @id @default(uuid()) @db.Uuid
+  listingId   String        @map("listing_id") @db.Uuid
+  propertyId  String        @map("property_id") @db.Uuid
+  buyerId     String        @map("buyer_id") @db.Uuid
+  ownerId     String        @map("owner_id") @db.Uuid
+  // Requested date + time of the viewing.
+  scheduledAt DateTime      @map("scheduled_at") @db.Timestamptz(6)
+  message     String?       @db.Text
+  status      BookingStatus @default(pending)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing  Listing  @relation(fields: [listingId], references: [id])
+  property Property @relation(fields: [propertyId], references: [id])
+  buyer    User     @relation("BookingBuyer", fields: [buyerId], references: [id])
+  owner    User     @relation("BookingOwner", fields: [ownerId], references: [id])
+
+  @@index([buyerId])
+  @@index([ownerId, status])
+  @@index([listingId])
+  @@map("bookings")
+}
+
 // Append-only audit trail of payment events and admin actions (spec
 // requirement). `actorId` is null for system-initiated events (webhooks,
 // scheduled sweeps). `entityId` is plain text so it can hold provider refs
@@ -459,4 +553,20 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// Single-use password-reset tokens. Only the sha256 hash is stored — the raw
+// token lives solely in the link sent to the user and expires after 30 minutes.
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }

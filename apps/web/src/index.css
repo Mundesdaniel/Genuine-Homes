@@ -63,8 +63,12 @@
   }
 }
 
-/* Keep the Leaflet map above nothing weird and rounded within its card. */
+/* Keep the Leaflet map rounded within its card, and contained. Leaflet gives
+   its panes and controls a high z-index (up to ~1000); pinning the container to
+   its own stacking context (relative + z-0) traps those internal layers so the
+   map can never paint over app chrome or modals (e.g. the Book-a-viewing
+   dialog on the listing page). */
 .leaflet-container {
-  @apply rounded-2xl;
+  @apply relative z-0 rounded-2xl;
   font: inherit;
 }

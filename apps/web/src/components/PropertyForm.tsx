@@ -16,6 +16,7 @@ import {
 } from '@/components/ImageUploader';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { titleCase } from '@/lib/format';
+import { useAuthStore } from '@/store/authStore';
 
 const COMMON_AMENITIES = ['water', 'power', 'fence', 'parking', 'wifi', 'furnished'];
 const numOrUndef = (s: string) => (s.trim() === '' ? undefined : Number(s));
@@ -28,6 +29,7 @@ const BLANK = {
   district: '',
   city: '',
   area: '',
+  contactName: '',
   bedrooms: '',
   bathrooms: '',
   sizeSqm: '',
@@ -45,6 +47,7 @@ const toFormState = (p?: PropertyDetail) =>
         district: p.district,
         city: p.city,
         area: p.area ?? '',
+        contactName: p.contactName ?? '',
         bedrooms: p.bedrooms?.toString() ?? '',
         bathrooms: p.bathrooms?.toString() ?? '',
         sizeSqm: p.sizeSqm?.toString() ?? '',
@@ -68,7 +71,14 @@ export function PropertyForm({
   onCancel?: () => void;
 }) {
   const isEdit = Boolean(initialProperty);
-  const [form, setForm] = useState(() => toFormState(initialProperty));
+  // New listings prefill the contact name with the poster's account name; it
+  // stays editable (e.g. an agent listing on behalf of a landlord).
+  const accountName = useAuthStore((s) => s.user?.fullName) ?? '';
+  const [form, setForm] = useState(() => {
+    const base = toFormState(initialProperty);
+    if (!initialProperty && !base.contactName) base.contactName = accountName;
+    return base;
+  });
   const [amenities, setAmenities] = useState<Record<string, boolean>>(
     () => initialProperty?.amenities ?? {},
   );
@@ -85,8 +95,9 @@ export function PropertyForm({
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  // Status is only owner-editable for draft/active/suspended (rented/sold are
-  // driven by other flows), so only offer the selector for those.
+  // The rentals/installment flows drive status automatically, but owners can
+  // also override it by hand here (e.g. mark a property taken or re-list it).
+  // The selector offers the whole owner-settable set when editing.
   const statusEditable = isEdit && SETTABLE.includes(status);
 
   const mutation = useMutation({
@@ -101,6 +112,7 @@ export function PropertyForm({
         district: form.district,
         city: form.city,
         area: form.area.trim() || undefined,
+        contactName: form.contactName.trim() || undefined,
         bedrooms: numOrUndef(form.bedrooms),
         bathrooms: numOrUndef(form.bathrooms),
         sizeSqm: numOrUndef(form.sizeSqm),
@@ -127,7 +139,7 @@ export function PropertyForm({
     },
     onSuccess: () => {
       if (!isEdit) {
-        setForm({ ...BLANK });
+        setForm({ ...BLANK, contactName: accountName });
         setAmenities({});
         setImages([]);
       }
@@ -213,6 +225,18 @@ export function PropertyForm({
             onChange={(e) => set('area', e.target.value)}
           />
         </div>
+      </div>
+
+      <div>
+        <label className="label">
+          Contact name <span className="text-stone-400">(landlord / agent / owner)</span>
+        </label>
+        <input
+          className="input"
+          value={form.contactName}
+          onChange={(e) => set('contactName', e.target.value)}
+          placeholder="Shown on the listing as “Listed by”"
+        />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

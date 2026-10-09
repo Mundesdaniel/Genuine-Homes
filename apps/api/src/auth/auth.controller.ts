@@ -17,9 +17,11 @@ import type { Env } from '../config/env.validation';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { TokenService } from './token.service';
 
 // Tight limit on credential endpoints to blunt brute-force / spam.
@@ -81,6 +83,26 @@ export class AuthController {
     const token = this.refreshTokenFrom(req, dto);
     if (!token) throw new UnauthorizedException('No refresh token provided');
     return this.withRefreshCookie(res, await this.auth.refresh(token));
+  }
+
+  @Public()
+  @Throttle(CREDENTIAL_THROTTLE)
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Request a password-reset link (always 200 — never reveals accounts)',
+  })
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ success: true }> {
+    return this.auth.forgotPassword(dto);
+  }
+
+  @Public()
+  @Throttle(CREDENTIAL_THROTTLE)
+  @Post('reset-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Set a new password with a reset token' })
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<{ success: true }> {
+    return this.auth.resetPassword(dto);
   }
 
   // Requires a valid access token (global guard); revokes the given session.

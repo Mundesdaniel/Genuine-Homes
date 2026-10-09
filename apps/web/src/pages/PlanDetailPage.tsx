@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { PaymentProvider, enumValues, type PayViaInput } from '@genuine-homes/shared';
 import { installmentsApi } from '@/api/installments';
-import { ProgressDonut } from '@/components/charts';
+import { ProgressRing } from '@/components/charts';
 import { Badge, ErrorState, Spinner, statusTone } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { goToCheckout } from '@/lib/checkout';
@@ -123,9 +123,9 @@ export function PlanDetailPage() {
         <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
           <div className="card p-5">
             <h3 className="mb-1 text-sm font-semibold text-stone-700">Progress</h3>
-            <ProgressDonut paid={plan.paidAmount} remaining={plan.remainingAmount} />
+            <ProgressRing paid={plan.paidAmount} remaining={plan.remainingAmount} />
             <div className="mt-2 text-center">
-              <p className="text-2xl font-bold text-brand-dark">
+              <p className="font-display text-2xl font-bold tabular-nums text-brand-dark">
                 {plan.paidCount}/{plan.months}
               </p>
               <p className="text-xs text-stone-500">installments paid</p>
@@ -170,6 +170,12 @@ export function PlanDetailPage() {
               </select>
             </div>
 
+            {plan.status === 'pending_approval' && (
+              <p className="rounded-lg bg-amber-50 p-3 text-center text-sm font-medium text-amber-800">
+                Waiting for the owner to accept your plan request. You can pay the deposit
+                once it’s approved.
+              </p>
+            )}
             {plan.status === 'pending_deposit' && (
               <button
                 className="btn-primary w-full"

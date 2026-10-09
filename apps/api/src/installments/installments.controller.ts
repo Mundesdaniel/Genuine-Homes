@@ -12,11 +12,13 @@ import type {
   InstallmentPlanDetail,
   Paginated,
   PaymentInitiation,
+  PlanRequestResponse,
 } from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CreatePlanDto } from './dto/create-plan.dto';
+import { DeclinePlanDto } from './dto/decline-plan.dto';
 import { PayViaDto } from './dto/pay-via.dto';
 import { InstallmentsService } from './installments.service';
 
@@ -43,6 +45,16 @@ export class InstallmentsController {
     @Query() query: PaginationQueryDto,
   ): Promise<Paginated<InstallmentPlanDetail>> {
     return this.installments.listMine(user, query.page, query.pageSize);
+  }
+
+  @Get('requests')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Plans buyers have requested on your properties (landlord view)' })
+  listRequests(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: PaginationQueryDto,
+  ): Promise<Paginated<PlanRequestResponse>> {
+    return this.installments.listPlanRequests(user, query.page, query.pageSize);
   }
 
   @Get(':id')
@@ -86,5 +98,26 @@ export class InstallmentsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<InstallmentPlanDetail> {
     return this.installments.cancel(user, id);
+  }
+
+  @Post(':id/accept')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Landlord: accept a requested plan (makes it payable)' })
+  accept(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<InstallmentPlanDetail> {
+    return this.installments.accept(user, id);
+  }
+
+  @Post(':id/decline')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Landlord: decline a requested plan' })
+  decline(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeclinePlanDto,
+  ): Promise<InstallmentPlanDetail> {
+    return this.installments.decline(user, id, dto.reason ?? null);
   }
 }

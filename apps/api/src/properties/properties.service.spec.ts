@@ -5,8 +5,9 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Property } from '@prisma/client';
-import { UserRole } from '@genuine-homes/shared';
+import { PropertyStatus, UserRole } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
+import type { IdentityService } from '../identity/identity.service';
 import { PropertiesService } from './properties.service';
 import type { PropertiesRepository } from './properties.repository';
 import type { CreatePropertyDto } from './dto/create-property.dto';
@@ -48,6 +49,7 @@ const baseDto: CreatePropertyDto = {
 
 describe('PropertiesService', () => {
   let repo: jest.Mocked<PropertiesRepository>;
+  let identity: jest.Mocked<IdentityService>;
   let service: PropertiesService;
 
   beforeEach(() => {
@@ -66,7 +68,10 @@ describe('PropertiesService', () => {
       findImage: jest.fn(),
       removeImage: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<PropertiesRepository>;
-    service = new PropertiesService(repo);
+    identity = {
+      isVerified: jest.fn().mockResolvedValue(true),
+    } as unknown as jest.Mocked<IdentityService>;
+    service = new PropertiesService(repo, identity);
   });
 
   describe('create', () => {
@@ -111,6 +116,54 @@ describe('PropertiesService', () => {
       await expect(
         service.update(owner, 'prop-1', { title: 'x' }),
       ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('lets an owner mark a property taken by hand (only active is gated)', async () => {
+      identity.isVerified.mockResolvedValue(false);
+      repo.findById.mockResolvedValue(fakeProperty());
+      await service.update(owner, 'prop-1', { status: PropertyStatus.RENTED });
+      expect(repo.update).toHaveBeenCalledWith(
+        'prop-1',
+        expect.objectContaining({ status: PropertyStatus.RENTED }),
+        null,
+      );
+    });
+  });
+
+  describe('identity publication gate', () => {
+    it('blocks an unverified seller from creating an active property', async () => {
+      identity.isVerified.mockResolvedValue(false);
+      await expect(
+        service.create(owner, { ...baseDto, status: PropertyStatus.ACTIVE }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.create).not.toHaveBeenCalled();
+    });
+
+    it('lets an unverified seller keep drafting', async () => {
+      identity.isVerified.mockResolvedValue(false);
+      await service.create(owner, { ...baseDto, status: PropertyStatus.DRAFT });
+      expect(repo.create).toHaveBeenCalled();
+    });
+
+    it('blocks an unverified seller from flipping a property to active', async () => {
+      identity.isVerified.mockResolvedValue(false);
+      repo.findById.mockResolvedValue(fakeProperty({ status: 'draft' }));
+      await expect(
+        service.update(owner, 'prop-1', { status: PropertyStatus.ACTIVE }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(repo.update).not.toHaveBeenCalled();
+    });
+
+    it('lets a verified seller publish', async () => {
+      await service.create(owner, { ...baseDto, status: PropertyStatus.ACTIVE });
+      expect(repo.create).toHaveBeenCalled();
+    });
+
+    it('admins bypass the gate', async () => {
+      identity.isVerified.mockResolvedValue(false);
+      await service.create(admin, { ...baseDto, status: PropertyStatus.ACTIVE });
+      expect(repo.create).toHaveBeenCalled();
+      expect(identity.isVerified).not.toHaveBeenCalled();
     });
   });
 

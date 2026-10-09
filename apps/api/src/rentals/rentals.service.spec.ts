@@ -1,10 +1,19 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { RentalAgreement } from '@prisma/client';
-import { PaymentPurpose, RentalAgreementStatus, UserRole } from '@genuine-homes/shared';
+import {
+  PaymentPurpose,
+  PropertyStatus,
+  RentalAgreementStatus,
+  UserRole,
+} from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import type { PaymentsService } from '../payments/payments.service';
-import type { RentListing, RentalsRepository } from './rentals.repository';
+import type {
+  AgreementWithOwner,
+  RentListing,
+  RentalsRepository,
+} from './rentals.repository';
 import { RentalsService } from './rentals.service';
 
 const tenant: AuthenticatedUser = { id: 'tenant-1', role: UserRole.USER };
@@ -52,6 +61,8 @@ describe('RentalsService', () => {
       listByTenant: jest.fn().mockResolvedValue([[agreement()], 1]),
       listByOwner: jest.fn().mockResolvedValue([[agreement()], 1]),
       updateStatus: jest.fn().mockResolvedValue(undefined),
+      transitionPropertyStatus: jest.fn().mockResolvedValue(undefined),
+      propertyStatusForListing: jest.fn().mockResolvedValue('active'),
     } as unknown as jest.Mocked<RentalsRepository>;
     payments = {
       initiate: jest.fn().mockResolvedValue({ payment: {}, redirectUrl: 'x' }),
@@ -67,6 +78,11 @@ describe('RentalsService', () => {
       await service.create(tenant, { listingId: 'listing-1', startDate: '2026-07-01' });
       const data = repo.create.mock.calls[0][0];
       expect(data.monthlyRent.toNumber()).toBe(1_000_000); // 12,000,000 / 12
+    });
+
+    it('does NOT lock the property just for creating a pending agreement', async () => {
+      await service.create(tenant, { listingId: 'listing-1', startDate: '2026-07-01' });
+      expect(repo.transitionPropertyStatus).not.toHaveBeenCalled();
     });
 
     it("rejects renting your own property", async () => {
@@ -104,6 +120,14 @@ describe('RentalsService', () => {
         service.payRent(tenant, 'agr-1', { provider: 'mtn_momo' }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
+
+    it('rejects the first rent payment when the property is already taken', async () => {
+      repo.propertyStatusForListing.mockResolvedValue('rented');
+      await expect(
+        service.payRent(tenant, 'agr-1', { provider: 'mtn_momo' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(payments.initiate).not.toHaveBeenCalled();
+    });
   });
 
   describe('onPaymentSucceeded', () => {
@@ -118,6 +142,21 @@ describe('RentalsService', () => {
       expect(repo.updateStatus).toHaveBeenCalledWith('agr-1', RentalAgreementStatus.ACTIVE);
     });
 
+    it('marks the property rented when the first rent settles', async () => {
+      await service.onPaymentSucceeded({
+        paymentId: 'pay-1',
+        userId: tenant.id,
+        purpose: PaymentPurpose.RENT,
+        referenceId: 'agr-1',
+        amount: 1_200_000,
+      });
+      expect(repo.transitionPropertyStatus).toHaveBeenCalledWith(
+        'listing-1',
+        [PropertyStatus.ACTIVE, PropertyStatus.RESERVED],
+        PropertyStatus.RENTED,
+      );
+    });
+
     it('ignores non-rent payments', async () => {
       await service.onPaymentSucceeded({
         paymentId: 'pay-2',
@@ -127,6 +166,25 @@ describe('RentalsService', () => {
         amount: 100,
       });
       expect(repo.updateStatus).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('terminate', () => {
+    it('re-lists the property when the owner terminates an agreement', async () => {
+      repo.findWithOwner.mockResolvedValue({
+        ...agreement({ status: 'active' }),
+        listing: { property: { ownerId: owner.id } },
+      } as unknown as AgreementWithOwner);
+      await service.terminate(owner, 'agr-1');
+      expect(repo.updateStatus).toHaveBeenCalledWith(
+        'agr-1',
+        RentalAgreementStatus.TERMINATED,
+      );
+      expect(repo.transitionPropertyStatus).toHaveBeenCalledWith(
+        'listing-1',
+        [PropertyStatus.RESERVED, PropertyStatus.RENTED],
+        PropertyStatus.ACTIVE,
+      );
     });
   });
 });

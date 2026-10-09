@@ -1,4 +1,4 @@
-import type { Paginated, PaymentResponse } from '@genuine-homes/shared';
+import type { EarningsResponse, Paginated, PaymentResponse } from '@genuine-homes/shared';
 import { api } from '@/lib/apiClient';
 
 export const paymentsApi = {
@@ -8,6 +8,8 @@ export const paymentsApi = {
         params: { page, pageSize },
       })
       .then((r) => r.data),
+  /** Seller income received across their listings. */
+  earnings: () => api.get<EarningsResponse>('/payments/earnings').then((r) => r.data),
   get: (id: string) => api.get<PaymentResponse>(`/payments/${id}`).then((r) => r.data),
   /**
    * DEV ONLY: stand in for the payment gateway's webhook from the mock checkout

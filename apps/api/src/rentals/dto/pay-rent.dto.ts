@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, Matches } from 'class-validator';
+import { IsIn, IsOptional, IsUrl, Matches } from 'class-validator';
 import {
   PaymentProvider,
   enumValues,
@@ -18,4 +18,10 @@ export class PayRentDto {
     message: 'Enter a valid phone number in international format',
   })
   phone?: string;
+
+  /** Where the hosted checkout returns the payer (the web /payments/return page). */
+  @ApiPropertyOptional({ example: 'https://app.genuinehomes.ug/payments/return' })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  redirectUrl?: string;
 }

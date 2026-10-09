@@ -21,6 +21,8 @@ Located in `apps/api/src/auth`.
 | `POST /refresh` | public | Exchange a refresh token for a new pair |
 | `POST /logout` | bearer | Revoke a refresh token (log out) |
 | `GET /me` | bearer | Get the current authenticated user |
+| `POST /forgot-password` | public | Request a password-reset link — see [password-reset.md](./password-reset.md) |
+| `POST /reset-password` | public | Set a new password with a single-use token |
 
 ### Security model
 

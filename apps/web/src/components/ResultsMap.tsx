@@ -61,7 +61,9 @@ export function ResultsMap({
             <Popup>
               <strong>{i.property.title}</strong>
               <br />
-              {formatMoney(i.price, i.currency)}
+              <span className="font-display font-bold tabular-nums text-brand-700">
+                {formatMoney(i.price, i.currency)}
+              </span>
             </Popup>
           </Marker>
         ))}

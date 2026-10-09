@@ -86,6 +86,21 @@ export class NotificationsService {
     await this.queue.enqueue({ userId, type, title, body });
   }
 
+  /**
+   * Deliver through the outbound channels (log/SMS) WITHOUT an in-app row.
+   * For messages that carry a secret (a password-reset link) — the secret must
+   * never be persisted, and the recipient is locked out anyway so an in-app
+   * notification could not be read.
+   */
+  async dispatch(
+    userId: string,
+    type: NotificationType,
+    title: string,
+    body: string,
+  ): Promise<void> {
+    await this.queue.enqueue({ userId, type, title, body });
+  }
+
   // ── Event listeners ─────────────────────────────────────────────────────────
 
   @OnEvent(PAYMENT_SUCCEEDED)

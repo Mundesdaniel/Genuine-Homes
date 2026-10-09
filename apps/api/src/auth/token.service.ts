@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -65,10 +65,26 @@ export class TokenService {
     });
   }
 
-  // Deterministic hash stored in the DB — lets us look a refresh token up by
-  // hash (so the raw token never touches the database) and revoke it.
-  hashRefresh(token: string): string {
+  // Deterministic hash stored in the DB — lets us look an opaque token
+  // (refresh or password-reset) up by hash, so the raw token never touches
+  // the database.
+  hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  // Opaque single-use password-reset token: 32 random bytes, URL-safe so it
+  // can ride in a link. Only its hash is meant to be persisted.
+  mintResetToken(ttlMs: number): {
+    token: string;
+    tokenHash: string;
+    expiresAt: Date;
+  } {
+    const token = randomBytes(32).toString('base64url');
+    return {
+      token,
+      tokenHash: this.hashToken(token),
+      expiresAt: new Date(Date.now() + ttlMs),
+    };
   }
 
   // When the refresh token stops verifying — aligns the httpOnly cookie's

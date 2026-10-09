@@ -1,4 +1,4 @@
-import type { RefreshToken, User } from '@prisma/client';
+import type { PasswordResetToken, RefreshToken, User } from '@prisma/client';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import type { AuthRepository } from './auth.repository';
 import { TokenService } from './token.service';
 import type { Env } from '../config/env.validation';
+import type { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * In-memory stand-in for AuthRepository so the service can be tested without a
@@ -15,6 +16,7 @@ import type { Env } from '../config/env.validation';
 class FakeRepo {
   users = new Map<string, User>();
   tokens: RefreshToken[] = [];
+  resetTokens: PasswordResetToken[] = [];
   private seq = 0;
 
   async findActiveByEmailOrPhone(identifier: string): Promise<User | null> {
@@ -78,6 +80,47 @@ class FakeRepo {
       if (t.userId === userId && !t.revokedAt) t.revokedAt = new Date();
     }
   }
+  async createResetToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<PasswordResetToken> {
+    const t = {
+      id: `reset-${++this.seq}`,
+      usedAt: null,
+      createdAt: new Date(),
+      ...data,
+    } as PasswordResetToken;
+    this.resetTokens.push(t);
+    return t;
+  }
+  async findResetTokenByHash(tokenHash: string): Promise<PasswordResetToken | null> {
+    return this.resetTokens.find((t) => t.tokenHash === tokenHash) ?? null;
+  }
+  async invalidateResetTokensForUser(userId: string): Promise<void> {
+    for (const t of this.resetTokens) {
+      if (t.userId === userId && !t.usedAt) t.usedAt = new Date();
+    }
+  }
+  async consumeResetToken(
+    tokenId: string,
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) user.passwordHash = passwordHash;
+    const t = this.resetTokens.find((x) => x.id === tokenId);
+    if (t) t.usedAt = new Date();
+    await this.revokeAllForUser(userId);
+  }
+}
+
+/** Captures outbound messages so tests can pull the reset link out. */
+class FakeNotifications {
+  sent: { userId: string; body: string }[] = [];
+  async dispatch(userId: string, _type: string, _title: string, body: string) {
+    this.sent.push({ userId, body });
+  }
 }
 
 // Test config — secrets just need to be long enough; TTLs are real formats.
@@ -86,6 +129,7 @@ const ENV: Record<string, string> = {
   JWT_ACCESS_TTL: '900s',
   JWT_REFRESH_SECRET: 'refresh-secret-that-is-at-least-32-chars-long',
   JWT_REFRESH_TTL: '30d',
+  CORS_ORIGINS: 'http://localhost:5173',
 };
 const fakeConfig = {
   get: (key: string) => ENV[key],
@@ -101,12 +145,19 @@ const validRegister = {
 
 describe('AuthService', () => {
   let repo: FakeRepo;
+  let notifications: FakeNotifications;
   let service: AuthService;
 
   beforeEach(() => {
     repo = new FakeRepo();
+    notifications = new FakeNotifications();
     const tokens = new TokenService(new JwtService({}), fakeConfig);
-    service = new AuthService(repo as unknown as AuthRepository, tokens);
+    service = new AuthService(
+      repo as unknown as AuthRepository,
+      tokens,
+      notifications as unknown as NotificationsService,
+      fakeConfig,
+    );
   });
 
   describe('register', () => {
@@ -214,6 +265,94 @@ describe('AuthService', () => {
 
     it('succeeds silently for an invalid token', async () => {
       await expect(service.logout('not-a-jwt')).resolves.toBeUndefined();
+    });
+  });
+
+  describe('forgotPassword / resetPassword', () => {
+    beforeEach(() => service.register(validRegister));
+
+    // The raw token only exists inside the delivered link — dig it back out.
+    const sentToken = (): string => {
+      const body = notifications.sent.at(-1)?.body ?? '';
+      return /token=([A-Za-z0-9_-]+)/.exec(body)?.[1] ?? '';
+    };
+
+    it('sends a reset link and stores only the token hash', async () => {
+      const res = await service.forgotPassword({ emailOrPhone: '+256700000003' });
+      expect(res).toEqual({ success: true });
+      expect(notifications.sent).toHaveLength(1);
+      const token = sentToken();
+      expect(token.length).toBeGreaterThanOrEqual(20);
+      expect(repo.resetTokens).toHaveLength(1);
+      expect(repo.resetTokens[0]?.tokenHash).not.toBe(token);
+    });
+
+    it('reports success for an unknown identifier without sending anything', async () => {
+      const res = await service.forgotPassword({ emailOrPhone: 'nobody@example.ug' });
+      expect(res).toEqual({ success: true });
+      expect(notifications.sent).toHaveLength(0);
+      expect(repo.resetTokens).toHaveLength(0);
+    });
+
+    it('resets the password, revokes sessions, and burns the token', async () => {
+      const session = await service.login({
+        emailOrPhone: '+256700000003',
+        password: 'Password123!',
+      });
+      await service.forgotPassword({ emailOrPhone: '+256700000003' });
+      const token = sentToken();
+
+      await expect(
+        service.resetPassword({ token, password: 'NewPassword456!' }),
+      ).resolves.toEqual({ success: true });
+
+      // New password works; the old one no longer does.
+      await expect(
+        service.login({ emailOrPhone: '+256700000003', password: 'NewPassword456!' }),
+      ).resolves.toBeDefined();
+      await expect(
+        service.login({ emailOrPhone: '+256700000003', password: 'Password123!' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+
+      // Every pre-reset session is dead.
+      await expect(service.refresh(session.refreshToken)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+
+      // The token is single-use.
+      await expect(
+        service.resetPassword({ token, password: 'AnotherPass789!' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('only honours the most recently issued link', async () => {
+      await service.forgotPassword({ emailOrPhone: '+256700000003' });
+      const firstToken = sentToken();
+      await service.forgotPassword({ emailOrPhone: '+256700000003' });
+
+      await expect(
+        service.resetPassword({ token: firstToken, password: 'NewPassword456!' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rejects a garbage token', async () => {
+      await expect(
+        service.resetPassword({
+          token: 'definitely-not-a-real-token-value',
+          password: 'NewPassword456!',
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('rejects an expired token', async () => {
+      await service.forgotPassword({ emailOrPhone: '+256700000003' });
+      const token = sentToken();
+      const stored = repo.resetTokens[0];
+      if (stored) stored.expiresAt = new Date(Date.now() - 1000);
+
+      await expect(
+        service.resetPassword({ token, password: 'NewPassword456!' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 });

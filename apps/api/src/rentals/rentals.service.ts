@@ -10,6 +10,7 @@ import {
   type Paginated,
   type PaymentInitiation,
   PaymentPurpose,
+  PropertyStatus,
   type RentalAgreementResponse,
   RentalAgreementStatus,
   UserRole,
@@ -67,6 +68,9 @@ export class RentalsService {
       monthlyRent,
       currency: listing.currency,
     });
+    // Deliberately no hold here: a pending, unpaid agreement must NOT lock the
+    // property, or one tenant could block everyone else without paying. The
+    // property is only taken (→ rented) once the first rent actually settles.
     this.logger.log(`Rental agreement ${agreement.id} created (pending)`);
     return mapRentalAgreement(agreement);
   }
@@ -115,6 +119,15 @@ export class RentalsService {
     ) {
       throw new BadRequestException('This agreement is no longer active');
     }
+    // First payment on a still-pending agreement: make sure another tenant/buyer
+    // hasn't already taken the property. (Ongoing rent on an active agreement is
+    // always allowed — the payer already holds it.)
+    if (agreement.status === RentalAgreementStatus.PENDING) {
+      const propertyStatus = await this.repo.propertyStatusForListing(agreement.listingId);
+      if (propertyStatus !== PropertyStatus.ACTIVE) {
+        throw new BadRequestException('This property is no longer available');
+      }
+    }
     return this.payments.initiate(user, {
       purpose: PaymentPurpose.RENT,
       referenceId: agreement.id,
@@ -122,6 +135,7 @@ export class RentalsService {
       currency: agreement.currency,
       provider: dto.provider,
       phone: dto.phone,
+      redirectUrl: dto.redirectUrl,
     });
   }
 
@@ -144,6 +158,12 @@ export class RentalsService {
       throw new BadRequestException('This agreement is already closed');
     }
     await this.repo.updateStatus(agreement.id, RentalAgreementStatus.TERMINATED);
+    // Put the property back on the market.
+    await this.repo.transitionPropertyStatus(
+      agreement.listingId,
+      [PropertyStatus.RESERVED, PropertyStatus.RENTED],
+      PropertyStatus.ACTIVE,
+    );
     const fresh = (await this.repo.findById(agreement.id))!;
     return mapRentalAgreement(fresh);
   }
@@ -156,6 +176,12 @@ export class RentalsService {
       const agreement = await this.repo.findById(event.referenceId);
       if (agreement && agreement.status === RentalAgreementStatus.PENDING) {
         await this.repo.updateStatus(agreement.id, RentalAgreementStatus.ACTIVE);
+        // The property is now taken.
+        await this.repo.transitionPropertyStatus(
+          agreement.listingId,
+          [PropertyStatus.ACTIVE, PropertyStatus.RESERVED],
+          PropertyStatus.RENTED,
+        );
         this.logger.log(`Rental agreement ${agreement.id} activated by rent payment`);
       }
     } catch (err) {

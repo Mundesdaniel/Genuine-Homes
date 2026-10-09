@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { AuthController } from './auth.controller';
 import { AuthRepository } from './auth.repository';
 import { AuthService } from './auth.service';
@@ -15,7 +16,8 @@ import { TokenService } from './token.service';
  * JwtModule needs no static config here.
  */
 @Module({
-  imports: [JwtModule.register({})],
+  // NotificationsModule delivers password-reset links (log/SMS senders).
+  imports: [JwtModule.register({}), NotificationsModule],
   controllers: [AuthController],
   providers: [
     AuthService,

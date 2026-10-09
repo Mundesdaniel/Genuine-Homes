@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { RefreshToken, User } from '@prisma/client';
+import type { PasswordResetToken, RefreshToken, User } from '@prisma/client';
 import type { UserRole } from '@genuine-homes/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -73,5 +73,47 @@ export class AuthRepository {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+  }
+
+  // ── Password-reset tokens ──────────────────────────────────────────────
+
+  createResetToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }): Promise<PasswordResetToken> {
+    return this.prisma.passwordResetToken.create({ data });
+  }
+
+  findResetTokenByHash(tokenHash: string): Promise<PasswordResetToken | null> {
+    return this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+  }
+
+  // Requesting a new link retires any outstanding ones — only the latest works.
+  async invalidateResetTokensForUser(userId: string): Promise<void> {
+    await this.prisma.passwordResetToken.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+  }
+
+  // Atomically: set the new password, burn the token, and end every session —
+  // a reset must never leave a half-applied state or a live stolen session.
+  async consumeResetToken(
+    tokenId: string,
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.passwordResetToken.update({
+        where: { id: tokenId },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 }

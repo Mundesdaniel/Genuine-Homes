@@ -22,7 +22,11 @@ export interface ListingWriteData {
 }
 
 export type ListingWithProperty = Listing & {
-  property: Property & { images: PropertyImage[] };
+  property: Property & {
+    images: PropertyImage[];
+    // Only the detail query loads the owner (for the "Listed by" line).
+    owner?: { fullName: string; role: string } | null;
+  };
 };
 
 export interface ListingSearchParams {
@@ -65,11 +69,17 @@ export class ListingsRepository {
   }
 
   // Listing + its property/gallery — used for ownership checks and detail view.
+  // Loads the owner (name + role) so the detail page can show "Listed by".
   findDetailById(id: string): Promise<ListingWithProperty | null> {
     return this.prisma.listing.findFirst({
       where: { id, deletedAt: null },
       include: {
-        property: { include: { images: { orderBy: { position: 'asc' } } } },
+        property: {
+          include: {
+            images: { orderBy: { position: 'asc' } },
+            owner: { select: { fullName: true, role: true } },
+          },
+        },
       },
     });
   }

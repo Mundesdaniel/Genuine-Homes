@@ -2,7 +2,12 @@ import { BadRequestException, ForbiddenException, NotFoundException } from '@nes
 import type { EventEmitter2 } from '@nestjs/event-emitter';
 import { Prisma } from '@prisma/client';
 import type { InstallmentPayment, InstallmentPlan, Listing } from '@prisma/client';
-import { InstallmentPlanStatus, PaymentPurpose, UserRole } from '@genuine-homes/shared';
+import {
+  InstallmentPlanStatus,
+  PaymentPurpose,
+  PropertyStatus,
+  UserRole,
+} from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import {
   INSTALLMENT_DUE_SOON,
@@ -13,6 +18,7 @@ import {
 import { InstallmentsService } from './installments.service';
 import type {
   InstallmentsRepository,
+  PlanListing,
   PlanWithSchedule,
   ScheduledPaymentWithPlan,
   ScheduleItem,
@@ -24,7 +30,9 @@ const buyer: AuthenticatedUser = { id: 'buyer-1', role: UserRole.USER };
 const stranger: AuthenticatedUser = { id: 'other', role: UserRole.USER };
 const admin: AuthenticatedUser = { id: 'admin-1', role: UserRole.ADMIN };
 
-const listing = (): Listing =>
+const OWNER_ID = 'owner-1';
+
+const listing = (over: Partial<Listing> = {}): PlanListing =>
   ({
     id: 'listing-1',
     price: new Prisma.Decimal('80000000'),
@@ -34,7 +42,17 @@ const listing = (): Listing =>
     maxInstallmentMonths: 36,
     isActive: true,
     deletedAt: null,
-  }) as unknown as Listing;
+    property: { id: 'prop-1', ownerId: OWNER_ID, status: 'active' },
+    ...over,
+  }) as unknown as PlanListing;
+
+// A plain sale listing — no installment terms; a plan here needs approval.
+const saleListing = (): PlanListing =>
+  listing({
+    listingType: 'sale',
+    minDepositPercent: null,
+    maxInstallmentMonths: null,
+  } as Partial<Listing>);
 
 const plan = (over: Partial<InstallmentPlan> = {}): InstallmentPlan =>
   ({
@@ -80,10 +98,15 @@ describe('InstallmentsService', () => {
 
   beforeEach(() => {
     repo = {
-      findActiveInstallmentListing: jest.fn().mockResolvedValue(listing()),
+      findActiveListingForPlan: jest.fn().mockResolvedValue(listing()),
       createPlanWithSchedule: jest.fn().mockResolvedValue('plan-1'),
       findPlanById: jest.fn().mockResolvedValue(plan()),
       findPlanDetail: jest.fn().mockResolvedValue(planDetail()),
+      findPlanWithOwner: jest
+        .fn()
+        .mockResolvedValue({ ...plan(), listing: { property: { ownerId: OWNER_ID } } }),
+      propertyStatusForPlan: jest.fn().mockResolvedValue('active'),
+      listPlanRequestsByOwner: jest.fn().mockResolvedValue([[], 0]),
       findPlansByBuyer: jest.fn().mockResolvedValue([[planDetail()], 1]),
       findInstallmentPayment: jest.fn(),
       updatePlanStatus: jest.fn().mockResolvedValue(undefined),
@@ -97,6 +120,7 @@ describe('InstallmentsService', () => {
       markPaymentsMissed: jest.fn().mockResolvedValue(0),
       findDefaultEligible: jest.fn().mockResolvedValue([[], 0]),
       countMissed: jest.fn().mockResolvedValue(0),
+      transitionPropertyStatus: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<InstallmentsRepository>;
     payments = {
       initiate: jest.fn().mockResolvedValue({ payment: {}, redirectUrl: 'x' }),
@@ -117,6 +141,7 @@ describe('InstallmentsService', () => {
       const [planData, schedule] = repo.createPlanWithSchedule.mock.calls[0] as [
         { depositAmount: Prisma.Decimal },
         ScheduleItem[],
+        string,
       ];
       expect(planData.depositAmount.toNumber()).toBe(16_000_000);
       expect(schedule).toHaveLength(24);
@@ -124,8 +149,8 @@ describe('InstallmentsService', () => {
       expect(Math.round(sum)).toBe(64_000_000); // total - deposit, to the cent
     });
 
-    it('404s for a missing/non-installment listing', async () => {
-      repo.findActiveInstallmentListing.mockResolvedValue(null);
+    it('404s for a missing/unavailable listing', async () => {
+      repo.findActiveListingForPlan.mockResolvedValue(null);
       await expect(service.createPlan(buyer, dto())).rejects.toBeInstanceOf(NotFoundException);
     });
 
@@ -133,6 +158,63 @@ describe('InstallmentsService', () => {
       await expect(
         service.createPlan(buyer, dto({ depositPercent: 10 })),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('starts a pre-offered installment plan payable (pending_deposit)', async () => {
+      await service.createPlan(buyer, dto());
+      const status = repo.createPlanWithSchedule.mock.calls[0][2];
+      expect(status).toBe(InstallmentPlanStatus.PENDING_DEPOSIT);
+    });
+
+    it('requests approval for a plan on a plain sale listing', async () => {
+      repo.findActiveListingForPlan.mockResolvedValue(saleListing());
+      await service.createPlan(buyer, dto());
+      const status = repo.createPlanWithSchedule.mock.calls[0][2];
+      expect(status).toBe(InstallmentPlanStatus.PENDING_APPROVAL);
+    });
+
+    it('rejects buying your own property', async () => {
+      await expect(
+        service.createPlan({ id: OWNER_ID, role: UserRole.LANDLORD }, dto()),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('accept / decline (landlord approval)', () => {
+    const requested = { ...plan({ status: 'pending_approval' }), listing: { property: { ownerId: OWNER_ID } } };
+    const owner: AuthenticatedUser = { id: OWNER_ID, role: UserRole.LANDLORD };
+
+    it('accepts a requested plan → pending_deposit', async () => {
+      repo.findPlanWithOwner.mockResolvedValue(requested);
+      await service.accept(owner, 'plan-1');
+      expect(repo.updatePlanStatus).toHaveBeenCalledWith(
+        'plan-1',
+        InstallmentPlanStatus.PENDING_DEPOSIT,
+        null,
+      );
+    });
+
+    it('declines a requested plan → cancelled', async () => {
+      repo.findPlanWithOwner.mockResolvedValue(requested);
+      await service.decline(owner, 'plan-1', 'Prefer outright sale');
+      expect(repo.updatePlanStatus).toHaveBeenCalledWith(
+        'plan-1',
+        InstallmentPlanStatus.CANCELLED,
+        null,
+      );
+    });
+
+    it("forbids a non-owner from accepting", async () => {
+      repo.findPlanWithOwner.mockResolvedValue(requested);
+      await expect(service.accept(stranger, 'plan-1')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects accepting a plan that is not awaiting approval', async () => {
+      repo.findPlanWithOwner.mockResolvedValue({
+        ...plan({ status: 'pending_deposit' }),
+        listing: { property: { ownerId: OWNER_ID } },
+      });
+      await expect(service.accept(owner, 'plan-1')).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
@@ -166,6 +248,14 @@ describe('InstallmentsService', () => {
         service.payDeposit(stranger, 'plan-1', { provider: 'mtn_momo' }),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
+
+    it('rejects the deposit when the property has been taken by someone else', async () => {
+      repo.propertyStatusForPlan.mockResolvedValue('sold');
+      await expect(
+        service.payDeposit(buyer, 'plan-1', { provider: 'mtn_momo' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(payments.initiate).not.toHaveBeenCalled();
+    });
   });
 
   describe('onPaymentSucceeded', () => {
@@ -181,6 +271,21 @@ describe('InstallmentsService', () => {
         'plan-1',
         InstallmentPlanStatus.ACTIVE,
         expect.any(Date),
+      );
+    });
+
+    it('reserves the property when the deposit settles', async () => {
+      await service.onPaymentSucceeded({
+        paymentId: 'pay-1',
+        userId: buyer.id,
+        purpose: PaymentPurpose.DEPOSIT,
+        referenceId: 'plan-1',
+        amount: 16_000_000,
+      });
+      expect(repo.transitionPropertyStatus).toHaveBeenCalledWith(
+        'listing-1',
+        [PropertyStatus.ACTIVE],
+        PropertyStatus.RESERVED,
       );
     });
 
@@ -205,6 +310,11 @@ describe('InstallmentsService', () => {
         'plan-1',
         InstallmentPlanStatus.COMPLETED,
         null,
+      );
+      expect(repo.transitionPropertyStatus).toHaveBeenCalledWith(
+        'listing-1',
+        [PropertyStatus.ACTIVE, PropertyStatus.RESERVED],
+        PropertyStatus.SOLD,
       );
     });
   });
@@ -279,6 +389,11 @@ describe('InstallmentsService', () => {
         PLAN_DEFAULTED,
         expect.objectContaining({ buyerId: buyer.id, planId: 'plan-1' }),
       );
+      expect(repo.transitionPropertyStatus).toHaveBeenCalledWith(
+        'listing-1',
+        [PropertyStatus.RESERVED],
+        PropertyStatus.ACTIVE,
+      );
     });
 
     it('rejects defaulting a plan that is not active', async () => {
@@ -317,6 +432,11 @@ describe('InstallmentsService', () => {
       expect(events.emit).toHaveBeenCalledWith(
         PLAN_REINSTATED,
         expect.objectContaining({ planId: 'plan-1' }),
+      );
+      expect(repo.transitionPropertyStatus).toHaveBeenCalledWith(
+        'listing-1',
+        [PropertyStatus.ACTIVE],
+        PropertyStatus.RESERVED,
       );
     });
 

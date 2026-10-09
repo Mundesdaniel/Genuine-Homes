@@ -9,17 +9,20 @@ import { LoggerModule } from 'nestjs-pino';
 import { AdminModule } from './admin/admin.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { BookingsModule } from './bookings/bookings.module';
 import { ChatModule } from './chat/chat.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { type Env, validateEnv } from './config/env.validation';
 import { FavoritesModule } from './favorites/favorites.module';
 import { HealthModule } from './health/health.module';
+import { IdentityModule } from './identity/identity.module';
 import { InstallmentsModule } from './installments/installments.module';
 import { ListingsModule } from './listings/listings.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { PropertiesModule } from './properties/properties.module';
+import { PurchasesModule } from './purchases/purchases.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
@@ -90,10 +93,13 @@ import { VerificationsModule } from './verifications/verifications.module';
     FavoritesModule,
     ReviewsModule,
     RentalsModule,
+    PurchasesModule,
     VerificationsModule,
+    IdentityModule,
     UsersModule,
     AdminModule,
     ChatModule,
+    BookingsModule,
     UploadsModule,
     HealthModule,
   ],

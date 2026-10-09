@@ -70,6 +70,20 @@ export type RefreshInput = z.infer<typeof refreshSchema>;
 export const logoutSchema = refreshSchema;
 export type LogoutInput = z.infer<typeof logoutSchema>;
 
+/** Request a password-reset link. The API always answers 200 — it never
+ *  reveals whether an account exists for the identifier. */
+export const forgotPasswordSchema = z.object({
+  emailOrPhone: z.string().trim().min(3, 'Enter your email or phone'),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+/** Set a new password using the single-use token from the reset link. */
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(20, 'This reset link is not valid'),
+  password: passwordSchema,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 /** The authenticated user as returned to clients — never includes the hash. */
 export interface AuthUser {
   id: string;
@@ -78,6 +92,8 @@ export interface AuthUser {
   phone: string;
   role: UserRole;
   isVerified: boolean;
+  /** Set once an admin approved the user's National ID (KYC) submission. */
+  identityVerifiedAt: string | null;
   createdAt: string;
 }
 

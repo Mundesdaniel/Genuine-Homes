@@ -13,6 +13,7 @@ export interface PropertyWriteData {
   district: string;
   city: string;
   area: string | null;
+  contactName: string | null;
   sizeSqm: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -46,6 +47,7 @@ export class PropertiesRepository {
           district: data.district,
           city: data.city,
           area: data.area,
+          contactName: data.contactName,
           sizeSqm: data.sizeSqm,
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
@@ -193,6 +195,7 @@ export class PropertiesRepository {
       district: data.district,
       city: data.city,
       area: data.area,
+      contactName: data.contactName,
       sizeSqm: data.sizeSqm,
       bedrooms: data.bedrooms,
       bathrooms: data.bathrooms,

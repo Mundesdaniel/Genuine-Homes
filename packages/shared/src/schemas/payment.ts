@@ -50,3 +50,14 @@ export interface PaymentInitiation {
   payment: PaymentResponse;
   redirectUrl: string | null;
 }
+
+/**
+ * Income a seller has *received* on their listings (rent, installments,
+ * deposits, outright purchases) — the landlord-side counterpart to the payer's
+ * own payment history. Fees paid to the platform are excluded.
+ */
+export interface EarningsResponse {
+  totalReceived: number;
+  currency: string;
+  byMonth: { month: string; amount: number }[];
+}

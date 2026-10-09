@@ -1,4 +1,6 @@
 import type {
+  Booking,
+  IdentityVerification,
   InstallmentPayment,
   InstallmentPlan,
   Listing,
@@ -13,6 +15,9 @@ import type {
   Verification,
 } from '@prisma/client';
 import type {
+  BookingResponse,
+  IdentityVerificationQueueItem,
+  IdentityVerificationResponse,
   InstallmentPaymentItem,
   InstallmentPlanDetail,
   InstallmentPlanResponse,
@@ -86,6 +91,32 @@ export function mapNotification(n: Notification): NotificationResponse {
   };
 }
 
+export function mapBooking(
+  booking: Booking & {
+    property: { title: string };
+    buyer: Pick<User, 'id' | 'fullName' | 'phone'>;
+  },
+): BookingResponse {
+  return {
+    id: booking.id,
+    listingId: booking.listingId,
+    propertyId: booking.propertyId,
+    buyerId: booking.buyerId,
+    ownerId: booking.ownerId,
+    scheduledAt: booking.scheduledAt.toISOString(),
+    message: booking.message ?? null,
+    status: booking.status,
+    createdAt: booking.createdAt.toISOString(),
+    updatedAt: booking.updatedAt.toISOString(),
+    propertyTitle: booking.property.title,
+    buyer: {
+      id: booking.buyer.id,
+      fullName: booking.buyer.fullName,
+      phone: booking.buyer.phone,
+    },
+  };
+}
+
 export function mapMessage(message: Message): MessageResponse {
   return {
     id: message.id,
@@ -106,6 +137,9 @@ export function mapUserProfile(user: User): UserProfileResponse {
     phone: user.phone,
     role: user.role,
     isVerified: user.isVerified,
+    identityVerifiedAt: user.identityVerifiedAt
+      ? user.identityVerifiedAt.toISOString()
+      : null,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -142,6 +176,46 @@ export function mapVerification(
     reviewerId: verification.reviewerId ?? null,
     createdAt: verification.createdAt.toISOString(),
     updatedAt: verification.updatedAt.toISOString(),
+  };
+}
+
+export function mapIdentityVerification(
+  row: IdentityVerification,
+  signDocumentUrl: (key: string) => string,
+): IdentityVerificationResponse {
+  const stored = Array.isArray(row.documents)
+    ? (row.documents as unknown as StoredVerificationDocument[])
+    : [];
+  const documents: VerificationDocument[] = stored.map((d) => ({
+    kind: d.kind,
+    url: d.key ? signDocumentUrl(d.key) : (d.url ?? ''),
+    uploadedAt: d.uploadedAt,
+  }));
+  return {
+    id: row.id,
+    userId: row.userId,
+    legalName: row.legalName,
+    ninMasked: row.ninMasked,
+    organizationName: row.organizationName ?? null,
+    registrationNumber: row.registrationNumber ?? null,
+    tin: row.tin ?? null,
+    status: row.status,
+    documents,
+    notes: row.notes ?? null,
+    reviewerId: row.reviewerId ?? null,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export function mapIdentityQueueItem(
+  row: IdentityVerification & { user: { fullName: string; role: string } },
+  signDocumentUrl: (key: string) => string,
+): IdentityVerificationQueueItem {
+  return {
+    ...mapIdentityVerification(row, signDocumentUrl),
+    userFullName: row.user.fullName,
+    userRole: row.user.role,
   };
 }
 
@@ -237,7 +311,13 @@ export function mapPlanDetail(
 
 export function mapPropertySummary(
   property: Property,
-  opts: { coords?: Coords | null; coverImageUrl?: string | null } = {},
+  opts: {
+    coords?: Coords | null;
+    coverImageUrl?: string | null;
+    // The property's owner (name + role), when the query loaded it — powers the
+    // "Listed by … · Agent" line. Absent on card/search rows (left null).
+    owner?: { fullName: string; role: string } | null;
+  } = {},
 ): PropertySummary {
   return {
     id: property.id,
@@ -248,6 +328,9 @@ export function mapPropertySummary(
     district: property.district,
     city: property.city,
     area: property.area ?? null,
+    contactName: property.contactName ?? null,
+    ownerName: opts.owner?.fullName ?? null,
+    ownerRole: (opts.owner?.role ?? null) as PropertySummary['ownerRole'],
     sizeSqm: property.sizeSqm != null ? property.sizeSqm.toNumber() : null,
     bedrooms: property.bedrooms ?? null,
     bathrooms: property.bathrooms ?? null,
@@ -283,7 +366,11 @@ export function mapPropertyDetail(
 }
 
 type ListingWithProperty = Listing & {
-  property: Property & { images: PropertyImage[] };
+  property: Property & {
+    images: PropertyImage[];
+    // Loaded on the single-listing detail path so it can show "Listed by".
+    owner?: { fullName: string; role: string } | null;
+  };
 };
 
 export function mapListingSearchItem(
@@ -297,6 +384,7 @@ export function mapListingSearchItem(
     property: mapPropertySummary(listing.property, {
       coords: opts.coords,
       coverImageUrl: cover,
+      owner: listing.property.owner ?? null,
     }),
     distanceM: opts.distanceM ?? null,
   };

@@ -101,6 +101,7 @@ const STATUS_INTENT: Record<string, BadgeTone> = {
   // Plan lifecycle
   active: 'success',
   completed: 'success',
+  pending_approval: 'warning',
   pending_deposit: 'warning',
   pending: 'warning',
   defaulted: 'danger',
@@ -112,9 +113,13 @@ const STATUS_INTENT: Record<string, BadgeTone> = {
   missed: 'danger',
   // Property lifecycle
   draft: 'neutral',
+  reserved: 'warning',
   rented: 'info',
   sold: 'info',
   suspended: 'danger',
+  // Booking (viewing) lifecycle — 'pending'/'cancelled' shared with the above.
+  accepted: 'success',
+  declined: 'danger',
 };
 
 export function statusTone(value: string): BadgeTone {

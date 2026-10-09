@@ -26,6 +26,7 @@ export {
   Currency,
   RentalAgreementStatus,
   NotificationType,
+  BookingStatus,
   enumValues,
 } from './enums';
 
@@ -50,6 +51,8 @@ export {
   loginSchema,
   refreshSchema,
   logoutSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
 } from './schemas/auth';
 export type {
   SelfAssignableRole,
@@ -58,6 +61,8 @@ export type {
   LoginInput,
   RefreshInput,
   LogoutInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
   AuthUser,
   AuthTokens,
   AuthResponse,
@@ -103,6 +108,7 @@ export type {
   InitiatePaymentInput,
   PaymentResponse,
   PaymentInitiation,
+  EarningsResponse,
 } from './schemas/payment';
 
 // ── Installments ────────────────────────────────────────────────────────────
@@ -113,6 +119,7 @@ export type {
   InstallmentPaymentItem,
   InstallmentPlanResponse,
   InstallmentPlanDetail,
+  PlanRequestResponse,
 } from './schemas/installment';
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -145,6 +152,20 @@ export type {
   VerificationResponse,
 } from './schemas/verification';
 
+// ── Identity (KYC) ────────────────────────────────────────────────────────────
+export {
+  IDENTITY,
+  submitIdentityVerificationSchema,
+  reviewIdentityVerificationSchema,
+} from './schemas/identity';
+export type {
+  SubmitIdentityVerificationInput,
+  ReviewIdentityVerificationInput,
+  IdentityDocumentInput,
+  IdentityVerificationResponse,
+  IdentityVerificationQueueItem,
+} from './schemas/identity';
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 export { updateProfileSchema, adminUpdateUserSchema } from './schemas/user';
 export type {
@@ -159,3 +180,11 @@ export type { AdminOverviewResponse } from './schemas/admin';
 // ── Chat ──────────────────────────────────────────────────────────────────────
 export { CHAT, CHAT_MESSAGE_EVENT, sendMessageSchema } from './schemas/chat';
 export type { SendMessageInput, MessageResponse, ConversationSummary } from './schemas/chat';
+
+// ── Bookings (viewings) ───────────────────────────────────────────────────────
+export { BOOKING, createBookingSchema, declineBookingSchema } from './schemas/booking';
+export type {
+  CreateBookingInput,
+  DeclineBookingInput,
+  BookingResponse,
+} from './schemas/booking';

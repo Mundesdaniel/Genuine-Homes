@@ -104,7 +104,12 @@ export class VerificationsService {
         NotificationType.LISTING_VERIFIED,
         'Property verified',
         `"${verification.property.title}" has been verified and now shows the Verified badge.`,
-        { propertyId: verification.propertyId, verificationId: verification.id },
+        {
+          propertyId: verification.propertyId,
+          verificationId: verification.id,
+          // First live listing, so the notification can open the house page.
+          listingId: verification.property.listings[0]?.id ?? null,
+        },
       );
     } else {
       this.logger.log(`Verification ${id} rejected${dto.notes ? `: ${dto.notes}` : ''}`);

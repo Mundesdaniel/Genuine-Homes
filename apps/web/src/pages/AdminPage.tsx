@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserRole, enumValues, type UserProfileResponse } from '@genuine-homes/shared';
 import { adminApi } from '@/api/admin';
+import { identityApi } from '@/api/identity';
 import { usersApi } from '@/api/users';
 import { verificationsApi } from '@/api/verifications';
 import { Badge, ConfirmDialog, EmptyState, ErrorState, Spinner } from '@/components/ui';
@@ -12,7 +13,7 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="card p-4">
       <p className="text-sm text-stone-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-stone-800">{value}</p>
+      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-stone-800">{value}</p>
     </div>
   );
 }
@@ -139,6 +140,113 @@ function VerificationsSection() {
   );
 }
 
+function IdentitySection() {
+  const queryClient = useQueryClient();
+  const [rejecting, setRejecting] = useState<{ id: string; name: string } | null>(null);
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['admin', 'identity'],
+    queryFn: () => identityApi.pending(1, 50),
+  });
+
+  const review = useMutation({
+    mutationFn: ({
+      id,
+      decision,
+      notes,
+    }: {
+      id: string;
+      decision: 'verified' | 'rejected';
+      notes?: string;
+    }) => identityApi.review(id, decision, notes),
+    onSuccess: () => {
+      setRejecting(null);
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'identity'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+    },
+  });
+
+  if (isLoading) return <Spinner label="Loading identity queue…" />;
+  if (isError)
+    return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
+  const items = data?.items ?? [];
+  if (items.length === 0)
+    return <EmptyState title="No pending identity checks" hint="The queue is clear." />;
+
+  return (
+    <>
+      <ul className="space-y-2">
+        {items.map((v) => (
+          <li
+            key={v.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3"
+          >
+            <div className="min-w-0">
+              <p className="font-medium text-stone-800">
+                {v.legalName}{' '}
+                <span className="text-sm font-normal text-stone-500">
+                  ({titleCase(v.userRole)}
+                  {v.userFullName !== v.legalName ? ` · account: ${v.userFullName}` : ''})
+                </span>
+              </p>
+              <p className="text-sm text-stone-500">
+                NIN {v.ninMasked}
+                {v.organizationName
+                  ? ` · ${v.organizationName} (URSB ${v.registrationNumber ?? '—'}${v.tin ? `, TIN ${v.tin}` : ''})`
+                  : ''}
+              </p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {v.documents.map((d, i) => (
+                  <a
+                    key={i}
+                    href={d.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="chip bg-stone-100 text-stone-700 underline-offset-2 transition hover:bg-stone-200 hover:underline"
+                  >
+                    {titleCase(d.kind)} ↗
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={review.isPending}
+                onClick={() => review.mutate({ id: v.id, decision: 'verified' })}
+              >
+                Approve
+              </button>
+              <button
+                className="btn-outline"
+                type="button"
+                disabled={review.isPending}
+                onClick={() => setRejecting({ id: v.id, name: v.legalName })}
+              >
+                Reject
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={rejecting !== null}
+        title={`Reject ${rejecting?.name ?? ''}'s identity submission?`}
+        body="They will be notified and can resubmit. A short reason helps them fix it."
+        confirmLabel="Reject"
+        danger
+        busy={review.isPending}
+        notes={{ label: 'Reason (optional)', placeholder: 'e.g. ID photo is blurry' }}
+        onCancel={() => setRejecting(null)}
+        onConfirm={(notes) =>
+          rejecting && review.mutate({ id: rejecting.id, decision: 'rejected', notes })
+        }
+      />
+    </>
+  );
+}
+
 function UsersSection() {
   const queryClient = useQueryClient();
   const [roleChange, setRoleChange] = useState<{
@@ -245,6 +353,11 @@ export function AdminPage() {
       <section className="space-y-3">
         <h2 className="font-semibold text-stone-700">Overview</h2>
         <OverviewSection />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-semibold text-stone-700">Identity checks (National ID)</h2>
+        <IdentitySection />
       </section>
 
       <section className="space-y-3">

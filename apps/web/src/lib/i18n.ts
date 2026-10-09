@@ -25,6 +25,7 @@ const en = {
     browse: 'Browse',
     saved: 'Saved',
     messages: 'Messages',
+    bookings: 'Bookings',
     payments: 'Payments',
     dashboard: 'Dashboard',
     admin: 'Admin',
@@ -48,6 +49,12 @@ const en = {
     account: 'Account',
     languages: 'Language',
   },
+  notifications: {
+    title: 'Notifications',
+    markAllRead: 'Mark all read',
+    loading: 'Loading…',
+    empty: "You're all caught up.",
+  },
 };
 
 // Partial — unset keys fall back to English.
@@ -56,6 +63,7 @@ const sw: typeof en = {
     browse: 'Vinjari',
     saved: 'Zilizohifadhiwa',
     messages: 'Ujumbe',
+    bookings: 'Miadi',
     payments: 'Malipo',
     dashboard: 'Dashibodi',
     admin: 'Msimamizi',
@@ -79,6 +87,12 @@ const sw: typeof en = {
     account: 'Akaunti',
     languages: 'Lugha',
   },
+  notifications: {
+    title: 'Arifa',
+    markAllRead: 'Weka zote zimesomwa',
+    loading: 'Inapakia…',
+    empty: 'Huna arifa mpya.',
+  },
 };
 
 const lg: Partial<typeof en> = {
@@ -86,6 +100,7 @@ const lg: Partial<typeof en> = {
     browse: 'Noonya',
     saved: 'Ebitereke',
     messages: 'Obubaka',
+    bookings: 'Okukyala',
     payments: 'Ebisasulwa',
     dashboard: 'Dashiboodi',
     admin: 'Omukulu',

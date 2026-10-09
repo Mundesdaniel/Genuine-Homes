@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type {
+  EarningsResponse,
   Paginated,
   PaymentInitiation,
   PaymentResponse,
@@ -45,6 +46,13 @@ export class PaymentsController {
     @Query() query: PaginationQueryDto,
   ): Promise<Paginated<PaymentResponse>> {
     return this.payments.listMine(user, query.page, query.pageSize);
+  }
+
+  @Get('earnings')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Income received on your listings (seller dashboard)' })
+  earnings(@CurrentUser() user: AuthenticatedUser): Promise<EarningsResponse> {
+    return this.payments.earnings(user);
   }
 
   // Public: authenticated by the gateway's signature, not a JWT.

@@ -343,6 +343,16 @@ async function main(): Promise<void> {
   ];
   await prisma.user.createMany({ data: newUsers, skipDuplicates: true });
 
+  // Seller accounts must be identity-verified (National ID) before they can
+  // publish — stamp all seeded sellers so dev flows work out of the box.
+  await prisma.user.updateMany({
+    where: {
+      role: { in: ['landlord', 'agent', 'developer', 'admin'] },
+      identityVerifiedAt: null,
+    },
+    data: { identityVerifiedAt: new Date() },
+  });
+
   const newProps: SeedProp[] = [
     {
       id: uuid(200), ownerId: uuid(101), type: 'apartment',

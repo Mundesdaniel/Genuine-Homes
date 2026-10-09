@@ -59,6 +59,16 @@ export class CreatePropertyDto {
   @Length(0, 100)
   area?: string;
 
+  @ApiPropertyOptional({
+    example: 'Sarah Namuli (Prime Agents)',
+    description: 'Public "listed by" contact name (landlord/agent/owner)',
+  })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @Length(2, 120)
+  contactName?: string;
+
   @ApiPropertyOptional({ example: 250, description: 'Size in square metres' })
   @IsOptional()
   @IsNumber()

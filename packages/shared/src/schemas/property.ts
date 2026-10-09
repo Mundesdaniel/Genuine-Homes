@@ -13,15 +13,21 @@ import {
   enumValues,
   type PropertyStatus as PropertyStatusType,
   type PropertyType as PropertyTypeType,
+  type UserRole as UserRoleType,
   type VerificationStatus as VerificationStatusType,
 } from '../enums';
 import type { ListingResponse } from './listing';
 
-// Statuses an owner may set themselves. `rented`/`sold` are driven by other
-// flows (rentals, installment completion), so they aren't user-settable here.
+// Statuses an owner (or admin) may set by hand. `reserved`/`rented`/`sold` are
+// also driven automatically by the rentals + installment flows, but stay
+// settable so an owner can hold, mark a property taken, or re-list it manually.
+// Publishing to `active` is still gated on identity verification server-side.
 export const OWNER_SETTABLE_STATUSES = [
   PropertyStatus.DRAFT,
   PropertyStatus.ACTIVE,
+  PropertyStatus.RESERVED,
+  PropertyStatus.RENTED,
+  PropertyStatus.SOLD,
   PropertyStatus.SUSPENDED,
 ] as const;
 
@@ -35,6 +41,8 @@ const propertyBase = z.object({
   district: z.string().trim().min(2).max(100),
   city: z.string().trim().min(2).max(100),
   area: z.string().trim().max(100).optional(),
+  /** "Listed by" contact name (landlord/agent/owner) shown on the listing. */
+  contactName: z.string().trim().min(2).max(120).optional(),
   sizeSqm: z.coerce.number().positive().max(1_000_000).optional(),
   bedrooms: z.coerce.number().int().min(0).max(100).optional(),
   bathrooms: z.coerce.number().int().min(0).max(100).optional(),
@@ -79,6 +87,11 @@ export interface PropertySummary {
   district: string;
   city: string;
   area: string | null;
+  /** "Listed by" contact name; falls back to the owner's account name. */
+  contactName: string | null;
+  /** The poster's account name + role (for "Listed by … · Agent"). */
+  ownerName: string | null;
+  ownerRole: UserRoleType | null;
   sizeSqm: number | null;
   bedrooms: number | null;
   bathrooms: number | null;

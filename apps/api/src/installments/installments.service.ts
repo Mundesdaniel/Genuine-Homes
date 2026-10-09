@@ -14,6 +14,8 @@ import {
   type Paginated,
   type PaymentInitiation,
   PaymentPurpose,
+  type PlanRequestResponse,
+  PropertyStatus,
   UserRole,
 } from '@genuine-homes/shared';
 import { AuditService } from '../audit/audit.service';
@@ -74,18 +76,30 @@ export class InstallmentsService {
     user: AuthenticatedUser,
     dto: CreatePlanDto,
   ): Promise<InstallmentPlanDetail> {
-    const listing = await this.repo.findActiveInstallmentListing(dto.listingId);
-    if (!listing) throw new NotFoundException('Installment listing not found');
+    const listing = await this.repo.findActiveListingForPlan(dto.listingId);
+    if (!listing) {
+      throw new NotFoundException('This property is not available for a plan');
+    }
+    if (listing.property.ownerId === user.id) {
+      throw new BadRequestException('You cannot buy your own property');
+    }
 
-    const minDeposit = listing.minDepositPercent
-      ? listing.minDepositPercent.toNumber()
-      : INSTALLMENT.MIN_DEPOSIT_PERCENT;
+    // A seller's own `installment` listing is a pre-made offer, so the plan is
+    // immediately payable (`pending_deposit`). A plain `sale` listing means the
+    // buyer is *requesting* a plan, which the landlord must accept first
+    // (`pending_approval`); its terms fall back to the platform defaults.
+    const isOffer = listing.listingType === 'installment';
+    const minDeposit =
+      isOffer && listing.minDepositPercent
+        ? listing.minDepositPercent.toNumber()
+        : INSTALLMENT.MIN_DEPOSIT_PERCENT;
     if (dto.depositPercent < minDeposit) {
       throw new BadRequestException(`Deposit must be at least ${minDeposit}%`);
     }
-    const maxMonths = listing.maxInstallmentMonths ?? INSTALLMENT.MAX_MONTHS;
+    const maxMonths =
+      (isOffer ? listing.maxInstallmentMonths : null) ?? INSTALLMENT.MAX_MONTHS;
     if (dto.months > maxMonths) {
-      throw new BadRequestException(`This listing allows up to ${maxMonths} months`);
+      throw new BadRequestException(`A plan here allows up to ${maxMonths} months`);
     }
 
     const total = listing.price;
@@ -102,6 +116,9 @@ export class InstallmentsService {
       schedule.push({ sequence: i, amount, dueDate: addMonths(start, i) });
     }
 
+    const initialStatus = isOffer
+      ? InstallmentPlanStatus.PENDING_DEPOSIT
+      : InstallmentPlanStatus.PENDING_APPROVAL;
     const planId = await this.repo.createPlanWithSchedule(
       {
         listingId: listing.id,
@@ -113,9 +130,82 @@ export class InstallmentsService {
         currency: listing.currency,
       },
       schedule,
+      initialStatus,
     );
-    this.logger.log(`Plan ${planId} created (pending deposit)`);
+    this.logger.log(`Plan ${planId} created (${initialStatus})`);
     return this.getDetail(user, planId);
+  }
+
+  // ── Landlord approval of buyer-requested plans ────────────────────────────
+
+  /** The landlord's queue of plans buyers have requested on their properties. */
+  async listPlanRequests(
+    user: AuthenticatedUser,
+    page: number,
+    pageSize: number,
+  ): Promise<Paginated<PlanRequestResponse>> {
+    const [rows, total] = await this.repo.listPlanRequestsByOwner(
+      user.id,
+      (page - 1) * pageSize,
+      pageSize,
+    );
+    return {
+      items: rows.map((row) => ({
+        plan: mapPlan(row),
+        buyer: row.buyer,
+        propertyTitle: row.listing.property.title,
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /** Landlord accepts a requested plan → it becomes payable (`pending_deposit`). */
+  async accept(
+    actor: AuthenticatedUser,
+    planId: string,
+  ): Promise<InstallmentPlanDetail> {
+    const plan = await this.repo.findPlanWithOwner(planId);
+    if (!plan) throw new NotFoundException('Plan not found');
+    this.assertOwnerOrAdmin(plan.listing.property.ownerId, actor);
+    if (plan.status !== InstallmentPlanStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('Only a requested plan can be accepted');
+    }
+    await this.repo.updatePlanStatus(planId, InstallmentPlanStatus.PENDING_DEPOSIT, null);
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'plan.approved',
+      entityType: 'installment_plan',
+      entityId: planId,
+      metadata: { buyerId: plan.buyerId },
+    });
+    this.logger.log(`Plan ${planId} approved by ${actor.id}`);
+    return this.loadDetail(planId);
+  }
+
+  /** Landlord declines a requested plan → cancelled (reason is audit-logged). */
+  async decline(
+    actor: AuthenticatedUser,
+    planId: string,
+    reason: string | null,
+  ): Promise<InstallmentPlanDetail> {
+    const plan = await this.repo.findPlanWithOwner(planId);
+    if (!plan) throw new NotFoundException('Plan not found');
+    this.assertOwnerOrAdmin(plan.listing.property.ownerId, actor);
+    if (plan.status !== InstallmentPlanStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('Only a requested plan can be declined');
+    }
+    await this.repo.updatePlanStatus(planId, InstallmentPlanStatus.CANCELLED, null);
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'plan.declined',
+      entityType: 'installment_plan',
+      entityId: planId,
+      metadata: { buyerId: plan.buyerId, reason },
+    });
+    this.logger.log(`Plan ${planId} declined by ${actor.id}`);
+    return this.loadDetail(planId);
   }
 
   async getDetail(user: AuthenticatedUser, planId: string): Promise<InstallmentPlanDetail> {
@@ -149,6 +239,12 @@ export class InstallmentsService {
     this.assertBuyer(plan.buyerId, user);
     if (plan.status !== InstallmentPlanStatus.PENDING_DEPOSIT) {
       throw new BadRequestException('Deposit is not payable for this plan');
+    }
+    // Guard against paying a deposit on a property another buyer has already
+    // taken (reserved/sold) — the plan is payable, but the house isn't.
+    const propertyStatus = await this.repo.propertyStatusForPlan(planId);
+    if (propertyStatus !== PropertyStatus.ACTIVE) {
+      throw new BadRequestException('This property is no longer available');
     }
     return this.payments.initiate(user, {
       purpose: PaymentPurpose.DEPOSIT,
@@ -294,6 +390,12 @@ export class InstallmentsService {
     }
     const missedCount = await this.repo.countMissed(planId);
     await this.repo.updatePlanStatus(planId, InstallmentPlanStatus.DEFAULTED, null);
+    // Buyer defaulted — release the hold so the property can be re-listed.
+    await this.repo.transitionPropertyStatus(
+      plan.listingId,
+      [PropertyStatus.RESERVED],
+      PropertyStatus.ACTIVE,
+    );
     await this.audit.record({
       actorId: actor.id,
       action: 'plan.defaulted',
@@ -327,6 +429,12 @@ export class InstallmentsService {
     }
     const { nextDue } = await this.repo.scheduleProgress(planId);
     await this.repo.updatePlanStatus(planId, InstallmentPlanStatus.ACTIVE, nextDue);
+    // Recovery negotiated — hold the property again.
+    await this.repo.transitionPropertyStatus(
+      plan.listingId,
+      [PropertyStatus.ACTIVE],
+      PropertyStatus.RESERVED,
+    );
     await this.audit.record({
       actorId: actor.id,
       action: 'plan.reinstated',
@@ -367,6 +475,12 @@ export class InstallmentsService {
         if (plan && plan.status === InstallmentPlanStatus.PENDING_DEPOSIT) {
           const { nextDue } = await this.repo.scheduleProgress(plan.id);
           await this.repo.updatePlanStatus(plan.id, InstallmentPlanStatus.ACTIVE, nextDue);
+          // Hold the property while the buyer pays down the plan.
+          await this.repo.transitionPropertyStatus(
+            plan.listingId,
+            [PropertyStatus.ACTIVE],
+            PropertyStatus.RESERVED,
+          );
           this.logger.log(`Plan ${plan.id} activated by deposit`);
         }
       } else if (event.purpose === PaymentPurpose.INSTALLMENT && event.referenceId) {
@@ -380,6 +494,15 @@ export class InstallmentsService {
               InstallmentPlanStatus.COMPLETED,
               null,
             );
+            // Fully paid off — the property is sold.
+            const plan = await this.repo.findPlanById(item.planId);
+            if (plan) {
+              await this.repo.transitionPropertyStatus(
+                plan.listingId,
+                [PropertyStatus.ACTIVE, PropertyStatus.RESERVED],
+                PropertyStatus.SOLD,
+              );
+            }
             this.logger.log(`Plan ${item.planId} completed`);
           } else {
             await this.repo.setNextDueDate(item.planId, nextDue);
@@ -397,5 +520,19 @@ export class InstallmentsService {
     if (user.role !== UserRole.ADMIN && buyerId !== user.id) {
       throw new ForbiddenException('This plan is not yours');
     }
+  }
+
+  private assertOwnerOrAdmin(ownerId: string, user: AuthenticatedUser): void {
+    if (user.role !== UserRole.ADMIN && ownerId !== user.id) {
+      throw new ForbiddenException('This property is not yours');
+    }
+  }
+
+  // Detail lookup that skips the buyer check — for landlord/admin actions where
+  // the caller has already been authorized as the property owner.
+  private async loadDetail(planId: string): Promise<InstallmentPlanDetail> {
+    const plan = await this.repo.findPlanDetail(planId);
+    if (!plan) throw new NotFoundException('Plan not found');
+    return mapPlanDetail(plan);
   }
 }

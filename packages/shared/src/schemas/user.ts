@@ -37,5 +37,8 @@ export interface UserProfileResponse {
   phone: string;
   role: UserRoleType;
   isVerified: boolean;
+  /** Set when an admin approved the user's National ID (KYC) submission.
+   *  Sellers need this before a property can be published (`active`). */
+  identityVerifiedAt: string | null;
   createdAt: string;
 }

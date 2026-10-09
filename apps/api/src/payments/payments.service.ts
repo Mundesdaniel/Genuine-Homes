@@ -10,6 +10,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   DEFAULT_CURRENCY,
+  type EarningsResponse,
   type Paginated,
   type PaymentInitiation,
   type PaymentResponse,
@@ -203,6 +204,13 @@ export class PaymentsService {
       pageSize,
     );
     return { items: rows.map(mapPayment), total, page, pageSize };
+  }
+
+  /** Income this owner has received across their listings, for the dashboard. */
+  async earnings(user: AuthenticatedUser): Promise<EarningsResponse> {
+    const byMonth = await this.repo.earningsByOwner(user.id);
+    const totalReceived = byMonth.reduce((sum, r) => sum + r.amount, 0);
+    return { totalReceived, currency: DEFAULT_CURRENCY, byMonth };
   }
 
   async getOne(
