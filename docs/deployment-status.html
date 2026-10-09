@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Genuine Homes — Deployment Status &amp; Handover</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #1a1a1a; font-size: 10.5pt; line-height: 1.5; margin: 0;
+  }
+  h1 { font-size: 22pt; margin: 0 0 2px; color: #0f172a; }
+  .sub { color: #555; font-size: 10pt; margin: 0 0 4px; }
+  h2 {
+    font-size: 13.5pt; margin: 20px 0 8px; padding-bottom: 4px;
+    border-bottom: 2px solid #15803d; color: #14532d;
+  }
+  h3 { font-size: 11.5pt; margin: 14px 0 4px; color: #166534; }
+  code, .mono {
+    font-family: "Consolas", "Courier New", monospace;
+    background: #f1f5f9; padding: 1px 5px; border-radius: 3px; font-size: 9.5pt;
+  }
+  a { color: #1d4ed8; text-decoration: none; word-break: break-all; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  th, td { border: 1px solid #d4d4d8; padding: 6px 9px; text-align: left; vertical-align: top; font-size: 9.8pt; }
+  th { background: #f0fdf4; }
+  .ok { color: #15803d; font-weight: 600; }
+  .warn { color: #b45309; font-weight: 600; }
+  .bad { color: #b91c1c; font-weight: 600; }
+  .box {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #15803d;
+    padding: 8px 12px; margin: 10px 0; border-radius: 4px;
+  }
+  .box.warn { border-left-color: #d97706; background: #fffbeb; }
+  ul, ol { margin: 6px 0 6px 18px; padding: 0; }
+  li { margin: 3px 0; }
+  .footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #e5e7eb; color: #777; font-size: 8.5pt; }
+  .pill { display: inline-block; background: #15803d; color: #fff; font-size: 8pt; padding: 1px 7px; border-radius: 10px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<h1>Genuine Homes — Deployment Status &amp; Handover</h1>
+<p class="sub">Full-stack free-tier deployment · Frontend on Vercel, Backend on Render</p>
+<p class="sub">Prepared 2026-10-09 · Repository: <a href="https://github.com/Mundesdaniel/Genuine-Homes">github.com/Mundesdaniel/Genuine-Homes</a></p>
+
+<h2>1. Live Links</h2>
+<table>
+  <tr><th>What</th><th>URL</th><th>Status</th></tr>
+  <tr>
+    <td><b>Backend API</b> (NestJS)</td>
+    <td><a href="https://genuine-homes-api.onrender.com">https://genuine-homes-api.onrender.com</a></td>
+    <td class="ok">LIVE</td>
+  </tr>
+  <tr>
+    <td>API health check</td>
+    <td><a href="https://genuine-homes-api.onrender.com/api/health">…/api/health</a> → <code>{"status":"ok"}</code></td>
+    <td class="ok">200 OK</td>
+  </tr>
+  <tr>
+    <td><b>Frontend</b> (React/Vite)</td>
+    <td>Temporary: <span class="mono">temporary-agile-willow-ney206b.vercel.app</span></td>
+    <td class="warn">TEMPORARY — expires ~1h</td>
+  </tr>
+</table>
+
+<div class="box warn">
+  <b>⚠ The frontend URL is a temporary anonymous Vercel deploy and expires about an hour after each publish.</b>
+  To make it permanent (and auto-deploy on every <code>git push</code>), run <code>vercel login</code> once, then deploy to the
+  real <span class="mono">genuine-homes</span> Vercel project. See section 5.
+</div>
+
+<h2>2. Architecture</h2>
+<pre class="mono" style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px;border-radius:4px;font-size:9pt;">
+  Browser ──▶ Vercel (React frontend)
+                 │  /api and /uploads proxied via rewrites in vercel.json
+                 ▼
+              Render (NestJS API) ──▶ PostgreSQL + PostGIS
+                                  └─▶ Redis
+</pre>
+<p>The frontend proxies <code>/api</code> and <code>/uploads</code> to the Render API, so the browser only ever talks to one
+origin (the Vercel domain). This keeps the login/refresh cookie working without CORS or cross-site-cookie setup.
+Verified working: <code>GET &lt;vercel-url&gt;/api/health</code> → <span class="ok">200</span> through the proxy chain.</p>
+
+<h2>3. Current Status</h2>
+<table>
+  <tr><th>Component</th><th>Status</th><th>Notes</th></tr>
+  <tr><td>Backend API (Render)</td><td class="ok">Live &amp; healthy</td><td>Free tier: sleeps after ~15 min idle; first request then takes ~50s to wake.</td></tr>
+  <tr><td>PostgreSQL + PostGIS</td><td class="ok">Provisioned</td><td>Schema applied via <code>prisma migrate deploy</code> on boot.</td></tr>
+  <tr><td>Redis</td><td class="ok">Provisioned</td><td>Backs rate limiting, sessions, BullMQ queue.</td></tr>
+  <tr><td>Frontend (Vercel)</td><td class="warn">Live (temporary)</td><td>Needs permanent deploy — see section 5.</td></tr>
+  <tr><td>Demo data</td><td class="warn">Not seeded yet</td><td>Run <code>pnpm db:seed</code> in the Render Shell — see section 6.</td></tr>
+  <tr><td>Render env vars</td><td class="warn">To set</td><td>CORS_ORIGINS, PUBLIC_WEB_URL, PUBLIC_API_URL — see section 5.</td></tr>
+</table>
+
+<h2>4. What Was Fixed (Root Cause of the Failed Build)</h2>
+<p>The Render build was failing with <code>TS2307: Cannot find module './uploads/...'</code> (6 errors). The cause was a
+<code>.gitignore</code> rule — <code>uploads/</code>, intended for the <i>runtime</i> file-storage folder — that also matched the
+<i>source</i> module <span class="mono">apps/api/src/uploads/</span>. Those 9 source files existed locally but had never been
+pushed to GitHub, so Render could not compile them.</p>
+<p><b>Fix (commit <code>9953c05</code> on <code>main</code>):</b></p>
+<ul>
+  <li>Anchored the ignore rules to the real runtime paths (<code>/apps/api/uploads/</code>, <code>/apps/api/uploads-private/</code>)
+      so they no longer swallow the source module.</li>
+  <li>Committed the 9 missing <span class="mono">apps/api/src/uploads/</span> source files (uploads module, controller,
+      constants, URL signer, and the storage strategies).</li>
+</ul>
+
+<h2>5. Finish the Deployment — Remaining Steps</h2>
+
+<h3>Step A — Make the frontend permanent (Vercel)</h3>
+<ol>
+  <li>In the project directory <span class="mono">apps/web</span>'s repo root, run <code>vercel login</code> → <b>Continue with GitHub</b>.</li>
+  <li>Link to the existing <span class="mono">genuine-homes</span> project and deploy to production:
+      <code>vercel link</code> then <code>vercel --prod</code>.</li>
+  <li><b>Important:</b> leave the Vercel <b>Root Directory empty</b> (repo root) so the root <code>vercel.json</code> is used.
+      Do <u>not</u> set it to <code>apps/web</code> — that was the earlier dashboard misconfiguration.</li>
+  <li>Note the permanent URL (e.g. <span class="mono">https://genuine-homes.vercel.app</span>).</li>
+</ol>
+
+<h3>Step B — Set the Render environment variables</h3>
+<p>Render → <span class="mono">genuine-homes-api</span> → <b>Environment</b>, then <b>Save</b> (redeploys automatically):</p>
+<table>
+  <tr><th>Key</th><th>Value</th></tr>
+  <tr><td><code>PUBLIC_API_URL</code></td><td><span class="mono">https://genuine-homes-api.onrender.com</span></td></tr>
+  <tr><td><code>PUBLIC_WEB_URL</code></td><td>your permanent Vercel URL (from Step A)</td></tr>
+  <tr><td><code>CORS_ORIGINS</code></td><td>your permanent Vercel URL (from Step A)</td></tr>
+</table>
+
+<h3>Step C — Point vercel.json at the API (only if the URL differs)</h3>
+<p>If Render ever assigns a suffixed URL (e.g. <span class="mono">…-api-xyz.onrender.com</span>), update both occurrences in
+<code>vercel.json</code> and <code>git push</code>. Currently the API URL is exactly
+<span class="mono">https://genuine-homes-api.onrender.com</span>, which already matches <code>vercel.json</code> — <span class="ok">no change needed</span>.</p>
+
+<h2>6. Load Demo Data</h2>
+<p>The database is empty, so the home page lists no properties until seeded. Render → <span class="mono">genuine-homes-api</span>
+→ <b>Shell</b> tab, then run:</p>
+<pre class="mono" style="background:#f1f5f9;padding:8px;border-radius:4px;">pnpm db:seed</pre>
+<p>Demo accounts (password <code>Password123!</code> for all):
+<span class="mono">admin@genuinehomes.ug</span>, <span class="mono">pearl@estates.ug</span>,
+<span class="mono">roro@gmail.com</span>, and others.</p>
+
+<h2>7. Reference</h2>
+<table>
+  <tr><th>Item</th><th>Value</th></tr>
+  <tr><td>Render API service id</td><td><span class="mono">srv-db4c9prtqb8s73eqeibg</span></td></tr>
+  <tr><td>Build command (Render)</td><td class="mono" style="font-size:8.5pt;">corepack enable &amp;&amp; pnpm install --frozen-lockfile &amp;&amp; pnpm build:shared &amp;&amp; pnpm --filter @genuine-homes/api prisma:generate &amp;&amp; pnpm --filter @genuine-homes/api build</td></tr>
+  <tr><td>Start command (Render)</td><td class="mono" style="font-size:8.5pt;">pnpm --filter @genuine-homes/api prisma:deploy &amp;&amp; pnpm --filter @genuine-homes/api start:prod</td></tr>
+  <tr><td>Build command (Vercel)</td><td class="mono" style="font-size:8.5pt;">pnpm build:shared &amp;&amp; pnpm --filter @genuine-homes/web build</td></tr>
+  <tr><td>Vercel output directory</td><td><span class="mono">apps/web/dist</span></td></tr>
+  <tr><td>Payments</td><td>Mock gateway (<code>PAYMENT_GATEWAY=mock</code>)</td></tr>
+</table>
+
+<h2>8. Known Free-Tier Limitations</h2>
+<ul>
+  <li><b>API sleeps</b> after ~15 min idle; first request after that takes ~50s to wake.</li>
+  <li><b>Ephemeral storage</b> — uploaded images reset on redeploy. Set <code>CLOUDINARY_URL</code> for persistence.</li>
+  <li><b>Live chat (WebSockets)</b> is not proxied by Vercel, so it is disabled in this setup. The rest of the app is unaffected.</li>
+</ul>
+
+<p class="footer">Genuine Homes deployment handover · Generated 2026-10-09 · This document reflects the state at time of writing;
+the temporary frontend URL in section 1 will have changed if it expired before the permanent deploy was completed.</p>
+
+</body>
+</html>
