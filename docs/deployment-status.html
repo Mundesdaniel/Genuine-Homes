@@ -60,15 +60,17 @@
   </tr>
   <tr>
     <td><b>Frontend</b> (React/Vite)</td>
-    <td>Temporary: <span class="mono">temporary-agile-willow-ney206b.vercel.app</span></td>
-    <td class="warn">TEMPORARY — expires ~1h</td>
+    <td><a href="https://genuine-homes.vercel.app">https://genuine-homes.vercel.app</a></td>
+    <td class="ok">LIVE (permanent)</td>
   </tr>
 </table>
 
-<div class="box warn">
-  <b>⚠ The frontend URL is a temporary anonymous Vercel deploy and expires about an hour after each publish.</b>
-  To make it permanent (and auto-deploy on every <code>git push</code>), run <code>vercel login</code> once, then deploy to the
-  real <span class="mono">genuine-homes</span> Vercel project. See section 5.
+<div class="box">
+  <b>✓ The app is permanently live at <a href="https://genuine-homes.vercel.app">https://genuine-homes.vercel.app</a>,
+  publicly accessible, and auto-deploys on every <code>git push</code> to <code>main</code>.</b>
+  The Vercel project had been misconfigured (Root Directory <span class="mono">apps/api</span> + framework
+  <span class="mono">nestjs</span> — it was building the backend as the site) and had "Vercel Authentication" enabled.
+  All three were corrected and a production build of commit <code>fbe8669</code> succeeded.
 </div>
 
 <h2>2. Architecture</h2>
@@ -89,7 +91,7 @@ Verified working: <code>GET &lt;vercel-url&gt;/api/health</code> → <span class
   <tr><td>Backend API (Render)</td><td class="ok">Live &amp; healthy</td><td>Free tier: sleeps after ~15 min idle; first request then takes ~50s to wake.</td></tr>
   <tr><td>PostgreSQL + PostGIS</td><td class="ok">Provisioned</td><td>Schema applied via <code>prisma migrate deploy</code> on boot.</td></tr>
   <tr><td>Redis</td><td class="ok">Provisioned</td><td>Backs rate limiting, sessions, BullMQ queue.</td></tr>
-  <tr><td>Frontend (Vercel)</td><td class="warn">Live (temporary)</td><td>Needs permanent deploy — see section 5.</td></tr>
+  <tr><td>Frontend (Vercel)</td><td class="ok">Live (permanent)</td><td>https://genuine-homes.vercel.app — public, auto-deploys on git push.</td></tr>
   <tr><td>Demo data</td><td class="warn">Not seeded yet</td><td>Run <code>pnpm db:seed</code> in the Render Shell — see section 6.</td></tr>
   <tr><td>Render env vars</td><td class="warn">To set</td><td>CORS_ORIGINS, PUBLIC_WEB_URL, PUBLIC_API_URL — see section 5.</td></tr>
 </table>
@@ -107,25 +109,21 @@ pushed to GitHub, so Render could not compile them.</p>
       constants, URL signer, and the storage strategies).</li>
 </ul>
 
-<h2>5. Finish the Deployment — Remaining Steps</h2>
+<h2>5. Remaining Optional Steps</h2>
 
-<h3>Step A — Make the frontend permanent (Vercel)</h3>
-<ol>
-  <li>In the project directory <span class="mono">apps/web</span>'s repo root, run <code>vercel login</code> → <b>Continue with GitHub</b>.</li>
-  <li>Link to the existing <span class="mono">genuine-homes</span> project and deploy to production:
-      <code>vercel link</code> then <code>vercel --prod</code>.</li>
-  <li><b>Important:</b> leave the Vercel <b>Root Directory empty</b> (repo root) so the root <code>vercel.json</code> is used.
-      Do <u>not</u> set it to <code>apps/web</code> — that was the earlier dashboard misconfiguration.</li>
-  <li>Note the permanent URL (e.g. <span class="mono">https://genuine-homes.vercel.app</span>).</li>
-</ol>
+<h3>Step A — Frontend (Vercel) — DONE</h3>
+<p class="ok">✓ Completed. The frontend is permanently live at
+<a href="https://genuine-homes.vercel.app">https://genuine-homes.vercel.app</a>, public, and auto-deploys on every
+<code>git push</code> to <code>main</code>. Project settings were corrected (Root Directory cleared to repo root,
+framework set to Other, Node 22.x) and Vercel Authentication was disabled.</p>
 
-<h3>Step B — Set the Render environment variables</h3>
+<h3>Step B — Set the Render environment variables (recommended)</h3>
 <p>Render → <span class="mono">genuine-homes-api</span> → <b>Environment</b>, then <b>Save</b> (redeploys automatically):</p>
 <table>
   <tr><th>Key</th><th>Value</th></tr>
   <tr><td><code>PUBLIC_API_URL</code></td><td><span class="mono">https://genuine-homes-api.onrender.com</span></td></tr>
-  <tr><td><code>PUBLIC_WEB_URL</code></td><td>your permanent Vercel URL (from Step A)</td></tr>
-  <tr><td><code>CORS_ORIGINS</code></td><td>your permanent Vercel URL (from Step A)</td></tr>
+  <tr><td><code>PUBLIC_WEB_URL</code></td><td><span class="mono">https://genuine-homes.vercel.app</span></td></tr>
+  <tr><td><code>CORS_ORIGINS</code></td><td><span class="mono">https://genuine-homes.vercel.app</span></td></tr>
 </table>
 
 <h3>Step C — Point vercel.json at the API (only if the URL differs)</h3>
