@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  DOCUMENT_UPLOAD,
-  IDENTITY,
-  type IdentityDocumentInput,
-} from '@genuine-homes/shared';
+import { DOCUMENT_UPLOAD, IDENTITY, type IdentityDocumentInput } from '@genuine-homes/shared';
 import { identityApi } from '@/api/identity';
 import { uploadsApi } from '@/api/uploads';
 import { Badge, ErrorState, Spinner } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
+import { PROTOTYPE, prototypeIdentity } from '@/lib/prototype';
 import { useAuthStore } from '@/store/authStore';
 
 const ACCEPT = DOCUMENT_UPLOAD.ACCEPTED_MIME_TYPES.join(',');
@@ -126,8 +123,7 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
       {rejectedNotes !== undefined && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
           Your previous submission was rejected
-          {rejectedNotes ? `: ${rejectedNotes}` : '.'} Please fix the issue and submit
-          again.
+          {rejectedNotes ? `: ${rejectedNotes}` : '.'} Please fix the issue and submit again.
         </div>
       )}
 
@@ -230,8 +226,8 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
         />
         {isDeveloper && (
           <p className="text-xs text-stone-500">
-            Tip: you can attach the certificate of incorporation as the “back” slot or
-            send it during review if requested.
+            Tip: you can attach the certificate of incorporation as the “back” slot or send it
+            during review if requested.
           </p>
         )}
       </div>
@@ -242,17 +238,22 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
         {submit.isPending ? 'Submitting…' : 'Submit for review'}
       </button>
       <p className="text-xs text-stone-500">
-        Your documents are stored privately and only visible to the review team via
-        expiring links. Review usually takes 1–2 business days.
+        Your documents are stored privately and only visible to the review team via expiring
+        links. Review usually takes 1–2 business days.
       </p>
     </form>
   );
 }
 
 export function IdentityVerificationPage() {
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['identity', 'me'],
     queryFn: () => identityApi.me(),
+    // In prototype mode a submission auto-"reviews" after a few seconds — poll
+    // while it's pending so the UI advances to the verified state on its own.
+    refetchInterval: (query) =>
+      PROTOTYPE && query.state.data?.status === 'pending' ? 1000 : false,
   });
 
   if (isLoading) return <Spinner label="Loading your verification status…" />;
@@ -264,17 +265,38 @@ export function IdentityVerificationPage() {
       <div>
         <h1 className="text-2xl font-bold text-stone-800">Identity verification</h1>
         <p className="text-sm text-stone-500">
-          Verify who you are with your National ID before publishing properties — this
-          is how we keep Genuine Homes free of fake listings.
+          Verify who you are with your National ID before publishing properties — this is how
+          we keep Genuine Homes free of fake listings.
         </p>
       </div>
+
+      {PROTOTYPE && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm text-sky-800">
+          <span>
+            Prototype mode: no real documents are uploaded and a demo reviewer auto-approves
+            your submission after a few seconds.
+          </span>
+          {data && (
+            <button
+              type="button"
+              className="shrink-0 rounded-md border border-sky-300 px-2 py-1 text-xs font-medium hover:bg-sky-100"
+              onClick={() => {
+                prototypeIdentity.reset();
+                void queryClient.invalidateQueries({ queryKey: ['identity', 'me'] });
+              }}
+            >
+              Reset demo
+            </button>
+          )}
+        </div>
+      )}
 
       {data?.status === 'pending' && (
         <div className="card max-w-xl space-y-2 p-5">
           <Badge label="Awaiting review" tone="neutral" />
           <p className="text-sm text-stone-600">
-            We received your submission ({data.ninMasked}) and will notify you once it
-            has been reviewed.
+            We received your submission ({data.ninMasked}) and will notify you once it has been
+            reviewed.
           </p>
         </div>
       )}

@@ -1,5 +1,6 @@
 import type { DocumentUploadResponse, UploadResponse } from '@genuine-homes/shared';
 import { api } from '@/lib/apiClient';
+import { PROTOTYPE } from '@/lib/prototype';
 
 /** We don't set Content-Type — axios derives the multipart boundary from the
  *  FormData body automatically. */
@@ -16,7 +17,9 @@ export const uploadsApi = {
   /** Upload a verification document (land title, ID) to private storage.
    *  Returns the opaque key a verification submission references. */
   uploadDocument: (file: File) =>
-    api
-      .post<DocumentUploadResponse>('/uploads/documents', asFormData(file))
-      .then((r) => r.data),
+    PROTOTYPE
+      ? Promise.resolve<DocumentUploadResponse>({ key: `proto-${file.name}-${Date.now()}` })
+      : api
+          .post<DocumentUploadResponse>('/uploads/documents', asFormData(file))
+          .then((r) => r.data),
 };
