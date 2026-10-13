@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BookingsModule } from '../bookings/bookings.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { PurchasesController } from './purchases.controller';
 import { PurchasesRepository } from './purchases.repository';
@@ -10,7 +11,7 @@ import { PurchasesService } from './purchases.service';
  * (EventEmitterModule is registered globally in AppModule).
  */
 @Module({
-  imports: [PaymentsModule],
+  imports: [PaymentsModule, BookingsModule],
   controllers: [PurchasesController],
   providers: [PurchasesService, PurchasesRepository],
 })

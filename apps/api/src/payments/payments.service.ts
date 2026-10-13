@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -9,10 +10,12 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
+  type CashPaymentToConfirm,
   DEFAULT_CURRENCY,
   type EarningsResponse,
   type Paginated,
   type PaymentInitiation,
+  PaymentProvider,
   type PaymentResponse,
   PaymentStatus,
   UserRole,
@@ -21,10 +24,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapPayment } from '../common/mappers';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
-import {
-  PAYMENT_GATEWAY,
-  type PaymentGateway,
-} from './gateway/payment-gateway.interface';
+import { PAYMENT_GATEWAY, type PaymentGateway } from './gateway/payment-gateway.interface';
 import {
   PAYMENT_FAILED,
   type PaymentFailedEvent,
@@ -62,6 +62,20 @@ export class PaymentsService {
       provider: dto.provider,
     });
 
+    // Cash is paid in person — there's no gateway to call. The ledger row stays
+    // pending until the property owner confirms receipt (confirmCash), which
+    // settles it and fires the same success event as an online payment.
+    if (dto.provider === PaymentProvider.CASH) {
+      await this.audit.record({
+        actorId: user.id,
+        action: 'payment.cash_pending',
+        entityType: 'payment',
+        entityId: payment.id,
+        metadata: { purpose: dto.purpose, amount: dto.amount, currency },
+      });
+      return { payment: mapPayment(payment), redirectUrl: null };
+    }
+
     let result;
     try {
       result = await this.gateway.initiate({
@@ -85,7 +99,12 @@ export class PaymentsService {
         action: 'payment.initiation_failed',
         entityType: 'payment',
         entityId: payment.id,
-        metadata: { purpose: dto.purpose, amount: dto.amount, currency, gateway: this.gateway.name },
+        metadata: {
+          purpose: dto.purpose,
+          amount: dto.amount,
+          currency,
+          gateway: this.gateway.name,
+        },
       });
       throw new BadGatewayException('Could not start the payment. Please try again.');
     }
@@ -165,11 +184,7 @@ export class PaymentsService {
       }
     }
 
-    const changed = await this.repo.settle(
-      event.txRef,
-      event.providerRef,
-      event.status,
-    );
+    const changed = await this.repo.settle(event.txRef, event.providerRef, event.status);
     if (changed) {
       this.logger.log(`Payment ${event.txRef} settled as ${event.status}`);
       await this.audit.record({
@@ -198,11 +213,7 @@ export class PaymentsService {
     page: number,
     pageSize: number,
   ): Promise<Paginated<PaymentResponse>> {
-    const [rows, total] = await this.repo.listByUser(
-      user.id,
-      (page - 1) * pageSize,
-      pageSize,
-    );
+    const [rows, total] = await this.repo.listByUser(user.id, (page - 1) * pageSize, pageSize);
     return { items: rows.map(mapPayment), total, page, pageSize };
   }
 
@@ -213,16 +224,56 @@ export class PaymentsService {
     return { totalReceived, currency: DEFAULT_CURRENCY, byMonth };
   }
 
-  async getOne(
-    user: AuthenticatedUser,
-    id: string,
-  ): Promise<PaymentResponse> {
+  async getOne(user: AuthenticatedUser, id: string): Promise<PaymentResponse> {
     const payment = await this.repo.findById(id);
     if (!payment) throw new NotFoundException('Payment not found');
     if (user.role !== UserRole.ADMIN && payment.userId !== user.id) {
       throw new ForbiddenException('This payment is not yours');
     }
     return mapPayment(payment);
+  }
+
+  /** Pending cash payments awaiting the current owner's confirmation. */
+  listIncomingCash(user: AuthenticatedUser): Promise<CashPaymentToConfirm[]> {
+    return this.repo.findIncomingCash(user.id);
+  }
+
+  /**
+   * The property owner (or an admin) confirms a pending cash payment was
+   * received in person. Settles it successful and fires the same success event
+   * as an online settlement — so the property is marked sold/rented, a plan is
+   * activated, etc., exactly as it would be for a gateway payment.
+   */
+  async confirmCash(user: AuthenticatedUser, id: string): Promise<PaymentResponse> {
+    const payment = await this.repo.findById(id);
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.provider !== PaymentProvider.CASH) {
+      throw new BadRequestException('This payment is not a cash payment');
+    }
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException('This payment has already been settled');
+    }
+    if (user.role !== UserRole.ADMIN) {
+      const ownerId = await this.repo.findPaymentOwner(id);
+      if (!ownerId || ownerId !== user.id) {
+        throw new ForbiddenException('This payment is not for your property');
+      }
+    }
+
+    const changed = await this.repo.settle(id, `cash_${id}`, PaymentStatus.SUCCESSFUL);
+    if (changed) {
+      await this.audit.record({
+        actorId: user.id,
+        action: 'payment.cash_confirmed',
+        entityType: 'payment',
+        entityId: id,
+        metadata: { amount: payment.amount.toNumber(), currency: payment.currency },
+      });
+      await this.announceSuccess(id);
+      this.logger.log(`Cash payment ${id} confirmed received by ${user.id}`);
+    }
+    const fresh = (await this.repo.findById(id)) ?? payment;
+    return mapPayment(fresh);
   }
 
   /**

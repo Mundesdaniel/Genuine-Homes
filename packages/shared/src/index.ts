@@ -110,6 +110,7 @@ export type {
   InitiatePaymentInput,
   PaymentResponse,
   PaymentInitiation,
+  CashPaymentToConfirm,
   EarningsResponse,
 } from './schemas/payment';
 

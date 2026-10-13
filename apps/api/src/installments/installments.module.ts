@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BookingsModule } from '../bookings/bookings.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { AdminInstallmentsController } from './admin-installments.controller';
 import { InstallmentsController } from './installments.controller';
@@ -13,7 +14,7 @@ import { InstallmentsService } from './installments.service';
  * the nightly overdue/due-soon sweep (ScheduleModule is registered in AppModule).
  */
 @Module({
-  imports: [PaymentsModule],
+  imports: [PaymentsModule, BookingsModule],
   controllers: [InstallmentsController, AdminInstallmentsController],
   providers: [InstallmentsService, InstallmentsRepository, InstallmentsScheduler],
 })

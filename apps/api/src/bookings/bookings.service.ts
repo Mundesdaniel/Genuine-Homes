@@ -68,7 +68,9 @@ export class BookingsService {
       `${booking.buyer.fullName} wants to view "${booking.property.title}" on ${formatWhen(scheduledAt)}.`,
       booking,
     );
-    this.logger.log(`Booking ${booking.id} created by ${user.id} for owner ${booking.ownerId}`);
+    this.logger.log(
+      `Booking ${booking.id} created by ${user.id} for owner ${booking.ownerId}`,
+    );
     return mapBooking(booking);
   }
 
@@ -155,6 +157,23 @@ export class BookingsService {
     );
     this.logger.log(`Booking ${id} cancelled by ${user.id}`);
     return mapBooking(updated);
+  }
+
+  /**
+   * Whether the buyer has completed a viewing of this listing's property — the
+   * gate the purchase/rent/installment flows enforce before taking any money,
+   * and that the listing page uses to decide whether to show pay actions.
+   */
+  async viewingStatus(
+    user: AuthenticatedUser,
+    listingId: string,
+  ): Promise<{ completed: boolean }> {
+    return { completed: await this.repo.hasCompletedViewing(user.id, listingId) };
+  }
+
+  /** The same check as a bare boolean, for other services to gate payments on. */
+  hasCompletedViewing(buyerId: string, listingId: string): Promise<boolean> {
+    return this.repo.hasCompletedViewing(buyerId, listingId);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────

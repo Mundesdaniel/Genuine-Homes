@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import type { Booking, BookingStatus } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
+import type { Booking } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Everything mapBooking needs: the property title + a slim buyer profile.
@@ -23,9 +23,7 @@ export type ListingForBooking = {
 export class BookingsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findActiveListingForBooking(
-    listingId: string,
-  ): Promise<ListingForBooking | null> {
+  async findActiveListingForBooking(listingId: string): Promise<ListingForBooking | null> {
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, deletedAt: null, isActive: true, property: { deletedAt: null } },
       select: {
@@ -93,6 +91,29 @@ export class BookingsRepository {
       }),
       this.prisma.booking.count({ where }),
     ]);
+  }
+
+  /**
+   * Has this buyer completed a viewing of the listing's property? A viewing is
+   * "completed" once the owner has accepted it and its scheduled time has passed.
+   * Keyed on the property (not the listing) so viewing the house counts whichever
+   * of its listings — sale, rent, installment — the buyer ends up paying through.
+   */
+  async hasCompletedViewing(buyerId: string, listingId: string): Promise<boolean> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { propertyId: true },
+    });
+    if (!listing) return false;
+    const count = await this.prisma.booking.count({
+      where: {
+        buyerId,
+        propertyId: listing.propertyId,
+        status: BookingStatus.accepted,
+        scheduledAt: { lte: new Date() },
+      },
+    });
+    return count > 0;
   }
 
   // Narrowed lookup for authorization checks (no relations needed).

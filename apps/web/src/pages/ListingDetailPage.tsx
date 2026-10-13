@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
+import { bookingsApi } from '@/api/bookings';
 import { listingsApi } from '@/api/listings';
 import { propertiesApi } from '@/api/properties';
 import { BookViewing } from '@/components/BookViewing';
@@ -32,6 +33,15 @@ export function ListingDetailPage() {
     queryKey: ['property', propertyId],
     queryFn: () => propertiesApi.get(propertyId as string),
     enabled: Boolean(propertyId),
+  });
+
+  // Has this buyer completed a viewing? Payment actions stay gated until they
+  // have — only fetched for a logged-in, non-owner visitor.
+  const isOwnListing = listingQuery.data?.property.ownerId === currentUserId;
+  const viewingQuery = useQuery({
+    queryKey: ['viewing-status', listingQuery.data?.id],
+    queryFn: () => bookingsApi.viewingStatus(listingQuery.data!.id),
+    enabled: Boolean(token) && Boolean(listingQuery.data) && !isOwnListing,
   });
 
   if (listingQuery.isLoading) return <Spinner label="Loading listing…" />;
@@ -98,9 +108,7 @@ export function ListingDetailPage() {
                 <Badge label="Verified" tone="success" />
               )}
               <Badge label={titleCase(p.type)} />
-              {takenLabel && (
-                <Badge label={takenLabel} tone={statusTone(property!.status)} />
-              )}
+              {takenLabel && <Badge label={takenLabel} tone={statusTone(property!.status)} />}
             </div>
             <h1 className="mt-2 text-2xl font-bold text-stone-800">{p.title}</h1>
             <p className="text-stone-500">
@@ -160,7 +168,10 @@ export function ListingDetailPage() {
                 <p className="mt-0.5 text-sm font-medium text-stone-800">
                   {p.contactName || p.ownerName}
                   {p.ownerRole && (
-                    <span className="font-normal text-stone-400"> · {titleCase(p.ownerRole)}</span>
+                    <span className="font-normal text-stone-400">
+                      {' '}
+                      · {titleCase(p.ownerRole)}
+                    </span>
                   )}
                 </p>
               </div>
@@ -170,11 +181,7 @@ export function ListingDetailPage() {
                 the primary CTA above). Hidden for the owner's own listing. */}
             {p.ownerId !== currentUserId && (
               <Link
-                to={
-                  token
-                    ? `/messages?to=${p.ownerId}&listingId=${listing.id}`
-                    : '/login'
-                }
+                to={token ? `/messages?to=${p.ownerId}&listingId=${listing.id}` : '/login'}
                 className="btn-outline mt-2 w-full"
               >
                 <MessageCircle className="h-4 w-4" />
@@ -192,8 +199,9 @@ export function ListingDetailPage() {
                 This property is no longer available
               </p>
               <p className="mt-1 text-sm text-amber-800">
-                It has been marked <span className="font-medium">{takenLabel.toLowerCase()}</span>,
-                so viewings can no longer be booked for it.
+                It has been marked{' '}
+                <span className="font-medium">{takenLabel.toLowerCase()}</span>, so viewings
+                can no longer be booked for it.
               </p>
             </div>
           ) : p.ownerId === currentUserId ? (
@@ -205,6 +213,17 @@ export function ListingDetailPage() {
                   dashboard
                 </Link>
                 .
+              </p>
+            </div>
+          ) : token && !viewingQuery.data?.completed ? (
+            // Gate: you can only pay after visiting the property. Booking the
+            // viewing is the primary CTA above this card.
+            <div className="card space-y-2 p-5">
+              <h3 className="font-semibold text-stone-800">Viewing required</h3>
+              <p className="text-sm text-stone-500">
+                To protect buyers, payment opens only after you’ve visited the property. Use{' '}
+                <span className="font-medium text-stone-700">Book a viewing</span> above — once
+                the owner accepts and your scheduled time has passed, you can pay here.
               </p>
             </div>
           ) : listing.listingType === 'installment' ? (

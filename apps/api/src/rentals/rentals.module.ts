@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BookingsModule } from '../bookings/bookings.module';
 import { PaymentsModule } from '../payments/payments.module';
 import { RentalsController } from './rentals.controller';
 import { RentalsRepository } from './rentals.repository';
@@ -10,7 +11,7 @@ import { RentalsService } from './rentals.service';
  * ledger lives in the unified payments table (referenceId = agreement id).
  */
 @Module({
-  imports: [PaymentsModule],
+  imports: [PaymentsModule, BookingsModule],
   controllers: [RentalsController],
   providers: [RentalsService, RentalsRepository],
 })

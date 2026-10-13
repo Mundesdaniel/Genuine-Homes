@@ -11,7 +11,7 @@ import {
 import { installmentsApi } from '@/api/installments';
 import { purchasesApi } from '@/api/purchases';
 import { apiErrorMessage } from '@/lib/apiClient';
-import { goToCheckout } from '@/lib/checkout';
+import { handlePaymentResult } from '@/lib/checkout';
 import { formatMoney, titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
@@ -40,10 +40,7 @@ export function SaleActions({ listing }: { listing: ListingSearchItem }) {
         provider: provider as PaymentProvider,
         redirectUrl: returnUrl,
       }),
-    onSuccess: (res) => {
-      toast.success('Opening checkout…');
-      goToCheckout(res.redirectUrl, navigate);
-    },
+    onSuccess: (res) => handlePaymentResult(res, navigate),
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 

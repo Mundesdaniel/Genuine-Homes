@@ -7,7 +7,7 @@ import { installmentsApi } from '@/api/installments';
 import { ProgressRing } from '@/components/charts';
 import { Badge, ErrorState, Spinner, statusTone } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
-import { goToCheckout } from '@/lib/checkout';
+import { handlePaymentResult } from '@/lib/checkout';
 import { formatMoney, titleCase } from '@/lib/format';
 
 export function PlanDetailPage() {
@@ -39,10 +39,7 @@ export function PlanDetailPage() {
           redirectUrl: returnUrl,
         } as PayViaInput,
       ),
-    onSuccess: (res) => {
-      toast.success('Opening checkout…');
-      goToCheckout(res.redirectUrl, navigate);
-    },
+    onSuccess: (res) => handlePaymentResult(res, navigate),
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
@@ -52,10 +49,7 @@ export function PlanDetailPage() {
         provider,
         redirectUrl: returnUrl,
       } as PayViaInput),
-    onSuccess: (res) => {
-      toast.success('Opening checkout…');
-      goToCheckout(res.redirectUrl, navigate);
-    },
+    onSuccess: (res) => handlePaymentResult(res, navigate),
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
@@ -172,8 +166,8 @@ export function PlanDetailPage() {
 
             {plan.status === 'pending_approval' && (
               <p className="rounded-lg bg-amber-50 p-3 text-center text-sm font-medium text-amber-800">
-                Waiting for the owner to accept your plan request. You can pay the deposit
-                once it’s approved.
+                Waiting for the owner to accept your plan request. You can pay the deposit once
+                it’s approved.
               </p>
             )}
             {plan.status === 'pending_deposit' && (

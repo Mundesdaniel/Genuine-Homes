@@ -34,7 +34,10 @@ describe('PurchasesService', () => {
     payments = {
       initiate: jest.fn().mockResolvedValue({ payment: {}, redirectUrl: 'x' }),
     } as unknown as jest.Mocked<PaymentsService>;
-    service = new PurchasesService(repo, payments);
+    const bookings = {
+      hasCompletedViewing: jest.fn().mockResolvedValue(true),
+    } as unknown as import('../bookings/bookings.service').BookingsService;
+    service = new PurchasesService(repo, payments, bookings);
   });
 
   describe('buy', () => {
@@ -59,11 +62,9 @@ describe('PurchasesService', () => {
 
     it('rejects buying your own property', async () => {
       await expect(
-        service.buy(
-          { id: OWNER_ID, role: UserRole.LANDLORD },
-          'listing-1',
-          { provider: 'mtn_momo' },
-        ),
+        service.buy({ id: OWNER_ID, role: UserRole.LANDLORD }, 'listing-1', {
+          provider: 'mtn_momo',
+        }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });

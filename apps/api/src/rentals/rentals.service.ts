@@ -16,20 +16,17 @@ import {
   UserRole,
 } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
+import { BookingsService } from '../bookings/bookings.service';
+import { VIEWING_REQUIRED_MESSAGE } from '../bookings/viewing-gate';
 import { mapRentalAgreement } from '../common/mappers';
-import {
-  PAYMENT_SUCCEEDED,
-  type PaymentSucceededEvent,
-} from '../payments/payment-events';
+import { PAYMENT_SUCCEEDED, type PaymentSucceededEvent } from '../payments/payment-events';
 import { PaymentsService } from '../payments/payments.service';
 import { CreateRentalDto } from './dto/create-rental.dto';
 import { PayRentDto } from './dto/pay-rent.dto';
 import { RentalsRepository } from './rentals.repository';
 
 function addMonths(date: Date, n: number): Date {
-  return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()),
-  );
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + n, date.getUTCDate()));
 }
 
 @Injectable()
@@ -39,6 +36,7 @@ export class RentalsService {
   constructor(
     private readonly repo: RentalsRepository,
     private readonly payments: PaymentsService,
+    private readonly bookings: BookingsService,
   ) {}
 
   async create(
@@ -49,6 +47,9 @@ export class RentalsService {
     if (!listing) throw new NotFoundException('Rent listing not found');
     if (listing.property.ownerId === user.id) {
       throw new BadRequestException('You cannot rent your own property');
+    }
+    if (!(await this.bookings.hasCompletedViewing(user.id, listing.id))) {
+      throw new ForbiddenException(VIEWING_REQUIRED_MESSAGE);
     }
 
     // A yearly listing price is the annual rent; bill it monthly.

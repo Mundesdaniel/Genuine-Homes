@@ -1,20 +1,16 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
-import {
-  type PaymentInitiation,
-  PaymentPurpose,
-  PropertyStatus,
-} from '@genuine-homes/shared';
+import { type PaymentInitiation, PaymentPurpose, PropertyStatus } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
-import {
-  PAYMENT_SUCCEEDED,
-  type PaymentSucceededEvent,
-} from '../payments/payment-events';
+import { BookingsService } from '../bookings/bookings.service';
+import { VIEWING_REQUIRED_MESSAGE } from '../bookings/viewing-gate';
+import { PAYMENT_SUCCEEDED, type PaymentSucceededEvent } from '../payments/payment-events';
 import { PaymentsService } from '../payments/payments.service';
 import { BuyDto } from './dto/buy.dto';
 import { PurchasesRepository } from './purchases.repository';
@@ -31,6 +27,7 @@ export class PurchasesService {
   constructor(
     private readonly repo: PurchasesRepository,
     private readonly payments: PaymentsService,
+    private readonly bookings: BookingsService,
   ) {}
 
   async buy(
@@ -44,6 +41,9 @@ export class PurchasesService {
     }
     if (listing.property.ownerId === user.id) {
       throw new BadRequestException('You cannot buy your own property');
+    }
+    if (!(await this.bookings.hasCompletedViewing(user.id, listing.id))) {
+      throw new ForbiddenException(VIEWING_REQUIRED_MESSAGE);
     }
     return this.payments.initiate(user, {
       purpose: PaymentPurpose.PURCHASE,

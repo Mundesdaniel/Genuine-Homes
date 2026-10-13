@@ -52,6 +52,20 @@ export interface PaymentInitiation {
 }
 
 /**
+ * A pending cash payment awaiting the owner's confirmation of receipt, enriched
+ * with who's paying and for which property so the owner can act on it.
+ */
+export interface CashPaymentToConfirm {
+  id: string;
+  amount: number;
+  currency: string;
+  purpose: PaymentPurposeType;
+  payerName: string;
+  propertyTitle: string;
+  createdAt: string;
+}
+
+/**
  * Income a seller has *received* on their listings (rent, installments,
  * deposits, outright purchases) — the landlord-side counterpart to the payer's
  * own payment history. Fees paid to the platform are excluded.

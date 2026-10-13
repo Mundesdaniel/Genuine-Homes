@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type {
+  CashPaymentToConfirm,
   EarningsResponse,
   Paginated,
   PaymentInitiation,
@@ -65,6 +66,24 @@ export class PaymentsController {
     @Body() body: Record<string, unknown>,
   ): Promise<{ received: true }> {
     return this.payments.handleWebhook(headers, body);
+  }
+
+  @Get('incoming-cash')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Pending cash payments awaiting your confirmation (owner)' })
+  incomingCash(@CurrentUser() user: AuthenticatedUser): Promise<CashPaymentToConfirm[]> {
+    return this.payments.listIncomingCash(user);
+  }
+
+  @Post(':id/confirm-cash')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Owner: confirm a cash payment was received' })
+  confirmCash(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<PaymentResponse> {
+    return this.payments.confirmCash(user, id);
   }
 
   @Get(':id')

@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Banknote } from 'lucide-react';
+import toast from 'react-hot-toast';
 import type { PaymentResponse } from '@genuine-homes/shared';
 import { paymentsApi } from '@/api/payments';
 import { Badge, EmptyState, ErrorState, Spinner, statusTone } from '@/components/ui';
@@ -55,6 +57,67 @@ function Receipt({ payment, onClose }: { payment: PaymentResponse; onClose: () =
   );
 }
 
+function CashToConfirm() {
+  const queryClient = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ['payments', 'incoming-cash'],
+    queryFn: () => paymentsApi.incomingCash(),
+  });
+  const confirm = useMutation({
+    mutationFn: (id: string) => paymentsApi.confirmCash(id),
+    onSuccess: () => {
+      toast.success('Cash payment confirmed');
+      void queryClient.invalidateQueries({ queryKey: ['payments', 'incoming-cash'] });
+      void queryClient.invalidateQueries({ queryKey: ['payments', 'mine'] });
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
+  const items = data ?? [];
+  if (items.length === 0) return null;
+
+  return (
+    <div className="card border-amber-200 bg-amber-50/60 p-5">
+      <div className="flex items-center gap-2">
+        <Banknote className="h-5 w-5 text-amber-700" />
+        <h2 className="font-semibold text-amber-900">Cash payments to confirm</h2>
+      </div>
+      <p className="mt-1 text-sm text-amber-800">
+        A buyer chose to pay in cash. Confirm once you’ve received the money — this completes
+        the sale/rental and marks the property accordingly.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {items.map((c) => (
+          <li
+            key={c.id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white p-3"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-stone-800">{c.propertyTitle}</p>
+              <p className="text-xs text-stone-500">
+                {titleCase(c.purpose)} · from {c.payerName}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-semibold text-stone-800">
+                {formatMoney(c.amount, c.currency)}
+              </span>
+              <button
+                type="button"
+                className="btn-primary px-3 py-1.5 text-sm"
+                disabled={confirm.isPending}
+                onClick={() => confirm.mutate(c.id)}
+              >
+                {confirm.isPending ? 'Confirming…' : 'Confirm received'}
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function PaymentsPage() {
   const [receipt, setReceipt] = useState<PaymentResponse | null>(null);
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -78,6 +141,8 @@ export function PaymentsPage() {
       </div>
 
       {receipt && <Receipt payment={receipt} onClose={() => setReceipt(null)} />}
+
+      <CashToConfirm />
 
       {payments.length === 0 ? (
         <EmptyState

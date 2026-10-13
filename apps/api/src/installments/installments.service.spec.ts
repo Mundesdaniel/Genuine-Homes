@@ -129,7 +129,10 @@ describe('InstallmentsService', () => {
     audit = {
       record: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<import('../audit/audit.service').AuditService>;
-    service = new InstallmentsService(repo, payments, events, audit);
+    const bookings = {
+      hasCompletedViewing: jest.fn().mockResolvedValue(true),
+    } as unknown as import('../bookings/bookings.service').BookingsService;
+    service = new InstallmentsService(repo, payments, events, audit, bookings);
   });
 
   const dto = (over: Partial<CreatePlanDto> = {}): CreatePlanDto =>
@@ -181,7 +184,10 @@ describe('InstallmentsService', () => {
   });
 
   describe('accept / decline (landlord approval)', () => {
-    const requested = { ...plan({ status: 'pending_approval' }), listing: { property: { ownerId: OWNER_ID } } };
+    const requested = {
+      ...plan({ status: 'pending_approval' }),
+      listing: { property: { ownerId: OWNER_ID } },
+    };
     const owner: AuthenticatedUser = { id: OWNER_ID, role: UserRole.LANDLORD };
 
     it('accepts a requested plan → pending_deposit', async () => {
@@ -204,9 +210,11 @@ describe('InstallmentsService', () => {
       );
     });
 
-    it("forbids a non-owner from accepting", async () => {
+    it('forbids a non-owner from accepting', async () => {
       repo.findPlanWithOwner.mockResolvedValue(requested);
-      await expect(service.accept(stranger, 'plan-1')).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.accept(stranger, 'plan-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('rejects accepting a plan that is not awaiting approval', async () => {
@@ -214,7 +222,9 @@ describe('InstallmentsService', () => {
         ...plan({ status: 'pending_deposit' }),
         listing: { property: { ownerId: OWNER_ID } },
       });
-      await expect(service.accept(owner, 'plan-1')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.accept(owner, 'plan-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
   });
 

@@ -9,11 +9,7 @@ import {
 } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import type { PaymentsService } from '../payments/payments.service';
-import type {
-  AgreementWithOwner,
-  RentListing,
-  RentalsRepository,
-} from './rentals.repository';
+import type { AgreementWithOwner, RentListing, RentalsRepository } from './rentals.repository';
 import { RentalsService } from './rentals.service';
 
 const tenant: AuthenticatedUser = { id: 'tenant-1', role: UserRole.USER };
@@ -67,7 +63,10 @@ describe('RentalsService', () => {
     payments = {
       initiate: jest.fn().mockResolvedValue({ payment: {}, redirectUrl: 'x' }),
     } as unknown as jest.Mocked<PaymentsService>;
-    service = new RentalsService(repo, payments);
+    const bookings = {
+      hasCompletedViewing: jest.fn().mockResolvedValue(true),
+    } as unknown as import('../bookings/bookings.service').BookingsService;
+    service = new RentalsService(repo, payments, bookings);
   });
 
   describe('create', () => {
@@ -85,7 +84,7 @@ describe('RentalsService', () => {
       expect(repo.transitionPropertyStatus).not.toHaveBeenCalled();
     });
 
-    it("rejects renting your own property", async () => {
+    it('rejects renting your own property', async () => {
       await expect(
         service.create(owner, { listingId: 'listing-1', startDate: '2026-07-01' }),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -104,13 +103,19 @@ describe('RentalsService', () => {
       await service.payRent(tenant, 'agr-1', { provider: 'mtn_momo' });
       expect(payments.initiate).toHaveBeenCalledWith(
         tenant,
-        expect.objectContaining({ purpose: PaymentPurpose.RENT, referenceId: 'agr-1', amount: 1_200_000 }),
+        expect.objectContaining({
+          purpose: PaymentPurpose.RENT,
+          referenceId: 'agr-1',
+          amount: 1_200_000,
+        }),
       );
     });
 
     it("forbids paying someone else's agreement", async () => {
       await expect(
-        service.payRent({ id: 'intruder', role: UserRole.USER }, 'agr-1', { provider: 'mtn_momo' }),
+        service.payRent({ id: 'intruder', role: UserRole.USER }, 'agr-1', {
+          provider: 'mtn_momo',
+        }),
       ).rejects.toBeInstanceOf(ForbiddenException);
     });
 

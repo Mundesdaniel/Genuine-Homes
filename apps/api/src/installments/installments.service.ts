@@ -20,6 +20,8 @@ import {
 } from '@genuine-homes/shared';
 import { AuditService } from '../audit/audit.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
+import { BookingsService } from '../bookings/bookings.service';
+import { VIEWING_REQUIRED_MESSAGE } from '../bookings/viewing-gate';
 import { mapPlan, mapPlanDetail } from '../common/mappers';
 import { PAYMENT_SUCCEEDED, type PaymentSucceededEvent } from '../payments/payment-events';
 import { PaymentsService } from '../payments/payments.service';
@@ -68,6 +70,7 @@ export class InstallmentsService {
     private readonly payments: PaymentsService,
     private readonly events: EventEmitter2,
     private readonly audit: AuditService,
+    private readonly bookings: BookingsService,
   ) {}
 
   // Turn an installment listing into a plan: compute the deposit + an exact
@@ -82,6 +85,9 @@ export class InstallmentsService {
     }
     if (listing.property.ownerId === user.id) {
       throw new BadRequestException('You cannot buy your own property');
+    }
+    if (!(await this.bookings.hasCompletedViewing(user.id, listing.id))) {
+      throw new ForbiddenException(VIEWING_REQUIRED_MESSAGE);
     }
 
     // A seller's own `installment` listing is a pre-made offer, so the plan is
@@ -162,10 +168,7 @@ export class InstallmentsService {
   }
 
   /** Landlord accepts a requested plan → it becomes payable (`pending_deposit`). */
-  async accept(
-    actor: AuthenticatedUser,
-    planId: string,
-  ): Promise<InstallmentPlanDetail> {
+  async accept(actor: AuthenticatedUser, planId: string): Promise<InstallmentPlanDetail> {
     const plan = await this.repo.findPlanWithOwner(planId);
     if (!plan) throw new NotFoundException('Plan not found');
     this.assertOwnerOrAdmin(plan.listing.property.ownerId, actor);

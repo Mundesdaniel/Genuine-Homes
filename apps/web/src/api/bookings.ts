@@ -1,8 +1,4 @@
-import type {
-  BookingResponse,
-  CreateBookingInput,
-  Paginated,
-} from '@genuine-homes/shared';
+import type { BookingResponse, CreateBookingInput, Paginated } from '@genuine-homes/shared';
 import { api } from '@/lib/apiClient';
 
 export const bookingsApi = {
@@ -24,4 +20,9 @@ export const bookingsApi = {
     api.post<BookingResponse>(`/bookings/${id}/decline`, { reason }).then((r) => r.data),
   cancel: (id: string) =>
     api.post<BookingResponse>(`/bookings/${id}/cancel`, {}).then((r) => r.data),
+  // Whether the current user has completed a viewing of this listing's property.
+  viewingStatus: (listingId: string) =>
+    api
+      .get<{ completed: boolean }>(`/bookings/viewing-status/${listingId}`)
+      .then((r) => r.data),
 };

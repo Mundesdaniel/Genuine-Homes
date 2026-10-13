@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { BookingResponse, Paginated } from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -49,6 +41,18 @@ export class BookingsController {
     @Query() query: PaginationQueryDto,
   ): Promise<Paginated<BookingResponse>> {
     return this.bookings.listIncoming(user, query.page, query.pageSize);
+  }
+
+  @Get('viewing-status/:listingId')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Whether you've completed a viewing of this listing's property",
+  })
+  viewingStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('listingId', ParseUUIDPipe) listingId: string,
+  ): Promise<{ completed: boolean }> {
+    return this.bookings.viewingStatus(user, listingId);
   }
 
   @Post(':id/accept')

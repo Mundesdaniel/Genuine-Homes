@@ -11,7 +11,7 @@ import {
 } from '@genuine-homes/shared';
 import { rentalsApi } from '@/api/rentals';
 import { apiErrorMessage } from '@/lib/apiClient';
-import { goToCheckout } from '@/lib/checkout';
+import { handlePaymentResult } from '@/lib/checkout';
 import { formatMoney, titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
@@ -46,10 +46,7 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
         redirectUrl: returnUrl,
       });
     },
-    onSuccess: (res) => {
-      toast.success('Opening checkout…');
-      goToCheckout(res.redirectUrl, navigate);
-    },
+    onSuccess: (res) => handlePaymentResult(res, navigate),
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
@@ -57,7 +54,9 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
     return (
       <div className="card space-y-3 p-5">
         <h3 className="font-semibold text-stone-800">Rent this property</h3>
-        <p className="text-sm text-stone-500">Log in to start a rental and pay your first rent.</p>
+        <p className="text-sm text-stone-500">
+          Log in to start a rental and pay your first rent.
+        </p>
         <Link to="/login" className="btn-primary w-full">
           Log in to continue
         </Link>

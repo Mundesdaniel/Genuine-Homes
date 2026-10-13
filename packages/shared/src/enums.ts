@@ -33,8 +33,7 @@ export const VerificationStatus = {
   VERIFIED: 'verified',
   REJECTED: 'rejected',
 } as const;
-export type VerificationStatus =
-  (typeof VerificationStatus)[keyof typeof VerificationStatus];
+export type VerificationStatus = (typeof VerificationStatus)[keyof typeof VerificationStatus];
 
 /**
  * Lifecycle status of a property.
@@ -52,8 +51,7 @@ export const PropertyStatus = {
   SOLD: 'sold',
   SUSPENDED: 'suspended',
 } as const;
-export type PropertyStatus =
-  (typeof PropertyStatus)[keyof typeof PropertyStatus];
+export type PropertyStatus = (typeof PropertyStatus)[keyof typeof PropertyStatus];
 
 export const ListingType = {
   RENT: 'rent',
@@ -110,17 +108,17 @@ export const PaymentPurpose = {
   VERIFICATION_FEE: 'verification_fee',
   FEATURED_LISTING: 'featured_listing',
 } as const;
-export type PaymentPurpose =
-  (typeof PaymentPurpose)[keyof typeof PaymentPurpose];
+export type PaymentPurpose = (typeof PaymentPurpose)[keyof typeof PaymentPurpose];
 
 export const PaymentProvider = {
   MTN_MOMO: 'mtn_momo',
   AIRTEL_MONEY: 'airtel_money',
   CARD: 'card',
   BANK: 'bank',
+  /** Paid in person. Recorded pending until the owner confirms receipt. */
+  CASH: 'cash',
 } as const;
-export type PaymentProvider =
-  (typeof PaymentProvider)[keyof typeof PaymentProvider];
+export type PaymentProvider = (typeof PaymentProvider)[keyof typeof PaymentProvider];
 
 export const PaymentStatus = {
   PENDING: 'pending',
@@ -162,8 +160,7 @@ export const NotificationType = {
   VIEWING_SCHEDULED: 'viewing_scheduled',
   SAVED_SEARCH_MATCH: 'saved_search_match',
 } as const;
-export type NotificationType =
-  (typeof NotificationType)[keyof typeof NotificationType];
+export type NotificationType = (typeof NotificationType)[keyof typeof NotificationType];
 
 /**
  * Viewing-booking state machine.
@@ -183,5 +180,4 @@ export type BookingStatus = (typeof BookingStatus)[keyof typeof BookingStatus];
 /** Helper to extract the runtime values of a const-enum object as a tuple. */
 export const enumValues = <T extends Record<string, string>>(
   e: T,
-): [T[keyof T], ...T[keyof T][]] =>
-  Object.values(e) as [T[keyof T], ...T[keyof T][]];
+): [T[keyof T], ...T[keyof T][]] => Object.values(e) as [T[keyof T], ...T[keyof T][]];
