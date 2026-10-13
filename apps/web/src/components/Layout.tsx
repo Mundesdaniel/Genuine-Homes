@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Home, Menu, X } from 'lucide-react';
+import { Home, KeyRound, Menu, X } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { ChangePasswordDialog } from '@/components/ChangePasswordDialog';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { NotificationBell } from '@/components/NotificationBell';
+import { UserMenu } from '@/components/UserMenu';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
-import { titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -40,6 +41,7 @@ export function Layout() {
   const logout = useLogout();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pwOpen, setPwOpen] = useState(false);
   const closeMenu = () => setMenuOpen(false);
 
   const onLogout = async () => {
@@ -70,9 +72,6 @@ export function Layout() {
           <NavLink to="/dashboard" className={cls} onClick={close}>
             {t('nav.dashboard')}
           </NavLink>
-          <NavLink to="/settings" className={cls} onClick={close}>
-            {t('nav.settings')}
-          </NavLink>
           {user?.role === 'admin' && (
             <NavLink to="/admin" className={cls} onClick={close}>
               {t('nav.admin')}
@@ -100,20 +99,14 @@ export function Layout() {
 
           <div className="hidden items-center gap-3 md:flex">
             <LanguageSwitcher />
-            {token ? (
+            {token && user ? (
               <>
                 <NotificationBell />
-                <span className="text-sm text-stone-600">
-                  {user?.fullName ?? t('nav.account')}
-                  {user?.role && (
-                    <span className="ml-2 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand">
-                      {titleCase(user.role)}
-                    </span>
-                  )}
-                </span>
-                <button className="btn-outline" onClick={onLogout} type="button">
-                  {t('nav.logout')}
-                </button>
+                <UserMenu
+                  user={user}
+                  onChangePassword={() => setPwOpen(true)}
+                  onLogout={onLogout}
+                />
               </>
             ) : (
               <>
@@ -149,7 +142,22 @@ export function Layout() {
             id="mobile-nav"
             className="border-t border-stone-200 bg-white px-4 pb-4 pt-2 md:hidden"
           >
-            <div className="space-y-1">{links(closeMenu, mobileNavClass)}</div>
+            <div className="space-y-1">
+              {links(closeMenu, mobileNavClass)}
+              {token && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+                  onClick={() => {
+                    closeMenu();
+                    setPwOpen(true);
+                  }}
+                >
+                  <KeyRound className="h-4 w-4 text-stone-400" />
+                  {t('nav.changePassword')}
+                </button>
+              )}
+            </div>
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-stone-100 pt-3">
               <LanguageSwitcher />
               {token ? (
@@ -234,11 +242,6 @@ export function Layout() {
                       {t('nav.payments')}
                     </Link>
                   </li>
-                  <li>
-                    <Link to="/settings" className={footerLink}>
-                      {t('nav.settings')}
-                    </Link>
-                  </li>
                 </>
               ) : (
                 <>
@@ -274,6 +277,8 @@ export function Layout() {
           </div>
         </div>
       </footer>
+
+      <ChangePasswordDialog open={pwOpen} onClose={() => setPwOpen(false)} />
     </div>
   );
 }

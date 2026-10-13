@@ -19,7 +19,6 @@ import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
-import { SettingsPage } from '@/pages/SettingsPage';
 
 export default function App() {
   return (
@@ -44,14 +43,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <IdentityVerificationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="settings"
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
             </ProtectedRoute>
           }
         />
