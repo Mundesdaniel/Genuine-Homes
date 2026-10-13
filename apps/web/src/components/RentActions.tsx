@@ -27,7 +27,7 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
   const navigate = useNavigate();
   const returnUrl = `${window.location.origin}/payments/return`;
 
-  const [provider, setProvider] = useState<string>('mtn_momo');
+  const [provider, setProvider] = useState<string>(PaymentProvider.CASH);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [months, setMonths] = useState<string>('');
 

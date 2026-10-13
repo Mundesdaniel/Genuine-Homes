@@ -13,7 +13,7 @@ import { formatMoney, titleCase } from '@/lib/format';
 export function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [provider, setProvider] = useState<string>('mtn_momo');
+  const [provider, setProvider] = useState<string>(PaymentProvider.CASH);
 
   const {
     data: plan,
