@@ -104,6 +104,7 @@ export function mapBooking(
     buyerId: booking.buyerId,
     ownerId: booking.ownerId,
     scheduledAt: booking.scheduledAt.toISOString(),
+    viewedAt: booking.viewedAt ? booking.viewedAt.toISOString() : null,
     message: booking.message ?? null,
     status: booking.status,
     createdAt: booking.createdAt.toISOString(),
@@ -137,9 +138,7 @@ export function mapUserProfile(user: User): UserProfileResponse {
     phone: user.phone,
     role: user.role,
     isVerified: user.isVerified,
-    identityVerifiedAt: user.identityVerifiedAt
-      ? user.identityVerifiedAt.toISOString()
-      : null,
+    identityVerifiedAt: user.identityVerifiedAt ? user.identityVerifiedAt.toISOString() : null,
     createdAt: user.createdAt.toISOString(),
   };
 }

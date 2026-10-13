@@ -5,7 +5,14 @@ import toast from 'react-hot-toast';
 import { CalendarClock, CheckCircle2, MapPin, MessageCircle } from 'lucide-react';
 import type { BookingResponse } from '@genuine-homes/shared';
 import { bookingsApi } from '@/api/bookings';
-import { Badge, ConfirmDialog, EmptyState, ErrorState, Spinner, statusTone } from '@/components/ui';
+import {
+  Badge,
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  Spinner,
+  statusTone,
+} from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
@@ -67,6 +74,14 @@ export function BookingsPage() {
     },
     onError,
   });
+  const confirmViewed = useMutation({
+    mutationFn: (id: string) => bookingsApi.markViewed(id),
+    onSuccess: () => {
+      toast.success('Viewing confirmed — you can proceed to payment');
+      void invalidate();
+    },
+    onError,
+  });
 
   return (
     <div className="space-y-10">
@@ -92,6 +107,8 @@ export function BookingsPage() {
                   booking={b}
                   onCancel={() => setCancelFor(b.id)}
                   canceling={cancel.isPending && cancelFor === b.id}
+                  onConfirmViewed={() => confirmViewed.mutate(b.id)}
+                  confirming={confirmViewed.isPending && confirmViewed.variables === b.id}
                 />
               ))}
             </ul>
@@ -99,7 +116,10 @@ export function BookingsPage() {
             <EmptyState
               title="No viewings yet"
               hint="Find a property you like and book a viewing from its page."
-              action={{ label: 'Browse listings', onClick: () => (window.location.href = '/') }}
+              action={{
+                label: 'Browse listings',
+                onClick: () => (window.location.href = '/'),
+              }}
             />
           )}
         </div>
@@ -173,18 +193,25 @@ function MyBookingRow({
   booking,
   onCancel,
   canceling,
+  onConfirmViewed,
+  confirming,
 }: {
   booking: BookingResponse;
   onCancel: () => void;
   canceling: boolean;
+  onConfirmViewed: () => void;
+  confirming: boolean;
 }) {
   const cancellable = booking.status === 'pending' || booking.status === 'accepted';
   // Snapshot "now" once (Date.now() is impure and can't run during render).
   const [now] = useState(() => Date.now());
-  // Once an accepted viewing's time has passed, the buyer has had the chance to
-  // see the house — offer the decision: proceed to payment, or cancel.
+  // A viewing counts as done once it's been confirmed, or (failing that) once
+  // its scheduled time has simply passed — then offer: proceed to payment, or cancel.
   const viewed =
-    booking.status === 'accepted' && new Date(booking.scheduledAt).getTime() <= now;
+    booking.status === 'accepted' &&
+    (booking.viewedAt != null || new Date(booking.scheduledAt).getTime() <= now);
+  // Accepted but not yet confirmed and still upcoming → offer to confirm it.
+  const canConfirm = booking.status === 'accepted' && !viewed;
   return (
     <li className="card space-y-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -213,6 +240,16 @@ function MyBookingRow({
               <MessageCircle className="h-4 w-4" />
               Message
             </Link>
+          )}
+          {canConfirm && (
+            <button
+              className="btn-primary"
+              type="button"
+              onClick={onConfirmViewed}
+              disabled={confirming}
+            >
+              {confirming ? 'Confirming…' : "I've viewed it"}
+            </button>
           )}
           {cancellable && !viewed && (
             <button
@@ -280,9 +317,7 @@ function IncomingBookingRow({
           <CalendarClock className="h-3.5 w-3.5 text-stone-400" />
           {formatWhen(booking.scheduledAt)}
         </p>
-        {booking.message && (
-          <p className="mt-1 text-sm text-stone-500">“{booking.message}”</p>
-        )}
+        {booking.message && <p className="mt-1 text-sm text-stone-500">“{booking.message}”</p>}
       </div>
       <div className="flex items-center gap-3">
         {booking.status === 'pending' ? (

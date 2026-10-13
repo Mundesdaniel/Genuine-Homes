@@ -32,6 +32,8 @@ export interface BookingResponse {
   buyerId: string;
   ownerId: string;
   scheduledAt: string;
+  /** Set once the viewing is confirmed as having happened (unlocks payment). */
+  viewedAt: string | null;
   message: string | null;
   status: BookingStatusType;
   createdAt: string;

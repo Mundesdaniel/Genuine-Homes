@@ -160,6 +160,27 @@ export class BookingsService {
   }
 
   /**
+   * Confirm a viewing actually happened. Either party (buyer or owner) can
+   * press it on an accepted viewing; it stamps `viewedAt`, which unlocks payment
+   * immediately instead of waiting for the scheduled time to pass.
+   */
+  async confirmViewed(user: AuthenticatedUser, id: string): Promise<BookingResponse> {
+    const booking = await this.repo.findOwnership(id);
+    if (!booking) throw new NotFoundException('Booking not found');
+    const isParty =
+      user.role === UserRole.ADMIN ||
+      booking.buyerId === user.id ||
+      booking.ownerId === user.id;
+    if (!isParty) throw new ForbiddenException('This booking is not yours');
+    if (booking.status !== BookingStatus.ACCEPTED) {
+      throw new BadRequestException('Only an accepted viewing can be confirmed');
+    }
+    const updated = await this.repo.markViewed(id);
+    this.logger.log(`Booking ${id} confirmed viewed by ${user.id}`);
+    return mapBooking(updated);
+  }
+
+  /**
    * Whether the buyer has completed a viewing of this listing's property — the
    * gate the purchase/rent/installment flows enforce before taking any money,
    * and that the listing page uses to decide whether to show pay actions.

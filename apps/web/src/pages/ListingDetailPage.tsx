@@ -222,8 +222,12 @@ export function ListingDetailPage() {
               <h3 className="font-semibold text-stone-800">Viewing required</h3>
               <p className="text-sm text-stone-500">
                 To protect buyers, payment opens only after you’ve visited the property. Use{' '}
-                <span className="font-medium text-stone-700">Book a viewing</span> above — once
-                the owner accepts and your scheduled time has passed, you can pay here.
+                <span className="font-medium text-stone-700">Book a viewing</span> above; once
+                the owner accepts, confirm it under{' '}
+                <Link to="/bookings" className="font-medium text-brand">
+                  My viewings
+                </Link>{' '}
+                and payment unlocks here.
               </p>
             </div>
           ) : listing.listingType === 'installment' ? (

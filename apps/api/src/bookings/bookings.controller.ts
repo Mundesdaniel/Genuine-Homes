@@ -85,4 +85,14 @@ export class BookingsController {
   ): Promise<BookingResponse> {
     return this.bookings.cancel(user, id);
   }
+
+  @Post(':id/viewed')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm a viewing happened (unlocks payment)' })
+  confirmViewed(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<BookingResponse> {
+    return this.bookings.confirmViewed(user, id);
+  }
 }

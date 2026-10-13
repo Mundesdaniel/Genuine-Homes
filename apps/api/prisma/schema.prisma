@@ -499,6 +499,10 @@ model Booking {
   ownerId     String        @map("owner_id") @db.Uuid
   // Requested date + time of the viewing.
   scheduledAt DateTime      @map("scheduled_at") @db.Timestamptz(6)
+  // Set when the buyer (or owner) confirms the viewing actually happened. A
+  // confirmed viewing unlocks payment immediately, without waiting for the
+  // scheduled time to merely elapse.
+  viewedAt    DateTime?     @map("viewed_at") @db.Timestamptz(6)
   message     String?       @db.Text
   status      BookingStatus @default(pending)
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)

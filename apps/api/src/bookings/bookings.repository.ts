@@ -110,10 +110,21 @@ export class BookingsRepository {
         buyerId,
         propertyId: listing.propertyId,
         status: BookingStatus.accepted,
-        scheduledAt: { lte: new Date() },
+        // Completed either by an explicit confirmation or, failing that, once
+        // the scheduled time has simply passed.
+        OR: [{ viewedAt: { not: null } }, { scheduledAt: { lte: new Date() } }],
       },
     });
     return count > 0;
+  }
+
+  // Stamp a booking as viewed (the confirmation that the viewing happened).
+  markViewed(id: string): Promise<BookingWithRelations> {
+    return this.prisma.booking.update({
+      where: { id },
+      data: { viewedAt: new Date() },
+      include: bookingInclude,
+    });
   }
 
   // Narrowed lookup for authorization checks (no relations needed).

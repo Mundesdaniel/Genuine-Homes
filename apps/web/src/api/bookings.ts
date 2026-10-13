@@ -20,6 +20,9 @@ export const bookingsApi = {
     api.post<BookingResponse>(`/bookings/${id}/decline`, { reason }).then((r) => r.data),
   cancel: (id: string) =>
     api.post<BookingResponse>(`/bookings/${id}/cancel`, {}).then((r) => r.data),
+  // Confirm the viewing happened (buyer or owner) — unlocks payment.
+  markViewed: (id: string) =>
+    api.post<BookingResponse>(`/bookings/${id}/viewed`, {}).then((r) => r.data),
   // Whether the current user has completed a viewing of this listing's property.
   viewingStatus: (listingId: string) =>
     api
