@@ -117,6 +117,12 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
             </option>
           ))}
         </select>
+        {provider === PaymentProvider.CASH && (
+          <p className="mt-1 text-xs text-stone-500">
+            Pay in person — recorded as pending until the owner confirms they’ve received the
+            cash.
+          </p>
+        )}
       </div>
 
       <button
