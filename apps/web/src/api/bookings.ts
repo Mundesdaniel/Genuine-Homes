@@ -24,11 +24,12 @@ export const bookingsApi = {
   markViewed: (id: string) =>
     api.post<BookingResponse>(`/bookings/${id}/viewed`, {}).then((r) => r.data),
   // Viewing state for this listing's property: whether it's complete (unlocks
-  // payment) and the id of an accepted viewing still awaiting confirmation.
+  // payment) and the buyer's current active viewing (pending or accepted), if any.
   viewingStatus: (listingId: string) =>
     api
-      .get<{ completed: boolean; bookingId: string | null }>(
-        `/bookings/viewing-status/${listingId}`,
-      )
+      .get<{
+        completed: boolean;
+        booking: { id: string; status: string } | null;
+      }>(`/bookings/viewing-status/${listingId}`)
       .then((r) => r.data),
 };

@@ -45,6 +45,7 @@ export function BookViewing({
     onSuccess: () => {
       toast.success('Viewing requested — the owner has been notified');
       void queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      void queryClient.invalidateQueries({ queryKey: ['viewing-status', listing.id] });
       setOpen(false);
       setMessage('');
     },
@@ -105,11 +106,16 @@ export function BookViewing({
     book.mutate();
   };
 
-  const confirmableBookingId = viewing.data?.bookingId ?? null;
+  const activeBooking = viewing.data?.booking ?? null;
 
   return (
     <>
-      {confirmableBookingId ? (
+      {viewing.data?.completed ? (
+        <p className="mt-4 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          Viewing completed
+        </p>
+      ) : activeBooking?.status === 'accepted' ? (
         // The owner has accepted — once the buyer has visited, they confirm it
         // here, which unlocks payment on this property.
         <div className="mt-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -121,17 +127,19 @@ export function BookViewing({
             className="btn-primary w-full"
             type="button"
             disabled={confirmViewing.isPending}
-            onClick={() => confirmViewing.mutate(confirmableBookingId)}
+            onClick={() => confirmViewing.mutate(activeBooking.id)}
           >
             <CheckCircle2 className="h-4 w-4" />
             {confirmViewing.isPending ? 'Confirming…' : 'Confirm viewing completed'}
           </button>
         </div>
-      ) : viewing.data?.completed ? (
-        <p className="mt-4 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
-          <CheckCircle2 className="h-4 w-4" />
-          Viewing completed
-        </p>
+      ) : activeBooking ? (
+        // A request is already in — no second booking; it's waiting on the
+        // owner. Once accepted, the confirm button replaces this.
+        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          Viewing requested — waiting for the owner to accept. You’ll confirm it here once they
+          do.
+        </div>
       ) : (
         <button
           className="btn-primary mt-4 w-full"

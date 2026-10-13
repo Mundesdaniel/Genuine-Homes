@@ -53,6 +53,15 @@ export class BookingsService {
       throw new BadRequestException('Pick a viewing time in the future');
     }
 
+    // One active viewing per property: don't let a buyer stack duplicate
+    // requests. If they already have one, they confirm it rather than re-book.
+    const active = await this.repo.findActiveViewing(user.id, dto.listingId);
+    if (active) {
+      throw new BadRequestException(
+        'You already have a viewing for this property — confirm it instead of booking again.',
+      );
+    }
+
     const booking = await this.repo.create({
       listingId: listing.id,
       propertyId: listing.property.id,
@@ -188,12 +197,15 @@ export class BookingsService {
   async viewingStatus(
     user: AuthenticatedUser,
     listingId: string,
-  ): Promise<{ completed: boolean; bookingId: string | null }> {
-    const [completed, bookingId] = await Promise.all([
+  ): Promise<{
+    completed: boolean;
+    booking: { id: string; status: string } | null;
+  }> {
+    const [completed, booking] = await Promise.all([
       this.repo.hasCompletedViewing(user.id, listingId),
-      this.repo.findConfirmableViewing(user.id, listingId),
+      this.repo.findActiveViewing(user.id, listingId),
     ]);
-    return { completed, bookingId };
+    return { completed, booking };
   }
 
   /** The same check as a bare boolean, for other services to gate payments on. */

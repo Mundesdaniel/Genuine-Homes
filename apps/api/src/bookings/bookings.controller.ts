@@ -51,7 +51,7 @@ export class BookingsController {
   viewingStatus(
     @CurrentUser() user: AuthenticatedUser,
     @Param('listingId', ParseUUIDPipe) listingId: string,
-  ): Promise<{ completed: boolean; bookingId: string | null }> {
+  ): Promise<{ completed: boolean; booking: { id: string; status: string } | null }> {
     return this.bookings.viewingStatus(user, listingId);
   }
 
