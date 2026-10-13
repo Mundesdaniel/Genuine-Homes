@@ -188,8 +188,12 @@ export class BookingsService {
   async viewingStatus(
     user: AuthenticatedUser,
     listingId: string,
-  ): Promise<{ completed: boolean }> {
-    return { completed: await this.repo.hasCompletedViewing(user.id, listingId) };
+  ): Promise<{ completed: boolean; bookingId: string | null }> {
+    const [completed, bookingId] = await Promise.all([
+      this.repo.hasCompletedViewing(user.id, listingId),
+      this.repo.findConfirmableViewing(user.id, listingId),
+    ]);
+    return { completed, bookingId };
   }
 
   /** The same check as a bare boolean, for other services to gate payments on. */

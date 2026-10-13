@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, CheckCircle2 } from 'lucide-react';
 import type { ListingSearchItem } from '@genuine-homes/shared';
 import { bookingsApi } from '@/api/bookings';
 import { apiErrorMessage } from '@/lib/apiClient';
@@ -51,6 +51,23 @@ export function BookViewing({
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
+  // Viewing state for this property: is it complete (payment unlocked), and is
+  // there an accepted viewing still awaiting the buyer's confirmation?
+  const viewing = useQuery({
+    queryKey: ['viewing-status', listing.id],
+    queryFn: () => bookingsApi.viewingStatus(listing.id),
+    enabled: Boolean(token) && user?.id !== listing.property.ownerId && !taken,
+  });
+  const confirmViewing = useMutation({
+    mutationFn: (bookingId: string) => bookingsApi.markViewed(bookingId),
+    onSuccess: () => {
+      toast.success('Viewing confirmed — you can proceed to payment');
+      void queryClient.invalidateQueries({ queryKey: ['viewing-status', listing.id] });
+      void queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
   useEffect(() => {
     if (!open) return;
     panelRef.current?.focus();
@@ -88,16 +105,43 @@ export function BookViewing({
     book.mutate();
   };
 
+  const confirmableBookingId = viewing.data?.bookingId ?? null;
+
   return (
     <>
-      <button
-        className="btn-primary mt-4 w-full"
-        type="button"
-        onClick={() => setOpen(true)}
-      >
-        <CalendarCheck className="h-4 w-4" />
-        Book a viewing
-      </button>
+      {confirmableBookingId ? (
+        // The owner has accepted — once the buyer has visited, they confirm it
+        // here, which unlocks payment on this property.
+        <div className="mt-4 space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-sm text-emerald-900">
+            Your viewing is confirmed with the owner. Been to see it? Confirm below to continue
+            to payment.
+          </p>
+          <button
+            className="btn-primary w-full"
+            type="button"
+            disabled={confirmViewing.isPending}
+            onClick={() => confirmViewing.mutate(confirmableBookingId)}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            {confirmViewing.isPending ? 'Confirming…' : 'Confirm viewing completed'}
+          </button>
+        </div>
+      ) : viewing.data?.completed ? (
+        <p className="mt-4 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+          <CheckCircle2 className="h-4 w-4" />
+          Viewing completed
+        </p>
+      ) : (
+        <button
+          className="btn-primary mt-4 w-full"
+          type="button"
+          onClick={() => setOpen(true)}
+        >
+          <CalendarCheck className="h-4 w-4" />
+          Book a viewing
+        </button>
+      )}
 
       {open && (
         <div

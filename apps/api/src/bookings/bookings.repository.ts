@@ -118,6 +118,27 @@ export class BookingsRepository {
     return count > 0;
   }
 
+  /** An accepted viewing of this listing's property the buyer can still confirm
+   *  (not yet marked viewed), if any — so the listing page can offer the button. */
+  async findConfirmableViewing(buyerId: string, listingId: string): Promise<string | null> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { propertyId: true },
+    });
+    if (!listing) return null;
+    const booking = await this.prisma.booking.findFirst({
+      where: {
+        buyerId,
+        propertyId: listing.propertyId,
+        status: BookingStatus.accepted,
+        viewedAt: null,
+      },
+      orderBy: { scheduledAt: 'desc' },
+      select: { id: true },
+    });
+    return booking?.id ?? null;
+  }
+
   // Stamp a booking as viewed (the confirmation that the viewing happened).
   markViewed(id: string): Promise<BookingWithRelations> {
     return this.prisma.booking.update({

@@ -221,13 +221,9 @@ export function ListingDetailPage() {
             <div className="card space-y-2 p-5">
               <h3 className="font-semibold text-stone-800">Viewing required</h3>
               <p className="text-sm text-stone-500">
-                To protect buyers, payment opens only after you’ve visited the property. Use{' '}
+                To protect buyers, payment opens only after you’ve visited the property.{' '}
                 <span className="font-medium text-stone-700">Book a viewing</span> above; once
-                the owner accepts, confirm it under{' '}
-                <Link to="/bookings" className="font-medium text-brand">
-                  My viewings
-                </Link>{' '}
-                and payment unlocks here.
+                the owner accepts and you confirm the visit there, payment unlocks here.
               </p>
             </div>
           ) : listing.listingType === 'installment' ? (

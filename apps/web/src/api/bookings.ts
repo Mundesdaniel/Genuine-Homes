@@ -23,9 +23,12 @@ export const bookingsApi = {
   // Confirm the viewing happened (buyer or owner) — unlocks payment.
   markViewed: (id: string) =>
     api.post<BookingResponse>(`/bookings/${id}/viewed`, {}).then((r) => r.data),
-  // Whether the current user has completed a viewing of this listing's property.
+  // Viewing state for this listing's property: whether it's complete (unlocks
+  // payment) and the id of an accepted viewing still awaiting confirmation.
   viewingStatus: (listingId: string) =>
     api
-      .get<{ completed: boolean }>(`/bookings/viewing-status/${listingId}`)
+      .get<{ completed: boolean; bookingId: string | null }>(
+        `/bookings/viewing-status/${listingId}`,
+      )
       .then((r) => r.data),
 };
