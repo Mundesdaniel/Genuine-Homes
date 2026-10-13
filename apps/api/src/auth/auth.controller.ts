@@ -17,6 +17,7 @@ import type { Env } from '../config/env.validation';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -121,6 +122,21 @@ export class AuthController {
     const token = this.refreshTokenFrom(req, dto);
     if (token) await this.auth.logout(token);
     return { success: true };
+  }
+
+  // Requires a valid access token. Verifies the current password, rotates to
+  // the new one, and returns a fresh session (old sessions are revoked).
+  @Post('change-password')
+  @HttpCode(200)
+  @Throttle(CREDENTIAL_THROTTLE)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change the password for the logged-in user' })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponse> {
+    return this.withRefreshCookie(res, await this.auth.changePassword(userId, dto));
   }
 
   @Get('me')

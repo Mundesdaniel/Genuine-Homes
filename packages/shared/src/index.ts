@@ -53,6 +53,7 @@ export {
   logoutSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  changePasswordSchema,
 } from './schemas/auth';
 export type {
   SelfAssignableRole,
@@ -63,6 +64,7 @@ export type {
   LogoutInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  ChangePasswordInput,
   AuthUser,
   AuthTokens,
   AuthResponse,

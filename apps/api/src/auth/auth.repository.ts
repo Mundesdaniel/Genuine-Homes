@@ -75,6 +75,18 @@ export class AuthRepository {
     });
   }
 
+  // Set a new password and end every existing session in one shot — a password
+  // change must never leave an old session alive on the old credentials.
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+  }
+
   // ── Password-reset tokens ──────────────────────────────────────────────
 
   createResetToken(data: {

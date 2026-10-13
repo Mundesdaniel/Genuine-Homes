@@ -84,6 +84,13 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+/** Change the password while logged in — proves ownership via the current one. */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password'),
+  newPassword: passwordSchema,
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
 /** The authenticated user as returned to clients — never includes the hash. */
 export interface AuthUser {
   id: string;

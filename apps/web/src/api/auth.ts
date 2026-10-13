@@ -1,6 +1,7 @@
 import type {
   AuthResponse,
   AuthUser,
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   RegisterRequest,
@@ -20,4 +21,7 @@ export const authApi = {
     api.post<{ success: true }>('/auth/forgot-password', input).then((r) => r.data),
   resetPassword: (input: ResetPasswordInput) =>
     api.post<{ success: true }>('/auth/reset-password', input).then((r) => r.data),
+  /** Change the password while logged in; returns a fresh session. */
+  changePassword: (input: ChangePasswordInput) =>
+    api.post<AuthResponse>('/auth/change-password', input).then((r) => r.data),
 };

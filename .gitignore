@@ -51,3 +51,4 @@ _doc*.txt
 /apps/api/uploads-private/
 
 .vercel
+.env*.local

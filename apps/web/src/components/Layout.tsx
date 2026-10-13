@@ -70,6 +70,9 @@ export function Layout() {
           <NavLink to="/dashboard" className={cls} onClick={close}>
             {t('nav.dashboard')}
           </NavLink>
+          <NavLink to="/settings" className={cls} onClick={close}>
+            {t('nav.settings')}
+          </NavLink>
           {user?.role === 'admin' && (
             <NavLink to="/admin" className={cls} onClick={close}>
               {t('nav.admin')}
@@ -229,6 +232,11 @@ export function Layout() {
                   <li>
                     <Link to="/payments" className={footerLink}>
                       {t('nav.payments')}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/settings" className={footerLink}>
+                      {t('nav.settings')}
                     </Link>
                   </li>
                 </>

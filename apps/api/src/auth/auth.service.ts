@@ -1,5 +1,6 @@
 import { hash as argonHash, verify as argonVerify } from '@node-rs/argon2';
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -16,6 +17,7 @@ import {
 import type { Env } from '../config/env.validation';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthRepository } from './auth.repository';
+import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { ForgotPasswordDto } from './dto/forgot-password.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
@@ -72,10 +74,7 @@ export class AuthService {
     const user = await this.repo.findActiveByEmailOrPhone(identifier);
 
     // Always run a verify (decoy when no user) to keep timing constant.
-    const ok = await argonVerify(
-      user?.passwordHash ?? (await this.decoyHash),
-      dto.password,
-    );
+    const ok = await argonVerify(user?.passwordHash ?? (await this.decoyHash), dto.password);
     if (!user || !ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -99,9 +98,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid token type');
     }
 
-    const stored = await this.repo.findRefreshByHash(
-      this.tokens.hashToken(refreshToken),
-    );
+    const stored = await this.repo.findRefreshByHash(this.tokens.hashToken(refreshToken));
     if (!stored) {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -131,9 +128,7 @@ export class AuthService {
     } catch {
       return; // Garbage/expired token: nothing to revoke, succeed silently.
     }
-    const stored = await this.repo.findRefreshByHash(
-      this.tokens.hashToken(refreshToken),
-    );
+    const stored = await this.repo.findRefreshByHash(this.tokens.hashToken(refreshToken));
     if (stored && !stored.revokedAt) {
       await this.repo.revokeRefreshToken(stored.id);
     }
@@ -154,8 +149,7 @@ export class AuthService {
 
     // Only the newest link works — retire anything still outstanding.
     await this.repo.invalidateResetTokensForUser(user.id);
-    const { token, tokenHash, expiresAt } =
-      this.tokens.mintResetToken(RESET_TOKEN_TTL_MS);
+    const { token, tokenHash, expiresAt } = this.tokens.mintResetToken(RESET_TOKEN_TTL_MS);
     await this.repo.createResetToken({ userId: user.id, tokenHash, expiresAt });
 
     const link = `${this.webOrigin()}/reset-password?token=${token}`;
@@ -172,9 +166,7 @@ export class AuthService {
 
   /** Complete a reset: burn the token, set the password, end every session. */
   async resetPassword(dto: ResetPasswordDto): Promise<{ success: true }> {
-    const stored = await this.repo.findResetTokenByHash(
-      this.tokens.hashToken(dto.token),
-    );
+    const stored = await this.repo.findResetTokenByHash(this.tokens.hashToken(dto.token));
     // One generic error for every failure mode — the token is the only secret.
     if (!stored || stored.usedAt || stored.expiresAt <= new Date()) {
       throw new UnauthorizedException('This reset link is invalid or has expired');
@@ -189,6 +181,30 @@ export class AuthService {
 
     this.logger.log(`Password reset completed for user ${user.id}`);
     return { success: true };
+  }
+
+  /**
+   * Change the password for a logged-in user. Proves ownership by checking the
+   * current password, refuses a no-op change, then sets the new hash and ends
+   * every existing session — and issues a fresh one so this client stays signed
+   * in while any other (possibly compromised) session is forced to re-auth.
+   */
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<AuthResponse> {
+    const user = await this.repo.findActiveById(userId);
+    if (!user) throw new UnauthorizedException('Account no longer exists');
+
+    const ok = await argonVerify(user.passwordHash, dto.currentPassword);
+    if (!ok) throw new UnauthorizedException('Current password is incorrect');
+
+    if (await argonVerify(user.passwordHash, dto.newPassword)) {
+      throw new BadRequestException('New password must be different from the current one');
+    }
+
+    const passwordHash = await argonHash(dto.newPassword);
+    await this.repo.updatePassword(user.id, passwordHash);
+
+    this.logger.log(`Password changed for user ${user.id}`);
+    return this.issueSession(user);
   }
 
   // The current user's public profile.
@@ -227,10 +243,7 @@ export class AuthService {
   private webOrigin(): string {
     const explicit = this.config.get('PUBLIC_WEB_URL', { infer: true });
     if (explicit) return explicit.replace(/\/$/, '');
-    const firstCors = this.config
-      .get('CORS_ORIGINS', { infer: true })
-      .split(',')[0]
-      ?.trim();
+    const firstCors = this.config.get('CORS_ORIGINS', { infer: true }).split(',')[0]?.trim();
     return (firstCors || 'http://localhost:5173').replace(/\/$/, '');
   }
 
