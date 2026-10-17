@@ -137,7 +137,7 @@ export function RegisterPage() {
             >
               {SELF_ASSIGNABLE_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {titleCase(role)} — {ROLE_HINT[role]}
+                  {titleCase(role)} {ROLE_HINT[role]}
                 </option>
               ))}
             </select>
