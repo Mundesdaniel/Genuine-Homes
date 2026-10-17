@@ -206,14 +206,14 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
 
       <div className="space-y-3">
         <DocumentSlot
-          label="National ID — front"
+          label="National ID front"
           kind="national_id_front"
           required
           value={idFront}
           onChange={setIdFront}
         />
         <DocumentSlot
-          label="National ID — back"
+          label="National ID back"
           kind="national_id_back"
           value={idBack}
           onChange={setIdBack}
@@ -305,7 +305,7 @@ export function IdentityVerificationPage() {
         <div className="card max-w-xl space-y-2 p-5">
           <Badge label="Identity verified" tone="success" />
           <p className="text-sm text-stone-600">
-            {data.legalName} — {data.ninMasked}. You can publish properties.
+            {data.legalName}, {data.ninMasked}. You can publish properties.
           </p>
         </div>
       )}

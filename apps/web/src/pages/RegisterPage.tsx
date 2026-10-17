@@ -48,7 +48,7 @@ export function RegisterPage() {
     },
     onSuccess: (res) => {
       setSession(res);
-      toast.success('Account created — welcome to Genuine Homes!');
+      toast.success('Account created. Welcome to Genuine Homes!');
       navigate('/dashboard', { replace: true });
     },
     onError: (e) => {
@@ -63,7 +63,7 @@ export function RegisterPage() {
       <div className="card p-8">
         <h1 className="text-2xl font-bold text-brand-dark">Create your account</h1>
         <p className="mt-1 text-sm text-stone-500">
-          A phone number is all you need — email is optional.
+          A phone number is all you need. Email is optional.
         </p>
 
         <form
