@@ -73,8 +73,8 @@ Full authentication + authorization for the modular monolith
   SHA-256 hash in `refresh_tokens`. Each refresh revokes the old row and issues
   a new one; replaying a rotated token revokes **every** session for that user.
 - **RBAC**: global `JwtAuthGuard` (everything is protected unless `@Public()`)
-  + global `RolesGuard` (`@Roles(...)`). `@CurrentUser()` injects the user.
-  `admin` can never be self-assigned at registration.
+  - global `RolesGuard` (`@Roles(...)`). `@CurrentUser()` injects the user.
+    `admin` can never be self-assigned at registration.
 - **Rate limiting**: `@nestjs/throttler` — 100 req/min/IP default, tightened to
   5/min on register & login and 10/min on refresh.
 - **Validation**: class-validator DTOs mirror the Zod schemas now exported from
@@ -118,7 +118,7 @@ Property and listing management plus public discovery
 - **Properties** (`/api/properties`): create, update, soft-delete, `GET /:id`
   (public detail with gallery + listings + coordinates), `GET /mine`
   (paginated owner dashboard), and image attach/remove. Mutations are gated to
-  seller roles (`landlord`/`agent`/`developer`/`admin`) **and** an ownership
+  seller roles (`landlord`/`agent`/`manager`/`admin`) **and** an ownership
   check (admins bypass).
 - **Listings** (`/api/listings`, created under `/api/properties/:id/listings`):
   create/update/soft-delete with the rent/sale/installment cross-field rules
@@ -262,7 +262,7 @@ The headline feature plus a livelier web app.
   for payments-over-time, properties-by-status, and a plan-progress donut
   (polled every 15s); and the full installment journey (buy-on-installment
   panel → plan page → dev mock-checkout that settles in-browser).
-- **Seed**: added **daniel@gmail.com** (developer) and **roro@gmail.com**
+- **Seed**: added **daniel@gmail.com** (manager) and **roro@gmail.com**
   (buyer with a live 24-month plan, 4 months paid) + matching ledger rows so the
   charts have data on first run.
 

@@ -3,7 +3,7 @@
 Audit date: 2026-07-14 (post Stage 9). Full-codebase review across auth/authz, input
 handling & web, infrastructure/config, and payments/webhooks.
 
-**Overall posture: strong.** Verified in this audit and *not* re-planned below:
+**Overall posture: strong.** Verified in this audit and _not_ re-planned below:
 every controller correctly guarded (role + ownership checks on all `:id` routes — no
 IDOR found); JWT rotation with reuse detection; argon2 + constant-time login; global
 `ValidationPipe` (whitelist + forbid unknown); parameterized SQL only; timing-safe HMAC
@@ -20,6 +20,7 @@ hardening, **P2** is ongoing process.
 ## P0 — Fix before first production deploy
 
 ### P0-1 Trust-proxy configuration (rate limiting is broken behind nginx)
+
 `apps/api/src/main.ts` never sets `trust proxy`. In the prod compose topology every
 request reaches the API from the nginx container's IP, so the throttler
 (100/min global, 5/min auth) keys **all clients to one bucket** — trivially DoS-able
@@ -33,6 +34,7 @@ and the brute-force limit on `/auth/login` protects nothing per-attacker.
   has them today) so websocket auth failures and document fetches audit the real IP.
 
 ### P0-2 Chat gateway accepts any Origin
+
 `apps/api/src/chat/chat.gateway.ts:18` — `cors: { origin: true, credentials: true }`.
 Auth uses a handshake token (not cookies), so this isn't account takeover, but any
 website can currently open sockets against the gateway (connection-slot exhaustion,
@@ -40,6 +42,7 @@ and it becomes serious if cookie/query auth is ever added).
 → Inject config and reuse the same `CORS_ORIGINS` allowlist the HTTP layer uses.
 
 ### P0-3 nginx: security headers + body-size limit
+
 `apps/web/nginx.conf` serves the SPA with **no security headers at all**:
 
 - `Content-Security-Policy` for the SPA (start report-only, then enforce; the app is
@@ -55,6 +58,7 @@ and it becomes serious if cookie/query auth is ever added).
   proxy or managed LB in front).
 
 ### P0-4 Webhook amount/currency strictness
+
 `apps/api/src/payments/payments.service.ts:147` settles when
 `verified.amount >= payment.amount` — an over-paid (or gateway-misreported) amount
 settles silently with the surplus untracked.
@@ -67,6 +71,7 @@ settles silently with the surplus untracked.
   plan/agreement rather than free-choice of UGX/KES/TZS.
 
 ### P0-5 Secrets posture for production
+
 - Set `UPLOADS_SIGNING_SECRET` explicitly in prod (today it derives from
   `JWT_ACCESS_SECRET` when unset — `url-signer.service.ts:21` — which couples doc-URL
   validity to JWT secret rotation). Consider warning at boot in production when unset.
@@ -84,24 +89,27 @@ one phished admin password today yields a month-long session that can default
 plans, change roles, and read every audit log. In rough priority order:
 
 ### A-1 Mandatory TOTP for admin accounts — **treat as P0 for real-money launch**
+
 - Schema: `mfaSecret` (encrypted at rest) + `mfaEnabledAt` on `User`; hashed
   single-use recovery codes.
 - Flow: login returns a short-lived `mfa_pending` token instead of the real pair
   when the account has MFA; `POST /auth/mfa/verify` (throttled like login) exchanges
   it + a valid TOTP code for the normal token pair.
-- Enforcement: refuse to *issue* admin-role tokens for accounts without enrolled MFA
+- Enforcement: refuse to _issue_ admin-role tokens for accounts without enrolled MFA
   (grace flag for initial rollout). Optionally offer opt-in TOTP to sellers/agents
   later; the mechanism is the same.
 - WebAuthn/passkeys are the better long-term answer; TOTP first because it needs no
   new client platform work.
 
 ### A-2 Step-up re-auth for destructive admin actions
+
 `POST /admin/installment-plans/:id/default`, `…/reinstate`, and role changes should
-require *fresh* authentication, not just a live session: include an `auth_time` claim
+require _fresh_ authentication, not just a live session: include an `auth_time` claim
 in the access token and add a `@FreshAuth(maxAgeMinutes)` guard that 403s with a
 distinct code the web app answers by prompting for password/TOTP again.
 
 ### A-3 Shorter admin sessions
+
 30-day refresh is fine for buyers, not for admins. Issue role-dependent refresh TTLs
 (e.g. 12–24 h for `ADMIN`). Access token stays 15 min. Note the existing (acceptable)
 window: role comes from the JWT, so a demoted admin keeps admin power for up to
@@ -109,24 +117,28 @@ window: role comes from the JWT, so a demoted admin keeps admin power for up to
 denylist check for high-value routes if that window ever matters.
 
 ### A-4 Admin-role grants: two-person rule or loud alerting
+
 Self-role-change is already blocked and grants are audit-logged (good), but a single
 compromised admin can still mint more admins. Minimum: real-time alert (Sentry/SMS)
 on any `user.role_changed` where the new role is `admin`. Better: pending-approval
 flow requiring a second admin to confirm.
 
 ### A-5 Production admin bootstrap
+
 The only admin today comes from the dev seed (shared password). Add a one-time CLI
 (`pnpm admin:create`) that creates the first admin with a generated password +
 forced MFA enrollment on first login, and document it in `docs/operations.md`.
 Admins should be dedicated accounts, not someone's buyer/seller login.
 
 ### A-6 Network-level belt-and-braces (optional)
+
 If admin staff are few and static: restrict `/api/admin/*` and `/api/users` (admin
 verbs) to a VPN/IP allowlist at nginx. Cheap, and it turns a credential leak into a
 non-event.
 
 ### A-7 National ID (NIN) identity verification for admins — ✅ Phase 1 SHIPPED (2026-07-14)
-_Implemented for seller roles (landlord/agent/developer) as the first mandatory
+
+_Implemented for seller roles (landlord/agent/manager) as the first mandatory
 cohort: `identity` module (submit → admin four-eyes review → approval stamps
 `user.identityVerifiedAt`), publication gate in `PropertiesService`
 (unverified sellers cannot set a property `active`; drafting stays open),
@@ -134,12 +146,12 @@ masked+HMAC-hashed NIN storage (raw NIN never persisted — verified against the
 live DB), duplicate-NIN blocking, audit logging, notifications, seller web page
 (`/identity`) + admin queue on the admin page. Registry integration (phase 2)
 and gating *admin role activation* on it remain open._
-MFA proves *possession of a device*; it does not prove *who the admin is*. For a
+MFA proves _possession of a device_; it does not prove _who the admin is_. For a
 platform whose brand is anti-fraud and which will move real money, every admin
 account should be bound to a verified natural person via their Ugandan National ID
 (NIN, issued by NIRA) before the role is granted.
 
-**Important scoping note:** the NIN is identity *proofing*, not an authentication
+**Important scoping note:** the NIN is identity _proofing_, not an authentication
 factor. It is quasi-public data — never use it as a login secret or a recovery
 credential. It answers "who is this admin", MFA (A-1) answers "is it really them
 logging in".
@@ -148,11 +160,11 @@ logging in".
   photos of the ID card + a selfie; the role is only activatable once
   `identityVerifiedAt` is set. Re-run on any re-grant after revocation.
 - **Verification back-end, two phases:**
-  1. *Manual now:* reuse the existing verifications-module pattern — documents go
+  1. _Manual now:_ reuse the existing verifications-module pattern — documents go
      through the private-uploads store (signed 15-min URLs, already built), a
-     *second* admin reviews and approves (four-eyes; an admin never approves their
+     _second_ admin reviews and approves (four-eyes; an admin never approves their
      own identity), decision audit-logged.
-  2. *Registry later:* integrate a NIRA-accredited verification provider (NIRA's
+  2. _Registry later:_ integrate a NIRA-accredited verification provider (NIRA's
      third-party verification service directly, or a KYC vendor covering Uganda —
      e.g. Smile ID / YouVerify class; evaluate cost, uptime, and accreditation
      status at build time) to match NIN + name + DOB against the registry and add
@@ -175,51 +187,58 @@ logging in".
   first mandatory cohort.
 
 ### A-8 Role matrix: who gets verified, with what, gated where
-Same rail (A-7 table + flows), different policy per role. Landlord/agent/developer
+
+Same rail (A-7 table + flows), different policy per role. Landlord/agent/manager
 are **self-assignable at registration today** (`SELF_ASSIGNABLE_ROLES`,
 `packages/shared/src/schemas/auth.ts:19-23`) with zero vetting — keep signup
-friction-free, but gate the *high-trust actions*, not the account.
+friction-free, but gate the _high-trust actions_, not the account.
 
-| Role | Identity check | Extra documents | Enforcement point |
-|---|---|---|---|
-| **Admin** | NIN, mandatory | — | Role is inert until verified (blocks token issuance with admin role) |
-| **Landlord** | NIN, mandatory | Ownership/title docs (already part of property verification) | Listing cannot go **live** (or receive payments) until the person is verified — registration and drafting stay open |
-| **Agent** | NIN, mandatory | Optional: professional accreditation (e.g. AREA membership) as an extra badge, not a gate | Same as landlord: gate listing publication |
-| **Developer** | **KYB, not just KYC** — verify the company: URSB certificate of incorporation + TIN, plus the NIN of the authorized representative/director | Company docs via the same private-uploads store | Gate listing publication; badge shows the company name, rep verified behind the scenes |
-| **User (buyer/tenant)** | None at signup | — | Require NIN verification only when entering a **rental agreement or installment plan** (real money + enforceable contract; also the AML-sensible point) |
+| Role                    | Identity check                                                                                                                              | Extra documents                                                                           | Enforcement point                                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Admin**               | NIN, mandatory                                                                                                                              | —                                                                                         | Role is inert until verified (blocks token issuance with admin role)                                                                                    |
+| **Landlord**            | NIN, mandatory                                                                                                                              | Ownership/title docs (already part of property verification)                              | Listing cannot go **live** (or receive payments) until the person is verified — registration and drafting stay open                                     |
+| **Agent**               | NIN, mandatory                                                                                                                              | Optional: professional accreditation (e.g. AREA membership) as an extra badge, not a gate | Same as landlord: gate listing publication                                                                                                              |
+| **Manager**             | **KYB, not just KYC** — verify the company: URSB certificate of incorporation + TIN, plus the NIN of the authorized representative/director | Company docs via the same private-uploads store                                           | Gate listing publication; badge shows the company name, rep verified behind the scenes                                                                  |
+| **User (buyer/tenant)** | None at signup                                                                                                                              | —                                                                                         | Require NIN verification only when entering a **rental agreement or installment plan** (real money + enforceable contract; also the AML-sensible point) |
 
 Notes:
-- Developer ≈ company means one verified rep can act for one org; model an
+
+- Manager ≈ company means one verified rep can act for one org; model an
   `organizationId` on the verification row rather than pretending a company has a
   NIN.
-- The enforcement points matter more than the checks: verifying at *publication /
-  money-movement* keeps the funnel open while ensuring no unverified person can
+- The enforcement points matter more than the checks: verifying at _publication /
+  money-movement_ keeps the funnel open while ensuring no unverified person can
   actually transact — which is the fraud surface that matters.
 - Re-verification: on role change, on verification revocation (fraud finding), and
-  consider expiry (e.g. re-confirm rep for developers annually).
+  consider expiry (e.g. re-confirm rep for managers annually).
 
 ---
 
 ## P1 — Near-term hardening
 
 ### P1-1 Upload abuse limits
+
 `uploads.controller.ts` endpoints ride the global 100/min throttle only. Add a tight
 `@Throttle` (e.g. 10/min) on both upload routes, and consider a per-user storage
 quota — cheap DoS on disk otherwise.
 
 ### P1-2 Staging webhook forgery (mock gateway)
+
 `mock.gateway.ts` `verifySignature()` returns `true` — anyone who can reach a
 staging/dev deployment running `PAYMENT_GATEWAY=mock` can settle arbitrary payments
 with one curl. Production refuses the mock (good). Fix: require an
 `X-Mock-Signature: <MOCK_WEBHOOK_SECRET>` header even in mock mode.
 
 ### P1-3 Money math in mappers
+
 `apps/api/src/common/mappers.ts:226-234` sums installment amounts as JS floats for
 `paidAmount`/`remainingAmount`. Storage is Decimal (correct); do the summation in
 Decimal too before converting for display, so totals reconcile exactly.
 
 ### P1-4 Database-level financial invariants
+
 Belt-and-braces constraints via a migration:
+
 - `CHECK (amount > 0)` on `payments` (and installment amounts).
 - Unique index on `installment_payments.payment_ref` so one payment can never mark
   two installments paid.
@@ -228,23 +247,27 @@ Belt-and-braces constraints via a migration:
   convention in the service layer only).
 
 ### P1-5 Webhook forensics
+
 On rejected webhooks (`payment.webhook_rejected`, `payment.verification_mismatch`),
 record source IP + user-agent in the audit metadata, and add a modest per-IP throttle
 on `POST /payments/webhook` (Flutterwave retries are low-volume; 60/min is plenty).
 
 ### P1-6 Account enumeration on register
+
 `auth.service.ts:38-43` returns 409 for an existing email/phone (login is already
 enumeration-safe). Real tradeoff with UX — a common resolution is to keep the 409 but
 rate-limit register tightly (already 5/min) and add CAPTCHA later if abuse appears.
 Decide and document; don't leave it implicit.
 
 ### P1-7 Missing account-lifecycle flows (build securely when added)
+
 There is **no password reset and no enforced email/phone verification**. These are
 product gaps, but each is a classic security hole when bolted on quickly. When built:
 single-use tokens, hashed at rest, 15-min expiry, no account-existence leak in
 responses, and notification to the old address on change.
 
 ### P1-8 Small fixes
+
 - `chat.gateway`/`auth.service.ts:25`: `await` the decoy hash at module init
   (`onModuleInit`) so the first-ever login can't short-circuit the constant-time path.
 - `uploads.controller.ts:146`: build `Content-Disposition` with

@@ -28,7 +28,7 @@ enum UserRole {
   user
   landlord
   agent
-  developer
+  manager
   admin
 }
 
@@ -391,7 +391,7 @@ model Verification {
 // Identity (KYC) verification of the person behind an account. The raw NIN is
 // never stored — only a masked form for display and an HMAC hash for duplicate
 // detection. Approval stamps `users.identity_verified_at`, which gates
-// publishing properties. Developers are companies: their rows also carry KYB
+// publishing properties. Managers are companies: their rows also carry KYB
 // fields (URSB registration + TIN), with the NIN belonging to the authorized
 // representative.
 model IdentityVerification {

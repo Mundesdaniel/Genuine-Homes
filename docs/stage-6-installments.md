@@ -13,14 +13,14 @@ and the in-browser installment journey.
 
 ### Endpoints (`/api/installment-plans`)
 
-| Method & path | Purpose |
-| ------------- | ------- |
-| `POST /` | Create a plan from a listing (deposit % + months) |
-| `GET /mine` | Your plans (with schedule + progress) |
-| `GET /:id` | One plan: schedule + progress totals |
-| `POST /:id/deposit` | Start the deposit payment |
-| `POST /:id/installments/:installmentId/pay` | Pay a scheduled installment |
-| `POST /:id/cancel` | Cancel a plan still awaiting its deposit |
+| Method & path                               | Purpose                                           |
+| ------------------------------------------- | ------------------------------------------------- |
+| `POST /`                                    | Create a plan from a listing (deposit % + months) |
+| `GET /mine`                                 | Your plans (with schedule + progress)             |
+| `GET /:id`                                  | One plan: schedule + progress totals              |
+| `POST /:id/deposit`                         | Start the deposit payment                         |
+| `POST /:id/installments/:installmentId/pay` | Pay a scheduled installment                       |
+| `POST /:id/cancel`                          | Cancel a plan still awaiting its deposit          |
 
 ### How it works
 
@@ -51,7 +51,7 @@ and the in-browser installment journey.
 
 ## Seed
 
-Two requested users added — **daniel@gmail.com** (developer) and
+Two requested users added — **daniel@gmail.com** (manager) and
 **roro@gmail.com** (buyer) — plus a live 24-month plan for Roro with the first
 four months paid and matching ledger rows, so the charts have real data on first
 run. Dev password remains `Password123!`.

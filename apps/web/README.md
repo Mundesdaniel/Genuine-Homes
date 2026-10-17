@@ -60,13 +60,13 @@ share an origin in development — no CORS setup needed.
 
 All seeded users share the password **`Password123!`**:
 
-| Login                       | Role      | Good for                                       |
-| --------------------------- | --------- | ---------------------------------------------- |
-| `roro@gmail.com`            | buyer     | the dashboard charts + a live installment plan |
-| `daniel@gmail.com`          | developer | listing properties (seller dashboard)          |
-| `sarah.landlord@example.ug` | landlord  | seller dashboard                               |
-| `+256700000003`             | tenant    | a plain buyer account                          |
-| `admin@genuinehomes.ug`     | admin     | full access                                    |
+| Login                       | Role     | Good for                                       |
+| --------------------------- | -------- | ---------------------------------------------- |
+| `roro@gmail.com`            | buyer    | the dashboard charts + a live installment plan |
+| `daniel@gmail.com`          | manager  | listing properties (seller dashboard)          |
+| `sarah.landlord@example.ug` | landlord | seller dashboard                               |
+| `+256700000003`             | tenant   | a plain buyer account                          |
+| `admin@genuinehomes.ug`     | admin    | full access                                    |
 
 > You can log in with either the **email or the phone** in the "Email or phone"
 > field.

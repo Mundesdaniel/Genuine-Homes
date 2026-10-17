@@ -19,7 +19,7 @@ export const SELF_ASSIGNABLE_ROLES = [
   UserRole.USER,
   UserRole.LANDLORD,
   UserRole.AGENT,
-  UserRole.DEVELOPER,
+  UserRole.MANAGER,
 ] as const;
 export type SelfAssignableRole = (typeof SELF_ASSIGNABLE_ROLES)[number];
 

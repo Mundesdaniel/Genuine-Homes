@@ -1,21 +1,14 @@
-import {
-  BadRequestException,
-  ConflictException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { NotificationType, UserRole, VerificationStatus } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import type { NotificationsService } from '../notifications/notifications.service';
 import type { UrlSignerService } from '../uploads/url-signer.service';
-import type {
-  IdentityRepository,
-  IdentityVerificationWithUser,
-} from './identity.repository';
+import type { IdentityRepository, IdentityVerificationWithUser } from './identity.repository';
 import { IdentityService } from './identity.service';
 import type { NinHasherService } from './nin-hasher.service';
 
 const landlord: AuthenticatedUser = { id: 'seller-1', role: UserRole.LANDLORD };
-const developer: AuthenticatedUser = { id: 'dev-1', role: UserRole.DEVELOPER };
+const manager: AuthenticatedUser = { id: 'mgr-1', role: UserRole.MANAGER };
 const admin: AuthenticatedUser = { id: 'admin-1', role: UserRole.ADMIN };
 
 const DOC_KEY = '5e0da180-3d9f-4a5e-b3f7-1f9a2c4d6e8b.jpg';
@@ -122,17 +115,17 @@ describe('IdentityService', () => {
     );
   });
 
-  it('requires KYB fields for developer (company) accounts', async () => {
+  it('requires KYB fields for manager (company) accounts', async () => {
     repo.findUserState.mockResolvedValue({
-      id: developer.id,
-      role: 'developer',
+      id: manager.id,
+      role: 'manager',
       identityVerifiedAt: null,
     });
-    await expect(service.submit(developer, submitDto)).rejects.toBeInstanceOf(
+    await expect(service.submit(manager, submitDto)).rejects.toBeInstanceOf(
       BadRequestException,
     );
     await expect(
-      service.submit(developer, {
+      service.submit(manager, {
         ...submitDto,
         organizationName: 'Pearl Estates Ltd',
         registrationNumber: '80020001234567',

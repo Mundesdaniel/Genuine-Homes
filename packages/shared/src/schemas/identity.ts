@@ -1,9 +1,9 @@
 /**
- * Identity (KYC) verification contracts. A seller (landlord/agent/developer)
+ * Identity (KYC) verification contracts. A seller (landlord/agent/manager)
  * submits their Ugandan National ID (NIN) details plus document photos; an
  * admin reviews and approves or rejects. Approval stamps
  * `user.identityVerifiedAt`, which gates publishing a property (setting it
- * `active`). Developers are companies, so their submission also carries KYB
+ * `active`). Managers are companies, so their submission also carries KYB
  * fields (URSB registration + TIN) with the NIN belonging to the authorized
  * representative.
  *
@@ -26,7 +26,7 @@ export const IDENTITY = {
    */
   NIN_PATTERN: /^[A-Z]{2}[A-Z0-9]{12}$/,
   NIN_LENGTH: 14,
-  /** ID front/back, selfie, plus company docs for developers. */
+  /** ID front/back, selfie, plus company docs for managers. */
   MAX_DOCUMENTS: 6,
   MAX_NOTES: 1000,
 } as const;
@@ -40,26 +40,19 @@ const ninSchema = z
 export const submitIdentityVerificationSchema = z.object({
   legalName: z.string().trim().min(2).max(120),
   nin: ninSchema,
-  documents: z
-    .array(verificationDocumentSchema)
-    .min(1)
-    .max(IDENTITY.MAX_DOCUMENTS),
-  // KYB fields — required for developers (companies), enforced server-side.
+  documents: z.array(verificationDocumentSchema).min(1).max(IDENTITY.MAX_DOCUMENTS),
+  // KYB fields — required for managers (companies), enforced server-side.
   organizationName: z.string().trim().min(2).max(160).optional(),
   registrationNumber: z.string().trim().min(2).max(60).optional(),
   tin: z.string().trim().min(2).max(30).optional(),
 });
-export type SubmitIdentityVerificationInput = z.infer<
-  typeof submitIdentityVerificationSchema
->;
+export type SubmitIdentityVerificationInput = z.infer<typeof submitIdentityVerificationSchema>;
 
 export const reviewIdentityVerificationSchema = z.object({
   decision: z.enum(['verified', 'rejected']),
   notes: z.string().trim().max(IDENTITY.MAX_NOTES).optional(),
 });
-export type ReviewIdentityVerificationInput = z.infer<
-  typeof reviewIdentityVerificationSchema
->;
+export type ReviewIdentityVerificationInput = z.infer<typeof reviewIdentityVerificationSchema>;
 
 export type IdentityDocumentInput = VerificationDocumentInput;
 

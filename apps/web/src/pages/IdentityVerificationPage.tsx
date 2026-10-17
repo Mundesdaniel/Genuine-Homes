@@ -64,7 +64,7 @@ function DocumentSlot({
 function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
-  const isDeveloper = user?.role === 'developer';
+  const isManager = user?.role === 'manager';
 
   const [legalName, setLegalName] = useState(user?.fullName ?? '');
   const [nin, setNin] = useState('');
@@ -96,9 +96,9 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
       setFormError('A photo of the front of your National ID is required.');
       return;
     }
-    if (isDeveloper && (!organizationName.trim() || !registrationNumber.trim())) {
+    if (isManager && (!organizationName.trim() || !registrationNumber.trim())) {
       setFormError(
-        'Developer accounts must include the company name and URSB registration number.',
+        'Manager accounts must include the company name and URSB registration number.',
       );
       return;
     }
@@ -108,7 +108,7 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
       documents: [idFront, idBack, selfie].filter(
         (d): d is IdentityDocumentInput => d !== null,
       ),
-      ...(isDeveloper
+      ...(isManager
         ? {
             organizationName: organizationName.trim(),
             registrationNumber: registrationNumber.trim(),
@@ -160,10 +160,10 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
         </p>
       </div>
 
-      {isDeveloper && (
+      {isManager && (
         <fieldset className="space-y-3 rounded-lg border border-stone-200 p-3">
           <legend className="px-1 text-sm font-medium text-stone-700">
-            Company details (developers register as a company)
+            Company details (managers register as a company)
           </legend>
           <div>
             <label className="mb-1 block text-sm text-stone-600" htmlFor="orgName">
@@ -224,7 +224,7 @@ function SubmitForm({ rejectedNotes }: { rejectedNotes?: string | null }) {
           value={selfie}
           onChange={setSelfie}
         />
-        {isDeveloper && (
+        {isManager && (
           <p className="text-xs text-stone-500">
             Tip: you can attach the certificate of incorporation as the “back” slot or send it
             during review if requested.

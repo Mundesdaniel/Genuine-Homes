@@ -52,7 +52,7 @@ export class SubmitIdentityVerificationDto {
   @Type(() => IdentityDocumentDto)
   documents!: IdentityDocumentDto[];
 
-  // KYB fields — the service requires these for developer (company) accounts.
+  // KYB fields — the service requires these for manager (company) accounts.
   @ApiPropertyOptional({ example: 'Pearl Estates Ltd' })
   @IsOptional()
   @Transform(trim)

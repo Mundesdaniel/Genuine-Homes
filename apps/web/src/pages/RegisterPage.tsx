@@ -16,7 +16,7 @@ const ROLE_HINT: Record<SelfAssignableRole, string> = {
   user: 'Looking to rent or buy',
   landlord: 'I rent out property',
   agent: 'I list on behalf of owners',
-  developer: 'I sell new developments',
+  manager: 'I manage property for a company',
 };
 
 export function RegisterPage() {
@@ -145,11 +145,7 @@ export function RegisterPage() {
 
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
-          <button
-            className="btn-primary w-full"
-            type="submit"
-            disabled={mutation.isPending}
-          >
+          <button className="btn-primary w-full" type="submit" disabled={mutation.isPending}>
             {mutation.isPending ? 'Creating…' : 'Create account'}
           </button>
         </form>

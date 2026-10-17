@@ -54,19 +54,17 @@ export class IdentityService {
       throw new ConflictException('You already have a submission awaiting review');
     }
 
-    // Developers are companies — the NIN belongs to the authorized
+    // Managers are companies — the NIN belongs to the authorized
     // representative and must come with the company's registration.
-    if (user.role === UserRole.DEVELOPER && !dto.organizationName) {
+    if (user.role === UserRole.MANAGER && !dto.organizationName) {
       throw new BadRequestException(
-        'Developer accounts must include organizationName and registrationNumber (URSB)',
+        'Manager accounts must include organizationName and registrationNumber (URSB)',
       );
     }
 
     const ninHash = this.nin.hash(dto.nin);
     if (await this.repo.ninVerifiedElsewhere(ninHash, user.id)) {
-      throw new ConflictException(
-        'This National ID is already verified on another account',
-      );
+      throw new ConflictException('This National ID is already verified on another account');
     }
 
     const uploadedAt = new Date().toISOString();
@@ -137,9 +135,7 @@ export class IdentityService {
     }
 
     const status =
-      dto.decision === 'verified'
-        ? VerificationStatus.VERIFIED
-        : VerificationStatus.REJECTED;
+      dto.decision === 'verified' ? VerificationStatus.VERIFIED : VerificationStatus.REJECTED;
     const row = await this.repo.review(id, reviewer.id, status, dto.notes ?? null);
 
     await this.audit.record({

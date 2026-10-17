@@ -1,5 +1,5 @@
 /**
- * Review contracts. Reviews target a person (agent/landlord/developer), not a
+ * Review contracts. Reviews target a person (agent/landlord/manager), not a
  * property — buyers rate who they dealt with. One review per author per target
  * (a repeat submission updates the existing one).
  */

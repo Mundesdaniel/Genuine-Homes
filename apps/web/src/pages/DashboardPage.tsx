@@ -22,7 +22,7 @@ import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
-const SELLER_ROLES = ['landlord', 'agent', 'developer', 'admin'];
+const SELLER_ROLES = ['landlord', 'agent', 'manager', 'admin'];
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -199,8 +199,8 @@ export function DashboardPage() {
           <div>
             <p className="font-medium text-amber-900">Verify your identity to publish</p>
             <p className="text-sm text-amber-800">
-              You can draft properties now, but they only go live once your National ID
-              has been verified.
+              You can draft properties now, but they only go live once your National ID has
+              been verified.
             </p>
           </div>
           <Link className="btn-primary" to="/identity">
@@ -294,9 +294,7 @@ export function DashboardPage() {
       {/* Payment-plan requests (landlord approval) */}
       {seller && planRequests.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-stone-800">
-            Payment plan requests
-          </h2>
+          <h2 className="mb-3 text-lg font-semibold text-stone-800">Payment plan requests</h2>
           <div className="space-y-3">
             {planRequests.map((r) => (
               <div

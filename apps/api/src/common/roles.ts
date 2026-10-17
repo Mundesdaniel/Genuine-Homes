@@ -4,6 +4,6 @@ import { UserRole } from '@genuine-homes/shared';
 export const SELLER_ROLES = [
   UserRole.LANDLORD,
   UserRole.AGENT,
-  UserRole.DEVELOPER,
+  UserRole.MANAGER,
   UserRole.ADMIN,
 ];

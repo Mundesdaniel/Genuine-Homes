@@ -17,7 +17,7 @@ import { apiErrorMessage } from '@/lib/apiClient';
 import { titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
-const SELLER_ROLES = ['landlord', 'agent', 'developer', 'admin'];
+const SELLER_ROLES = ['landlord', 'agent', 'manager', 'admin'];
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {

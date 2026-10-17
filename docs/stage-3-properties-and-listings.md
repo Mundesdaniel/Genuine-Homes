@@ -15,27 +15,27 @@ Two feature modules: `apps/api/src/properties` and `apps/api/src/listings`.
 
 ### Properties (`/api/properties`)
 
-| Method & path | Auth | Purpose |
-| ------------- | ---- | ------- |
-| `POST /` | seller roles | Create a property |
-| `GET /mine` | bearer | The current user's properties (paginated) |
-| `GET /:id` | public | Full detail: gallery + listings + coordinates |
-| `PATCH /:id` | owner/admin | Update a property you own |
-| `DELETE /:id` | owner/admin | Soft-delete (cascades to its listings) |
-| `POST /:id/images` | owner/admin | Attach an image URL |
-| `DELETE /:id/images/:imageId` | owner/admin | Remove an image |
+| Method & path                 | Auth         | Purpose                                       |
+| ----------------------------- | ------------ | --------------------------------------------- |
+| `POST /`                      | seller roles | Create a property                             |
+| `GET /mine`                   | bearer       | The current user's properties (paginated)     |
+| `GET /:id`                    | public       | Full detail: gallery + listings + coordinates |
+| `PATCH /:id`                  | owner/admin  | Update a property you own                     |
+| `DELETE /:id`                 | owner/admin  | Soft-delete (cascades to its listings)        |
+| `POST /:id/images`            | owner/admin  | Attach an image URL                           |
+| `DELETE /:id/images/:imageId` | owner/admin  | Remove an image                               |
 
 ### Listings
 
-| Method & path | Auth | Purpose |
-| ------------- | ---- | ------- |
-| `POST /api/properties/:propertyId/listings` | owner/admin | Create a listing |
-| `GET /api/listings` | public | **Search** (facets + "near me") |
-| `GET /api/listings/:id` | public | Listing + its property |
-| `PATCH /api/listings/:id` | owner/admin | Update a listing |
-| `DELETE /api/listings/:id` | owner/admin | Soft-delete a listing |
+| Method & path                               | Auth        | Purpose                         |
+| ------------------------------------------- | ----------- | ------------------------------- |
+| `POST /api/properties/:propertyId/listings` | owner/admin | Create a listing                |
+| `GET /api/listings`                         | public      | **Search** (facets + "near me") |
+| `GET /api/listings/:id`                     | public      | Listing + its property          |
+| `PATCH /api/listings/:id`                   | owner/admin | Update a listing                |
+| `DELETE /api/listings/:id`                  | owner/admin | Soft-delete a listing           |
 
-**Seller roles** = `landlord`, `agent`, `developer`, `admin` (tenants can't own
+**Seller roles** = `landlord`, `agent`, `manager`, `admin` (tenants can't own
 properties). Every mutation is also **ownership-checked** — you can only touch
 your own; admins bypass.
 

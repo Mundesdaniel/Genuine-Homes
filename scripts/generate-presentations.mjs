@@ -695,7 +695,7 @@ const decks = [
         ],
         callout: {
           heading: 'Owner-scoped by design',
-          text: 'Only sellers (landlord / agent / developer / admin) can own properties, and every mutation is ownership-checked. Admins bypass.',
+          text: 'Only sellers (landlord / agent / manager / admin) can own properties, and every mutation is ownership-checked. Admins bypass.',
         },
       },
       {
@@ -1026,7 +1026,7 @@ const decks = [
         label: 'Seed',
         title: 'New demo accounts',
         items: [
-          { lead: 'daniel@gmail.com', text: 'a property developer (can list)' },
+          { lead: 'daniel@gmail.com', text: 'a property manager (can list)' },
           {
             lead: 'roro@gmail.com',
             text: 'a buyer with a live 24-month plan (4 months paid)',
