@@ -11,10 +11,21 @@ export const UserRole = {
   USER: 'user',
   LANDLORD: 'landlord',
   AGENT: 'agent',
+  // A short-let ("AirBnB") agent. Access to the short-let dashboard requires
+  // this role AND an active subscription (see SubscriptionStatus).
+  AIRBNB_AGENT: 'airbnb_agent',
   MANAGER: 'manager',
   ADMIN: 'admin',
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
+
+/** Lifecycle of an AirBnB-agent subscription (cash-billed, admin-managed). */
+export const SubscriptionStatus = {
+  ACTIVE: 'active',
+  EXPIRED: 'expired',
+  CANCELLED: 'cancelled',
+} as const;
+export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
 
 export const PropertyType = {
   HOUSE: 'house',
