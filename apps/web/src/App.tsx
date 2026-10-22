@@ -19,7 +19,6 @@ import { IdentityVerificationPage } from '@/pages/IdentityVerificationPage';
 import { ListingDetailPage } from '@/pages/ListingDetailPage';
 import { PaymentsPage } from '@/pages/PaymentsPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { MockCheckoutPage } from '@/pages/MockCheckoutPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
@@ -110,14 +109,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <PaymentReturnPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="payments/mock-checkout/:paymentId"
-          element={
-            <ProtectedRoute>
-              <MockCheckoutPage />
             </ProtectedRoute>
           }
         />
