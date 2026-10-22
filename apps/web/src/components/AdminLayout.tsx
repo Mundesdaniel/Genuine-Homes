@@ -1,4 +1,12 @@
-import { BadgeCheck, Fingerprint, Home, LayoutDashboard, LogOut, Users } from 'lucide-react';
+import {
+  BadgeCheck,
+  CreditCard,
+  Fingerprint,
+  Home,
+  LayoutDashboard,
+  LogOut,
+  Users,
+} from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
@@ -8,6 +16,7 @@ const NAV = [
   { to: '/admin/users', label: 'Users', icon: Users, end: false },
   { to: '/admin/verifications', label: 'Verifications', icon: BadgeCheck, end: false },
   { to: '/admin/identity', label: 'Identity checks', icon: Fingerprint, end: false },
+  { to: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard, end: false },
 ];
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
