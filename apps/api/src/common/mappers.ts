@@ -11,6 +11,8 @@ import type {
   PropertyImage,
   RentalAgreement,
   Review,
+  ShortLetAvailabilityBlock,
+  ShortLetBooking,
   Subscription,
   User,
   Verification,
@@ -32,11 +34,17 @@ import type {
   PropertySummary,
   RentalAgreementResponse,
   ReviewResponse,
+  ShortLetAvailabilityBlockResponse,
+  ShortLetBookingResponse,
   SubscriptionResponse,
   UserProfileResponse,
   VerificationDocument,
   VerificationResponse,
 } from '@genuine-homes/shared';
+
+/** Whole nights between two @db.Date values (both at UTC midnight). */
+export const nightsBetween = (from: Date, to: Date): number =>
+  Math.round((to.getTime() - from.getTime()) / 86_400_000);
 
 // PostgreSQL `date` columns come back as a Date at UTC midnight.
 const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
@@ -259,6 +267,33 @@ export function mapPayment(payment: Payment): PaymentResponse {
     status: payment.status,
     createdAt: payment.createdAt.toISOString(),
     updatedAt: payment.updatedAt.toISOString(),
+  };
+}
+
+export function mapShortLetBooking(b: ShortLetBooking): ShortLetBookingResponse {
+  return {
+    id: b.id,
+    listingId: b.listingId,
+    checkIn: toDateString(b.checkIn),
+    checkOut: toDateString(b.checkOut),
+    nights: nightsBetween(b.checkIn, b.checkOut),
+    amount: b.amount.toNumber(),
+    currency: b.currency,
+    guestName: b.guestName ?? null,
+    status: b.status,
+    createdAt: b.createdAt.toISOString(),
+  };
+}
+
+export function mapShortLetAvailabilityBlock(
+  block: ShortLetAvailabilityBlock,
+): ShortLetAvailabilityBlockResponse {
+  return {
+    id: block.id,
+    listingId: block.listingId,
+    startDate: toDateString(block.startDate),
+    endDate: toDateString(block.endDate),
+    note: block.note ?? null,
   };
 }
 
