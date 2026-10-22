@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { ShortLetController } from './short-let.controller';
+import { ShortLetRepository } from './short-let.repository';
 import { ShortLetService } from './short-let.service';
 
 /**
@@ -10,6 +11,6 @@ import { ShortLetService } from './short-let.service';
 @Module({
   imports: [SubscriptionsModule],
   controllers: [ShortLetController],
-  providers: [ShortLetService],
+  providers: [ShortLetService, ShortLetRepository],
 })
 export class ShortLetModule {}

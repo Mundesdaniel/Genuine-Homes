@@ -28,6 +28,7 @@ export {
   NotificationType,
   BookingStatus,
   SubscriptionStatus,
+  ShortLetBookingStatus,
   enumValues,
 } from './enums';
 
@@ -206,5 +207,20 @@ export { SUBSCRIPTION, recordSubscriptionPaymentSchema } from './schemas/subscri
 export type {
   RecordSubscriptionPaymentInput,
   SubscriptionResponse,
-  ShortLetDashboardResponse,
 } from './schemas/subscription';
+
+// ── Short-let (AirBnB) dashboard ────────────────────────────────────────────────
+export {
+  SHORT_LET,
+  createShortLetBookingSchema,
+  createAvailabilityBlockSchema,
+} from './schemas/short-let';
+export type {
+  CreateShortLetBookingInput,
+  CreateAvailabilityBlockInput,
+  ShortLetBookingResponse,
+  ShortLetAvailabilityBlockResponse,
+  ShortLetListingSummary,
+  SelectableListing,
+  ShortLetDashboardResponse,
+} from './schemas/short-let';

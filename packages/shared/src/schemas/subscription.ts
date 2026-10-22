@@ -40,13 +40,3 @@ export interface SubscriptionResponse {
   /** Account context for the admin list (avoids a second lookup). */
   user: { id: string; fullName: string; phone: string; email: string | null } | null;
 }
-
-/** Minimal short-let dashboard payload (gated by an active subscription). */
-export interface ShortLetDashboardResponse {
-  subscription: {
-    plan: string;
-    status: SubscriptionStatusType;
-    expiresAt: string;
-  };
-  listings: unknown[];
-}

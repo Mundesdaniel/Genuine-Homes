@@ -27,6 +27,14 @@ export const SubscriptionStatus = {
 } as const;
 export type SubscriptionStatus = (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
 
+/** A short-let (nightly) stay booking. `cancelled` is excluded from income/occupancy. */
+export const ShortLetBookingStatus = {
+  BOOKED: 'booked',
+  CANCELLED: 'cancelled',
+} as const;
+export type ShortLetBookingStatus =
+  (typeof ShortLetBookingStatus)[keyof typeof ShortLetBookingStatus];
+
 export const PropertyType = {
   HOUSE: 'house',
   FURNISHED_HOUSE: 'furnished_house',

@@ -148,6 +148,13 @@ enum BookingStatus {
   cancelled
 }
 
+// A short-let (nightly) stay booking. `cancelled` rows are excluded from
+// income and occupancy.
+enum ShortLetBookingStatus {
+  booked
+  cancelled
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Core entities
 // ─────────────────────────────────────────────────────────────────────────
@@ -271,15 +278,20 @@ model Listing {
   minDepositPercent   Decimal?    @map("min_deposit_percent") @db.Decimal(5, 2)
   maxInstallmentMonths Int?       @map("max_installment_months")
   isActive            Boolean     @default(true) @map("is_active")
+  // Flags a listing as a short-let ("AirBnB") rental: the short-let agent
+  // dashboard surfaces these, and `price` is read as the per-night rate.
+  isShortLet          Boolean     @default(false) @map("is_short_let")
   createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt           DateTime?   @map("deleted_at") @db.Timestamptz(6)
 
-  property         Property          @relation(fields: [propertyId], references: [id])
-  installmentPlans InstallmentPlan[]
-  rentalAgreements RentalAgreement[]
-  messages         Message[]
-  bookings         Booking[]
+  property                 Property                   @relation(fields: [propertyId], references: [id])
+  installmentPlans         InstallmentPlan[]
+  rentalAgreements         RentalAgreement[]
+  messages                 Message[]
+  bookings                 Booking[]
+  shortLetBookings         ShortLetBooking[]
+  shortLetAvailabilityBlocks ShortLetAvailabilityBlock[]
 
   @@index([propertyId])
   @@index([listingType, isActive, price])
@@ -547,6 +559,50 @@ model Booking {
   @@index([ownerId, status])
   @@index([listingId])
   @@map("bookings")
+}
+
+/**
+ * A short-let (nightly) stay against a short-let listing. [checkIn, checkOut)
+ * is half-open, so nights = checkOut - checkIn. `amount` is the income for the
+ * stay (cash-collected off-platform for now — independent of the Payment ledger).
+ */
+model ShortLetBooking {
+  id        String                @id @default(uuid()) @db.Uuid
+  listingId String                @map("listing_id") @db.Uuid
+  checkIn   DateTime              @map("check_in") @db.Date
+  checkOut  DateTime              @map("check_out") @db.Date
+  amount    Decimal               @db.Decimal(14, 2)
+  currency  String                @default("UGX") @db.Char(3)
+  guestName String?               @map("guest_name")
+  status    ShortLetBookingStatus @default(booked)
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id])
+
+  @@index([listingId])
+  @@index([listingId, checkIn])
+  @@map("short_let_bookings")
+}
+
+/**
+ * Dates an agent has marked unavailable for a short-let listing (maintenance,
+ * personal use), independent of bookings. [startDate, endDate] is inclusive.
+ */
+model ShortLetAvailabilityBlock {
+  id        String   @id @default(uuid()) @db.Uuid
+  listingId String   @map("listing_id") @db.Uuid
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  listing Listing @relation(fields: [listingId], references: [id])
+
+  @@index([listingId])
+  @@index([listingId, startDate])
+  @@map("short_let_availability_blocks")
 }
 
 // Append-only audit trail of payment events and admin actions (spec
