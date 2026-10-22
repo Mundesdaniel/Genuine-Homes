@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserRole, enumValues, type UserProfileResponse } from '@genuine-homes/shared';
+import toast from 'react-hot-toast';
+import {
+  STAFF_ASSIGNABLE_ROLES,
+  UserRole,
+  enumValues,
+  type StaffAssignableRole,
+  type UserProfileResponse,
+} from '@genuine-homes/shared';
 import { adminApi } from '@/api/admin';
 import { identityApi } from '@/api/identity';
 import { usersApi } from '@/api/users';
@@ -13,7 +20,9 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="card p-4">
       <p className="text-sm text-stone-500">{label}</p>
-      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-stone-800">{value}</p>
+      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-stone-800">
+        {value}
+      </p>
     </div>
   );
 }
@@ -247,6 +256,143 @@ function IdentitySection() {
   );
 }
 
+function AddStaffForm() {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    fullName: '',
+    phone: '',
+    email: '',
+    role: 'agent' as StaffAssignableRole,
+  });
+  // The single-use set-password link returned on success — shown for the admin
+  // to share, since there is no email service to send it automatically.
+  const [invitationLink, setInvitationLink] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: () =>
+      usersApi.createStaff({
+        fullName: form.fullName,
+        phone: form.phone,
+        email: form.email.trim() === '' ? undefined : form.email,
+        role: form.role,
+      }),
+    onSuccess: (res) => {
+      setInvitationLink(res.invitationLink);
+      setForm({ fullName: '', phone: '', email: '', role: 'agent' });
+      void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+      toast.success(`${titleCase(res.user.role)} account created`);
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
+  return (
+    <div className="card space-y-4 p-5">
+      <div>
+        <h3 className="font-semibold text-stone-800">Add agent / landlord</h3>
+        <p className="mt-1 text-sm text-stone-500">
+          Create a staff account with an elevated role. They’ll get a one-time link to set
+          their own password.
+        </p>
+      </div>
+
+      <form
+        className="grid gap-3 sm:grid-cols-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          create.mutate();
+        }}
+      >
+        <div>
+          <label className="label" htmlFor="staff-name">
+            Full name
+          </label>
+          <input
+            id="staff-name"
+            className="input"
+            value={form.fullName}
+            onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="staff-phone">
+            Phone
+          </label>
+          <input
+            id="staff-phone"
+            className="input"
+            placeholder="+256700000000"
+            value={form.phone}
+            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="staff-email">
+            Email <span className="text-stone-400">(optional)</span>
+          </label>
+          <input
+            id="staff-email"
+            className="input"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="staff-role">
+            Role
+          </label>
+          <select
+            id="staff-role"
+            className="input"
+            value={form.role}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, role: e.target.value as StaffAssignableRole }))
+            }
+          >
+            {STAFF_ASSIGNABLE_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {titleCase(r)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="sm:col-span-2">
+          <button
+            className="btn-primary"
+            type="submit"
+            disabled={create.isPending || !form.fullName || !form.phone}
+          >
+            {create.isPending ? 'Creating…' : 'Create account'}
+          </button>
+        </div>
+      </form>
+
+      {invitationLink && (
+        <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <p className="text-sm font-medium text-emerald-800">
+            Account created. Share this one-time set-password link with them:
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="min-w-0 flex-1 break-all rounded bg-white px-2 py-1 text-xs text-stone-700">
+              {invitationLink}
+            </code>
+            <button
+              type="button"
+              className="btn-outline px-3 py-1 text-sm"
+              onClick={() => {
+                void navigator.clipboard?.writeText(invitationLink);
+                toast.success('Link copied');
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UsersSection() {
   const queryClient = useQueryClient();
   const [roleChange, setRoleChange] = useState<{
@@ -367,6 +513,7 @@ export function AdminPage() {
 
       <section className="space-y-3">
         <h2 className="font-semibold text-stone-700">Users</h2>
+        <AddStaffForm />
         <UsersSection />
       </section>
     </div>
