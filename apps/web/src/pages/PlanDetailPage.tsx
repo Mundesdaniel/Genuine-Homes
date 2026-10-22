@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { PaymentProvider, enumValues, type PayViaInput } from '@genuine-homes/shared';
+import { PaymentProvider, type PayViaInput } from '@genuine-homes/shared';
 import { installmentsApi } from '@/api/installments';
 import { ProgressRing } from '@/components/charts';
 import { Badge, ErrorState, Spinner, statusTone } from '@/components/ui';
@@ -13,7 +12,6 @@ import { formatMoney, titleCase } from '@/lib/format';
 export function PlanDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [provider, setProvider] = useState<string>(PaymentProvider.CASH);
 
   const {
     data: plan,
@@ -35,7 +33,7 @@ export function PlanDetailPage() {
       installmentsApi.payDeposit(
         id as string,
         {
-          provider,
+          provider: PaymentProvider.CASH,
           redirectUrl: returnUrl,
         } as PayViaInput,
       ),
@@ -46,7 +44,7 @@ export function PlanDetailPage() {
   const payItem = useMutation({
     mutationFn: (installmentId: string) =>
       installmentsApi.payInstallment(id as string, installmentId, {
-        provider,
+        provider: PaymentProvider.CASH,
         redirectUrl: returnUrl,
       } as PayViaInput),
     onSuccess: (res) => handlePaymentResult(res, navigate),
@@ -146,29 +144,10 @@ export function PlanDetailPage() {
               </span>
             </div>
 
-            <div>
-              <label className="label" htmlFor="provider">
-                Pay with
-              </label>
-              <select
-                id="provider"
-                className="input"
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
-              >
-                {enumValues(PaymentProvider).map((p) => (
-                  <option key={p} value={p}>
-                    {titleCase(p)}
-                  </option>
-                ))}
-              </select>
-              {provider === PaymentProvider.CASH && (
-                <p className="mt-1 text-xs text-stone-500">
-                  Pay in person — recorded as pending until the owner confirms they’ve received
-                  the cash.
-                </p>
-              )}
-            </div>
+            <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
+              Payments are made in cash, in person — recorded as pending until the owner
+              confirms they’ve received the cash.
+            </p>
 
             {plan.status === 'pending_approval' && (
               <p className="rounded-lg bg-amber-50 p-3 text-center text-sm font-medium text-amber-800">
