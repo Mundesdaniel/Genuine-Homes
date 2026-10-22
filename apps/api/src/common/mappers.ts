@@ -11,6 +11,7 @@ import type {
   PropertyImage,
   RentalAgreement,
   Review,
+  Subscription,
   User,
   Verification,
 } from '@prisma/client';
@@ -31,6 +32,7 @@ import type {
   PropertySummary,
   RentalAgreementResponse,
   ReviewResponse,
+  SubscriptionResponse,
   UserProfileResponse,
   VerificationDocument,
   VerificationResponse,
@@ -257,6 +259,31 @@ export function mapPayment(payment: Payment): PaymentResponse {
     status: payment.status,
     createdAt: payment.createdAt.toISOString(),
     updatedAt: payment.updatedAt.toISOString(),
+  };
+}
+
+type SubscriptionWithUser = Subscription & {
+  user?: Pick<User, 'id' | 'fullName' | 'phone' | 'email'> | null;
+};
+
+export function mapSubscription(sub: SubscriptionWithUser): SubscriptionResponse {
+  return {
+    id: sub.id,
+    userId: sub.userId,
+    plan: sub.plan,
+    status: sub.status,
+    startsAt: sub.startsAt.toISOString(),
+    expiresAt: sub.expiresAt.toISOString(),
+    createdAt: sub.createdAt.toISOString(),
+    updatedAt: sub.updatedAt.toISOString(),
+    user: sub.user
+      ? {
+          id: sub.user.id,
+          fullName: sub.user.fullName,
+          phone: sub.user.phone,
+          email: sub.user.email ?? null,
+        }
+      : null,
   };
 }
 
