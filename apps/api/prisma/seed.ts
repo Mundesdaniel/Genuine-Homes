@@ -1119,56 +1119,103 @@ async function main(): Promise<void> {
       });
     }
 
-    const listing = await prisma.listing.findFirst({
-      where: { deletedAt: null, property: { ownerId: airbnbAgent.id } },
-      orderBy: { createdAt: 'asc' },
+    // A dedicated, browsable short-let property + listing owned by the agent, so
+    // an AirBnB listing actually shows up in search/browse (active + verified).
+    const shortLetPropId = uuid(600);
+    const shortLetListingId = uuid(601);
+    const shortLetProp = await prisma.property.upsert({
+      where: { id: shortLetPropId },
+      update: {},
+      create: {
+        id: shortLetPropId,
+        ownerId: airbnbAgent.id,
+        type: 'furnished_house',
+        title: 'Furnished Short-Let Apartment in Kololo',
+        description:
+          'Fully furnished 2-bedroom apartment for short stays — nightly rate, WiFi, backup power and secure parking. Great for business or leisure.',
+        district: 'Kampala',
+        city: 'Kampala',
+        area: 'Kololo',
+        sizeSqm: new Prisma.Decimal('95'),
+        bedrooms: 2,
+        bathrooms: 2,
+        amenities: { wifi: true, power: true, parking: true, furnished: true },
+        verificationStatus: 'verified',
+        status: 'active',
+      },
     });
-    if (listing) {
-      await prisma.listing.update({ where: { id: listing.id }, data: { isShortLet: true } });
-      if ((await prisma.shortLetBooking.count({ where: { listingId: listing.id } })) === 0) {
-        await prisma.shortLetBooking.createMany({
-          data: [
-            {
-              listingId: listing.id,
-              checkIn: day(-10),
-              checkOut: day(-7),
-              amount: '500000',
-              guestName: 'Past Guest',
-              status: 'booked',
-            },
-            {
-              listingId: listing.id,
-              checkIn: day(2),
-              checkOut: day(5),
-              amount: '450000',
-              guestName: 'Jane Doe',
-              status: 'booked',
-            },
-            {
-              listingId: listing.id,
-              checkIn: day(8),
-              checkOut: day(11),
-              amount: '600000',
-              guestName: 'Mark K.',
-              status: 'booked',
-            },
-          ],
-        });
-      }
-      if (
-        (await prisma.shortLetAvailabilityBlock.count({
-          where: { listingId: listing.id },
-        })) === 0
-      ) {
-        await prisma.shortLetAvailabilityBlock.create({
-          data: {
-            listingId: listing.id,
-            startDate: day(14),
-            endDate: day(16),
-            note: 'Maintenance',
+    await setLocation(shortLetProp.id, 32.5955, 0.3365); // Kololo, Kampala
+    await prisma.propertyImage.upsert({
+      where: { id: uuid(602) },
+      update: {},
+      create: {
+        id: uuid(602),
+        propertyId: shortLetProp.id,
+        url: img(PHOTO.aptInterior),
+        position: 0,
+      },
+    });
+    // listingType stays `rent` (a valid category); isShortLet marks it AirBnB and
+    // `price` is the per-night rate.
+    await prisma.listing.upsert({
+      where: { id: shortLetListingId },
+      update: { isShortLet: true, isActive: true },
+      create: {
+        id: shortLetListingId,
+        propertyId: shortLetProp.id,
+        listingType: 'rent',
+        price: new Prisma.Decimal('150000'),
+        currency: 'UGX',
+        isActive: true,
+        isShortLet: true,
+      },
+    });
+
+    if (
+      (await prisma.shortLetBooking.count({ where: { listingId: shortLetListingId } })) === 0
+    ) {
+      await prisma.shortLetBooking.createMany({
+        data: [
+          {
+            listingId: shortLetListingId,
+            checkIn: day(-10),
+            checkOut: day(-7),
+            amount: '500000',
+            guestName: 'Past Guest',
+            status: 'booked',
           },
-        });
-      }
+          {
+            listingId: shortLetListingId,
+            checkIn: day(2),
+            checkOut: day(5),
+            amount: '450000',
+            guestName: 'Jane Doe',
+            status: 'booked',
+          },
+          {
+            listingId: shortLetListingId,
+            checkIn: day(8),
+            checkOut: day(11),
+            amount: '600000',
+            guestName: 'Mark K.',
+            status: 'booked',
+          },
+        ],
+      });
+    }
+    if (
+      (await prisma.shortLetAvailabilityBlock.count({
+        where: { listingId: shortLetListingId },
+      })) === 0
+    ) {
+      await prisma.shortLetAvailabilityBlock.create({
+        data: {
+          listingId: shortLetListingId,
+          startDate: day(14),
+          endDate: day(16),
+          note: 'Maintenance',
+        },
+      });
     }
   }
 
