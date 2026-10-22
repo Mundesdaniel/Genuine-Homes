@@ -9,11 +9,18 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole, type Paginated, type SubscriptionResponse } from '@genuine-homes/shared';
+import {
+  UserRole,
+  type Paginated,
+  type SubscriptionRequestResponse,
+  type SubscriptionResponse,
+} from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { ApproveSubscriptionRequestDto } from './dto/approve-subscription-request.dto';
+import { CreateSubscriptionRequestDto } from './dto/create-subscription-request.dto';
 import { RecordSubscriptionPaymentDto } from './dto/record-subscription-payment.dto';
 import { SubscriptionsService } from './subscriptions.service';
 
@@ -27,6 +34,61 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Your current subscription (or null)' })
   mine(@CurrentUser() user: AuthenticatedUser): Promise<SubscriptionResponse | null> {
     return this.subscriptions.getMine(user);
+  }
+
+  // ── Subscription requests (self-service → admin queue) ──────────────────────
+
+  @Get('requests/mine')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Your latest subscription request (or null)' })
+  myRequest(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SubscriptionRequestResponse | null> {
+    return this.subscriptions.myRequest(user);
+  }
+
+  @Post('requests')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request to subscribe as an AirBnB agent' })
+  requestSubscription(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateSubscriptionRequestDto,
+  ): Promise<SubscriptionRequestResponse> {
+    return this.subscriptions.requestSubscription(user, dto);
+  }
+
+  @Get('requests')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: list pending subscription requests' })
+  listRequests(
+    @Query() query: PaginationQueryDto,
+  ): Promise<Paginated<SubscriptionRequestResponse>> {
+    return this.subscriptions.listRequests(query.page, query.pageSize);
+  }
+
+  @Post('requests/:id/approve')
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: approve a request (record subscription + grant role)' })
+  approveRequest(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApproveSubscriptionRequestDto,
+  ): Promise<SubscriptionResponse> {
+    return this.subscriptions.approveRequest(actor, id, dto);
+  }
+
+  @Post('requests/:id/decline')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: decline a subscription request' })
+  declineRequest(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<SubscriptionRequestResponse> {
+    return this.subscriptions.declineRequest(actor, id);
   }
 
   @Get()

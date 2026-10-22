@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type Subscription } from '@prisma/client';
-import type { SubscriptionStatus } from '@genuine-homes/shared';
+import { Prisma, type Subscription, type SubscriptionRequest } from '@prisma/client';
+import type {
+  SubscriptionRequestStatus,
+  SubscriptionStatus,
+  UserRole,
+} from '@genuine-homes/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 // The account context carried on the admin list (avoids a second lookup).
@@ -9,6 +13,14 @@ const withUser = {
 } satisfies Prisma.SubscriptionInclude;
 
 export type SubscriptionWithUser = Prisma.SubscriptionGetPayload<{ include: typeof withUser }>;
+
+const requestWithUser = {
+  user: { select: { id: true, fullName: true, phone: true, email: true } },
+} satisfies Prisma.SubscriptionRequestInclude;
+
+export type SubscriptionRequestWithUser = Prisma.SubscriptionRequestGetPayload<{
+  include: typeof requestWithUser;
+}>;
 
 @Injectable()
 export class SubscriptionsRepository {
@@ -50,5 +62,66 @@ export class SubscriptionsRepository {
       }),
       this.prisma.subscription.count(),
     ]);
+  }
+
+  // ── Subscription requests ─────────────────────────────────────────────────
+
+  createRequest(data: {
+    userId: string;
+    plan: string;
+    message: string | null;
+  }): Promise<SubscriptionRequest> {
+    return this.prisma.subscriptionRequest.create({ data });
+  }
+
+  findPendingRequestForUser(userId: string): Promise<SubscriptionRequest | null> {
+    return this.prisma.subscriptionRequest.findFirst({
+      where: { userId, status: 'pending' },
+    });
+  }
+
+  latestRequestForUser(userId: string): Promise<SubscriptionRequestWithUser | null> {
+    return this.prisma.subscriptionRequest.findFirst({
+      where: { userId },
+      include: requestWithUser,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findRequestById(id: string): Promise<SubscriptionRequest | null> {
+    return this.prisma.subscriptionRequest.findUnique({ where: { id } });
+  }
+
+  updateRequestStatus(
+    id: string,
+    status: SubscriptionRequestStatus,
+  ): Promise<SubscriptionRequestWithUser> {
+    return this.prisma.subscriptionRequest.update({
+      where: { id },
+      data: { status },
+      include: requestWithUser,
+    });
+  }
+
+  listRequests(
+    status: SubscriptionRequestStatus | undefined,
+    skip: number,
+    take: number,
+  ): Promise<[SubscriptionRequestWithUser[], number]> {
+    const where = status ? { status } : {};
+    return this.prisma.$transaction([
+      this.prisma.subscriptionRequest.findMany({
+        where,
+        include: requestWithUser,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.subscriptionRequest.count({ where }),
+    ]);
+  }
+
+  async setUserRole(userId: string, role: UserRole): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { role } });
   }
 }

@@ -1090,6 +1090,104 @@ async function main(): Promise<void> {
   ];
   await prisma.notification.createMany({ data: notifications, skipDuplicates: true });
 
+  // ── Short-let (AirBnB) demo data ────────────────────────────────────────────
+  // Promote the demo agent to an AirBnB agent with an active subscription and one
+  // short-let listing (bookings + a blocked range) so the short-let dashboard
+  // shows real income/occupancy. Idempotent — guarded so re-seeding won't dupe.
+  const airbnbAgent = await prisma.user.findUnique({
+    where: { email: 'james.agent@example.ug' },
+  });
+  if (airbnbAgent) {
+    await prisma.user.update({
+      where: { id: airbnbAgent.id },
+      data: { role: 'airbnb_agent' },
+    });
+    const DAY = 86_400_000;
+    const midnight = new Date();
+    midnight.setUTCHours(0, 0, 0, 0);
+    const day = (n: number): Date => new Date(midnight.getTime() + n * DAY);
+
+    if (!(await prisma.subscription.findFirst({ where: { userId: airbnbAgent.id } }))) {
+      await prisma.subscription.create({
+        data: {
+          userId: airbnbAgent.id,
+          plan: 'airbnb_monthly',
+          status: 'active',
+          startsAt: day(-7),
+          expiresAt: day(60),
+        },
+      });
+    }
+
+    const listing = await prisma.listing.findFirst({
+      where: { deletedAt: null, property: { ownerId: airbnbAgent.id } },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (listing) {
+      await prisma.listing.update({ where: { id: listing.id }, data: { isShortLet: true } });
+      if ((await prisma.shortLetBooking.count({ where: { listingId: listing.id } })) === 0) {
+        await prisma.shortLetBooking.createMany({
+          data: [
+            {
+              listingId: listing.id,
+              checkIn: day(-10),
+              checkOut: day(-7),
+              amount: '500000',
+              guestName: 'Past Guest',
+              status: 'booked',
+            },
+            {
+              listingId: listing.id,
+              checkIn: day(2),
+              checkOut: day(5),
+              amount: '450000',
+              guestName: 'Jane Doe',
+              status: 'booked',
+            },
+            {
+              listingId: listing.id,
+              checkIn: day(8),
+              checkOut: day(11),
+              amount: '600000',
+              guestName: 'Mark K.',
+              status: 'booked',
+            },
+          ],
+        });
+      }
+      if (
+        (await prisma.shortLetAvailabilityBlock.count({
+          where: { listingId: listing.id },
+        })) === 0
+      ) {
+        await prisma.shortLetAvailabilityBlock.create({
+          data: {
+            listingId: listing.id,
+            startDate: day(14),
+            endDate: day(16),
+            note: 'Maintenance',
+          },
+        });
+      }
+    }
+  }
+
+  // A pending subscription request so the admin queue isn't empty on a fresh seed.
+  const requester = await prisma.user.findUnique({ where: { email: 'brenda@gmail.com' } });
+  if (
+    requester &&
+    !(await prisma.subscriptionRequest.findFirst({ where: { userId: requester.id } }))
+  ) {
+    await prisma.subscriptionRequest.create({
+      data: {
+        userId: requester.id,
+        plan: 'airbnb_monthly',
+        message: 'I manage a few short-lets in Entebbe.',
+        status: 'pending',
+      },
+    });
+  }
+
   const totals = await prisma.$transaction([
     prisma.user.count(),
     prisma.property.count(),
@@ -1103,7 +1201,7 @@ async function main(): Promise<void> {
   );
   console.log('  Demo logins (all use the same dev password):');
   console.log('    admin@genuinehomes.ug      (admin)');
-  console.log('    james.agent@example.ug     (agent)');
+  console.log('    james.agent@example.ug     (airbnb agent — short-let dashboard)');
   console.log('    pearl@estates.ug           (manager)');
   console.log('    sarah.landlord@example.ug  (landlord)');
   console.log('    roro@gmail.com             (buyer — live installment plan)');

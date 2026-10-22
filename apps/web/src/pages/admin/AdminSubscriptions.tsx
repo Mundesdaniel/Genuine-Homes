@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import type { SubscriptionResponse } from '@genuine-homes/shared';
+import type { SubscriptionRequestResponse, SubscriptionResponse } from '@genuine-homes/shared';
 import { subscriptionsApi } from '@/api/subscriptions';
 import {
   Badge,
@@ -218,11 +218,158 @@ function SubscriptionsTable() {
   );
 }
 
+/** Admin: pending subscription requests — approve (record + grant role) or decline. */
+function PendingRequests() {
+  const queryClient = useQueryClient();
+  const [approving, setApproving] = useState<SubscriptionRequestResponse | null>(null);
+  const [declining, setDeclining] = useState<SubscriptionRequestResponse | null>(null);
+  const [dates, setDates] = useState({ startsAt: '', expiresAt: '' });
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['admin', 'sub-requests'],
+    queryFn: () => subscriptionsApi.listRequests(),
+  });
+
+  const refreshAll = () => {
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'sub-requests'] });
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'subscriptions'] });
+    void queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
+  };
+
+  const approve = useMutation({
+    mutationFn: (req: SubscriptionRequestResponse) =>
+      subscriptionsApi.approveRequest(req.id, {
+        startsAt: new Date(dates.startsAt).toISOString(),
+        expiresAt: new Date(dates.expiresAt).toISOString(),
+      }),
+    onSuccess: () => {
+      setApproving(null);
+      setDates({ startsAt: '', expiresAt: '' });
+      refreshAll();
+      toast.success('Request approved — subscription active, role granted');
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
+  const decline = useMutation({
+    mutationFn: (id: string) => subscriptionsApi.declineRequest(id),
+    onSuccess: () => {
+      setDeclining(null);
+      refreshAll();
+      toast.success('Request declined');
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
+
+  if (isLoading) return <Spinner label="Loading requests…" />;
+  if (isError)
+    return <ErrorState message={apiErrorMessage(error)} onRetry={() => refetch()} />;
+  const requests = data?.items ?? [];
+  if (requests.length === 0) return null; // nothing pending → hide the section
+
+  const datesReady = dates.startsAt !== '' && dates.expiresAt !== '';
+
+  return (
+    <div className="card border-amber-200 bg-amber-50/60 p-5">
+      <h2 className="font-semibold text-amber-900">Pending subscription requests</h2>
+      <p className="mt-1 text-sm text-amber-800">
+        Approve to record the cash payment and grant the AirBnB agent role, or decline.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {requests.map((r) => (
+          <li key={r.id} className="rounded-lg border border-amber-200 bg-white p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-medium text-stone-800">{r.user?.fullName ?? r.userId}</p>
+                <p className="text-xs text-stone-500">
+                  {r.plan}
+                  {r.user ? ` · ${r.user.phone}` : ''}
+                  {r.message ? ` · “${r.message}”` : ''}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn-primary px-3 py-1.5 text-sm"
+                  onClick={() => setApproving((cur) => (cur?.id === r.id ? null : r))}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="btn-outline px-3 py-1.5 text-sm"
+                  onClick={() => setDeclining(r)}
+                >
+                  Decline
+                </button>
+              </div>
+            </div>
+
+            {approving?.id === r.id && (
+              <form
+                className="mt-3 flex flex-wrap items-end gap-3 border-t border-amber-100 pt-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  approve.mutate(r);
+                }}
+              >
+                <div>
+                  <label className="label" htmlFor={`start-${r.id}`}>
+                    Starts
+                  </label>
+                  <input
+                    id={`start-${r.id}`}
+                    type="date"
+                    className="input"
+                    value={dates.startsAt}
+                    onChange={(e) => setDates((d) => ({ ...d, startsAt: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor={`end-${r.id}`}>
+                    Expires
+                  </label>
+                  <input
+                    id={`end-${r.id}`}
+                    type="date"
+                    className="input"
+                    value={dates.expiresAt}
+                    onChange={(e) => setDates((d) => ({ ...d, expiresAt: e.target.value }))}
+                  />
+                </div>
+                <button
+                  className="btn-primary"
+                  type="submit"
+                  disabled={approve.isPending || !datesReady}
+                >
+                  {approve.isPending ? 'Activating…' : 'Record & activate'}
+                </button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <ConfirmDialog
+        open={declining !== null}
+        title={`Decline ${declining?.user?.fullName ?? 'this'} request?`}
+        body="They will need to submit a new request to subscribe."
+        confirmLabel="Decline request"
+        danger
+        busy={decline.isPending}
+        onCancel={() => setDeclining(null)}
+        onConfirm={() => declining && decline.mutate(declining.id)}
+      />
+    </div>
+  );
+}
+
 /** Admin subscriptions page: record cash payments and manage subscriptions. */
 export function AdminSubscriptions() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight text-stone-800">Subscriptions</h1>
+      <PendingRequests />
       <RecordPaymentForm />
       <SubscriptionsTable />
     </div>

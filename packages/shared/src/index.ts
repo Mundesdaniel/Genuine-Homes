@@ -28,6 +28,7 @@ export {
   NotificationType,
   BookingStatus,
   SubscriptionStatus,
+  SubscriptionRequestStatus,
   ShortLetBookingStatus,
   enumValues,
 } from './enums';
@@ -203,10 +204,18 @@ export type {
 } from './schemas/booking';
 
 // ── Subscriptions (AirBnB agent) ───────────────────────────────────────────────
-export { SUBSCRIPTION, recordSubscriptionPaymentSchema } from './schemas/subscription';
+export {
+  SUBSCRIPTION,
+  recordSubscriptionPaymentSchema,
+  createSubscriptionRequestSchema,
+  approveSubscriptionRequestSchema,
+} from './schemas/subscription';
 export type {
   RecordSubscriptionPaymentInput,
   SubscriptionResponse,
+  CreateSubscriptionRequestInput,
+  ApproveSubscriptionRequestInput,
+  SubscriptionRequestResponse,
 } from './schemas/subscription';
 
 // ── Short-let (AirBnB) dashboard ────────────────────────────────────────────────

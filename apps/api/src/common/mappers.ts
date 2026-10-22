@@ -14,6 +14,7 @@ import type {
   ShortLetAvailabilityBlock,
   ShortLetBooking,
   Subscription,
+  SubscriptionRequest,
   User,
   Verification,
 } from '@prisma/client';
@@ -36,6 +37,7 @@ import type {
   ReviewResponse,
   ShortLetAvailabilityBlockResponse,
   ShortLetBookingResponse,
+  SubscriptionRequestResponse,
   SubscriptionResponse,
   UserProfileResponse,
   VerificationDocument,
@@ -300,6 +302,32 @@ export function mapShortLetAvailabilityBlock(
 type SubscriptionWithUser = Subscription & {
   user?: Pick<User, 'id' | 'fullName' | 'phone' | 'email'> | null;
 };
+
+type SubscriptionRequestWithUser = SubscriptionRequest & {
+  user?: Pick<User, 'id' | 'fullName' | 'phone' | 'email'> | null;
+};
+
+export function mapSubscriptionRequest(
+  req: SubscriptionRequestWithUser,
+): SubscriptionRequestResponse {
+  return {
+    id: req.id,
+    userId: req.userId,
+    plan: req.plan,
+    message: req.message ?? null,
+    status: req.status,
+    createdAt: req.createdAt.toISOString(),
+    updatedAt: req.updatedAt.toISOString(),
+    user: req.user
+      ? {
+          id: req.user.id,
+          fullName: req.user.fullName,
+          phone: req.user.phone,
+          email: req.user.email ?? null,
+        }
+      : null,
+  };
+}
 
 export function mapSubscription(sub: SubscriptionWithUser): SubscriptionResponse {
   return {
