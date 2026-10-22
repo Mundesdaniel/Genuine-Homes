@@ -27,6 +27,8 @@ import { TokenService } from './token.service';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [TokenService],
+  // AuthService is exported so UsersModule can reuse admin staff-account creation
+  // (account + invitation token) without duplicating the auth plumbing.
+  exports: [TokenService, AuthService],
 })
 export class AuthModule {}

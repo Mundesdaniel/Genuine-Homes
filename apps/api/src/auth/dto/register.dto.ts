@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEmail,
-  IsIn,
   IsOptional,
   IsString,
   Length,
@@ -10,7 +9,11 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { SELF_ASSIGNABLE_ROLES, type SelfAssignableRole } from '@genuine-homes/shared';
+import {
+  SELF_ASSIGNABLE_ROLES,
+  UserRole,
+  type SelfAssignableRole,
+} from '@genuine-homes/shared';
 
 // Trim incoming strings; mirrors the `.trim()` in the shared Zod schemas.
 const trim = ({ value }: { value: unknown }): unknown =>
@@ -35,9 +38,7 @@ export class RegisterDto {
   // Optional — many Ugandan users sign up with a phone only.
   @ApiPropertyOptional({ example: 'david@example.ug' })
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toLowerCase() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
   @IsEmail()
   @MaxLength(254)
   email?: string;
@@ -51,9 +52,12 @@ export class RegisterDto {
   })
   password!: string;
 
-  // `admin` is intentionally not accepted here — it can only be granted later.
-  @ApiPropertyOptional({ enum: SELF_ASSIGNABLE_ROLES, default: 'user' })
+  // Self-registration always creates a plain `user`. The field is kept so a
+  // manually-crafted request carrying a `role` is tolerated (not rejected by the
+  // global whitelist), but it is forced to `user` here — and the service hardcodes
+  // it too. Elevated roles are created only by an admin (POST /users).
+  @ApiPropertyOptional({ enum: SELF_ASSIGNABLE_ROLES, default: UserRole.USER })
   @IsOptional()
-  @IsIn([...SELF_ASSIGNABLE_ROLES])
+  @Transform(() => UserRole.USER)
   role?: SelfAssignableRole;
 }
