@@ -3,7 +3,9 @@ import { UserRole } from '@genuine-homes/shared';
 import { AdminLayout } from '@/components/AdminLayout';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { AdminOverview } from '@/pages/admin/AdminOverview';
+import { AdminSubscriptions } from '@/pages/admin/AdminSubscriptions';
 import { AdminUsers } from '@/pages/admin/AdminUsers';
 import { IdentityQueue } from '@/pages/admin/IdentityQueue';
 import { VerificationQueue } from '@/pages/admin/VerificationQueue';
@@ -23,6 +25,7 @@ import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { ShortLetDashboardPage } from '@/pages/ShortLetDashboardPage';
 
 export default function App() {
   return (
@@ -83,6 +86,18 @@ export default function App() {
           }
         />
         <Route
+          path="short-let"
+          element={
+            // airbnb_agent role (server + client) AND an active subscription
+            // (SubscriptionGate shows a "Renew to access" screen otherwise).
+            <ProtectedRoute requireRole={UserRole.AIRBNB_AGENT}>
+              <SubscriptionGate>
+                <ShortLetDashboardPage />
+              </SubscriptionGate>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="plans/:id"
           element={
             <ProtectedRoute>
@@ -124,6 +139,7 @@ export default function App() {
         <Route path="users" element={<AdminUsers />} />
         <Route path="verifications" element={<VerificationQueue />} />
         <Route path="identity" element={<IdentityQueue />} />
+        <Route path="subscriptions" element={<AdminSubscriptions />} />
         {/* Unknown /admin/* path → overview. */}
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>

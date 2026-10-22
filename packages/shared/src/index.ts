@@ -27,6 +27,7 @@ export {
   RentalAgreementStatus,
   NotificationType,
   BookingStatus,
+  SubscriptionStatus,
   enumValues,
 } from './enums';
 
@@ -199,3 +200,11 @@ export type {
   DeclineBookingInput,
   BookingResponse,
 } from './schemas/booking';
+
+// ── Subscriptions (AirBnB agent) ───────────────────────────────────────────────
+export { SUBSCRIPTION, recordSubscriptionPaymentSchema } from './schemas/subscription';
+export type {
+  RecordSubscriptionPaymentInput,
+  SubscriptionResponse,
+  ShortLetDashboardResponse,
+} from './schemas/subscription';

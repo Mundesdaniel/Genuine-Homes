@@ -28,8 +28,15 @@ enum UserRole {
   user
   landlord
   agent
+  airbnb_agent
   manager
   admin
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  cancelled
 }
 
 enum PropertyType {
@@ -180,9 +187,32 @@ model User {
   auditLogs             AuditLog[]        @relation("AuditActor")
   bookingsMade          Booking[]         @relation("BookingBuyer")
   bookingsReceived      Booking[]         @relation("BookingOwner")
+  subscriptions         Subscription[]
 
   @@index([role])
   @@map("users")
+}
+
+/**
+ * AirBnB-agent subscription. Cash-billed and recorded by an admin; an `active`
+ * row whose `expiresAt` is in the future grants the holder (role airbnb_agent)
+ * access to the short-let dashboard.
+ */
+model Subscription {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @map("user_id") @db.Uuid
+  plan      String
+  status    SubscriptionStatus @default(active)
+  startsAt  DateTime           @map("starts_at") @db.Timestamptz(6)
+  expiresAt DateTime           @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
 }
 
 model Property {
