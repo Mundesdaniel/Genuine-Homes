@@ -268,7 +268,7 @@ function MyBookingRow({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
           <p className="flex items-center gap-1.5 text-sm text-emerald-900">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Like it? Pay in cash in person — your agent confirms the payment once received. Not
+            Like it? Pay in cash in person — your agent confirms it once received. Not
             interested? Let the owner know.
           </p>
           <div className="flex gap-2">
@@ -280,13 +280,6 @@ function MyBookingRow({
             >
               Not interested
             </button>
-            <Link
-              to={`/messages?to=${booking.ownerId}&listingId=${booking.listingId}`}
-              className="btn-primary"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Arrange payment
-            </Link>
           </div>
         </div>
       )}
