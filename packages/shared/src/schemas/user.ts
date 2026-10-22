@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { UserRole, enumValues } from '../enums';
 import type { UserRole as UserRoleType } from '../enums';
+import { STAFF_ASSIGNABLE_ROLES, phoneSchema } from './auth';
 
 export const updateProfileSchema = z
   .object({
@@ -29,6 +30,28 @@ export const adminUpdateUserSchema = z
     message: 'Provide at least one field to update',
   });
 export type AdminUpdateUserInput = z.infer<typeof adminUpdateUserSchema>;
+
+/**
+ * Admin-only: create a staff account (agent/landlord/manager) directly. The new
+ * account has no password until the recipient sets one via the invitation link.
+ */
+export const createStaffUserSchema = z.object({
+  fullName: z.string().trim().min(2, 'Name is too short').max(120),
+  phone: phoneSchema,
+  email: z.string().trim().toLowerCase().email().max(254).optional(),
+  role: z.enum(STAFF_ASSIGNABLE_ROLES),
+});
+export type CreateStaffUserInput = z.infer<typeof createStaffUserSchema>;
+
+export interface StaffUserCreatedResponse {
+  user: UserProfileResponse;
+  /**
+   * Single-use link the new staff member uses to set their password. Returned
+   * directly (not emailed) because the project has no email service — an admin
+   * shares it out-of-band.
+   */
+  invitationLink: string;
+}
 
 export interface UserProfileResponse {
   id: string;

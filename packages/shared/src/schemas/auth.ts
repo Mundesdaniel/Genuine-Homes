@@ -12,16 +12,24 @@ import { z } from 'zod';
 import { UserRole } from '../enums';
 
 /**
- * Roles a person may pick when registering themselves. `admin` is deliberately
- * excluded — it can only be granted by another admin, never self-assigned.
+ * The only role a person may pick when registering themselves: a plain `user`.
+ * Every elevated role (landlord/agent/manager) is invite-only — created by an
+ * admin — and `admin` itself is granted only by promoting an existing account.
  */
-export const SELF_ASSIGNABLE_ROLES = [
-  UserRole.USER,
+export const SELF_ASSIGNABLE_ROLES = [UserRole.USER] as const;
+export type SelfAssignableRole = (typeof SELF_ASSIGNABLE_ROLES)[number];
+
+/**
+ * Elevated roles an admin can assign when creating a staff account directly.
+ * Excludes `user` (the self-registration default) and `admin` (never minted
+ * via this flow — only granted by promoting an existing account).
+ */
+export const STAFF_ASSIGNABLE_ROLES = [
   UserRole.LANDLORD,
   UserRole.AGENT,
   UserRole.MANAGER,
 ] as const;
-export type SelfAssignableRole = (typeof SELF_ASSIGNABLE_ROLES)[number];
+export type StaffAssignableRole = (typeof STAFF_ASSIGNABLE_ROLES)[number];
 
 /** International phone number (E.164-ish). Uganda numbers look like +2567XXXXXXXX. */
 export const phoneSchema = z
