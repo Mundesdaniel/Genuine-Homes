@@ -1,10 +1,25 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole, type Paginated, type UserProfileResponse } from '@genuine-homes/shared';
+import {
+  UserRole,
+  type Paginated,
+  type StaffUserCreatedResponse,
+  type UserProfileResponse,
+} from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { CreateStaffUserDto } from './dto/create-staff-user.dto';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
@@ -37,6 +52,17 @@ export class UsersController {
   @ApiOperation({ summary: 'Admin: list users (optional ?role= filter)' })
   list(@Query() query: ListUsersQueryDto): Promise<Paginated<UserProfileResponse>> {
     return this.users.list(query.page, query.pageSize, query.role);
+  }
+
+  @Post()
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: create a staff account (agent/landlord/manager)' })
+  createStaff(
+    @CurrentUser() actor: AuthenticatedUser,
+    @Body() dto: CreateStaffUserDto,
+  ): Promise<StaffUserCreatedResponse> {
+    return this.users.adminCreate(actor, dto);
   }
 
   @Get(':id')

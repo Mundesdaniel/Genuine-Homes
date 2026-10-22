@@ -2,22 +2,10 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {
-  SELF_ASSIGNABLE_ROLES,
-  registerSchema,
-  type SelfAssignableRole,
-} from '@genuine-homes/shared';
+import { registerSchema } from '@genuine-homes/shared';
 import { authApi } from '@/api/auth';
 import { apiErrorMessage } from '@/lib/apiClient';
-import { titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
-
-const ROLE_HINT: Record<SelfAssignableRole, string> = {
-  user: 'Looking to rent or buy',
-  landlord: 'I rent out property',
-  agent: 'I list on behalf of owners',
-  manager: 'I manage property for a company',
-};
 
 export function RegisterPage() {
   const [form, setForm] = useState({
@@ -25,7 +13,6 @@ export function RegisterPage() {
     phone: '',
     email: '',
     password: '',
-    role: 'user' as SelfAssignableRole,
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -125,24 +112,6 @@ export function RegisterPage() {
               At least 8 characters, with a letter and a number.
             </p>
           </div>
-          <div>
-            <label className="label" htmlFor="role">
-              I am a…
-            </label>
-            <select
-              id="role"
-              className="input"
-              value={form.role}
-              onChange={(e) => update('role', e.target.value)}
-            >
-              {SELF_ASSIGNABLE_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {titleCase(role)} {ROLE_HINT[role]}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
 
           <button className="btn-primary w-full" type="submit" disabled={mutation.isPending}>

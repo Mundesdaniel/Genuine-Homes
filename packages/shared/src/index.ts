@@ -45,6 +45,7 @@ export {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export {
   SELF_ASSIGNABLE_ROLES,
+  STAFF_ASSIGNABLE_ROLES,
   phoneSchema,
   passwordSchema,
   registerSchema,
@@ -57,6 +58,7 @@ export {
 } from './schemas/auth';
 export type {
   SelfAssignableRole,
+  StaffAssignableRole,
   RegisterInput,
   RegisterRequest,
   LoginInput,
@@ -170,10 +172,16 @@ export type {
 } from './schemas/identity';
 
 // ── Users ─────────────────────────────────────────────────────────────────────
-export { updateProfileSchema, adminUpdateUserSchema } from './schemas/user';
+export {
+  updateProfileSchema,
+  adminUpdateUserSchema,
+  createStaffUserSchema,
+} from './schemas/user';
 export type {
   UpdateProfileInput,
   AdminUpdateUserInput,
+  CreateStaffUserInput,
+  StaffUserCreatedResponse,
   UserProfileResponse,
 } from './schemas/user';
 

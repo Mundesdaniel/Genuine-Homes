@@ -1,6 +1,8 @@
 import type {
   AdminUpdateUserInput,
+  CreateStaffUserInput,
   Paginated,
+  StaffUserCreatedResponse,
   UpdateProfileInput,
   UserProfileResponse,
   UserRole,
@@ -19,4 +21,7 @@ export const usersApi = {
       .then((r) => r.data),
   adminUpdate: (id: string, input: AdminUpdateUserInput) =>
     api.patch<UserProfileResponse>(`/users/${id}`, input).then((r) => r.data),
+  /** Admin: create a staff account (agent/landlord/manager). */
+  createStaff: (input: CreateStaffUserInput) =>
+    api.post<StaffUserCreatedResponse>('/users', input).then((r) => r.data),
 };
