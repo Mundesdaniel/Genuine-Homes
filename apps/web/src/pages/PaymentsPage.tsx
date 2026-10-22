@@ -83,8 +83,8 @@ function CashToConfirm() {
         <h2 className="font-semibold text-amber-900">Cash payments to confirm</h2>
       </div>
       <p className="mt-1 text-sm text-amber-800">
-        A buyer chose to pay in cash. Confirm once you’ve received the money — this completes
-        the sale/rental and marks the property accordingly.
+        Payments are made in cash, in person. Confirm once you’ve received the money — this
+        completes the sale/rental and marks the property accordingly.
       </p>
       <ul className="mt-4 space-y-2">
         {items.map((c) => (

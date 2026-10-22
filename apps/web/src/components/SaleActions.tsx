@@ -2,17 +2,12 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {
-  INSTALLMENT,
-  PaymentProvider,
-  enumValues,
-  type ListingSearchItem,
-} from '@genuine-homes/shared';
+import { INSTALLMENT, PaymentProvider, type ListingSearchItem } from '@genuine-homes/shared';
 import { installmentsApi } from '@/api/installments';
 import { purchasesApi } from '@/api/purchases';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { handlePaymentResult } from '@/lib/checkout';
-import { formatMoney, titleCase } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
 /**
@@ -25,7 +20,6 @@ export function SaleActions({ listing }: { listing: ListingSearchItem }) {
   const navigate = useNavigate();
   const returnUrl = `${window.location.origin}/payments/return`;
 
-  const [provider, setProvider] = useState<string>(PaymentProvider.CASH);
   const [showPlan, setShowPlan] = useState(false);
   const [depositPercent, setDepositPercent] = useState<number>(
     INSTALLMENT.MIN_DEPOSIT_PERCENT,
@@ -37,7 +31,7 @@ export function SaleActions({ listing }: { listing: ListingSearchItem }) {
   const buy = useMutation({
     mutationFn: () =>
       purchasesApi.buy(listing.id, {
-        provider: provider as PaymentProvider,
+        provider: PaymentProvider.CASH,
         redirectUrl: returnUrl,
       }),
     onSuccess: (res) => handlePaymentResult(res, navigate),
@@ -75,29 +69,10 @@ export function SaleActions({ listing }: { listing: ListingSearchItem }) {
     <div className="card space-y-4 p-5">
       <h3 className="font-semibold text-stone-800">Buy this property</h3>
 
-      <div>
-        <label className="label" htmlFor="buy-provider">
-          Pay with
-        </label>
-        <select
-          id="buy-provider"
-          className="input"
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-        >
-          {enumValues(PaymentProvider).map((p) => (
-            <option key={p} value={p}>
-              {titleCase(p)}
-            </option>
-          ))}
-        </select>
-        {provider === PaymentProvider.CASH && (
-          <p className="mt-1 text-xs text-stone-500">
-            Pay in person — recorded as pending until the owner confirms they’ve received the
-            cash.
-          </p>
-        )}
-      </div>
+      <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
+        Payment is made in cash, in person. Your payment is recorded as pending until the owner
+        confirms they’ve received the cash.
+      </p>
 
       <button
         className="btn-primary w-full"

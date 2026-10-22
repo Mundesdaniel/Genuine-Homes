@@ -26,6 +26,12 @@ const PAYMENT_OPTIONS: Record<string, string> = {
  * Flutterwave gateway (Standard hosted checkout). Used when a secret key is
  * configured. Webhook authenticity is the static `verif-hash` header compared
  * against the configured webhook secret.
+ *
+ * DISABLED (cash-only): this gateway is no longer wired into PaymentsModule and
+ * nothing instantiates it at runtime — the app accepts cash only. The class is
+ * kept intact (and its unit test still runs) so online payments can be
+ * re-enabled by restoring the PAYMENT_GATEWAY provider in payments.module.ts.
+ * See that module for the full re-enable checklist.
  */
 @Injectable()
 export class FlutterwaveGateway implements PaymentGateway {
@@ -61,9 +67,10 @@ export class FlutterwaveGateway implements PaymentGateway {
       }),
     });
 
-    const json = (await response.json().catch(() => null)) as
-      | { status?: string; data?: { link?: string } }
-      | null;
+    const json = (await response.json().catch(() => null)) as {
+      status?: string;
+      data?: { link?: string };
+    } | null;
     if (!response.ok || json?.status !== 'success' || !json.data?.link) {
       this.logger.error(`Flutterwave initiation failed (HTTP ${response.status})`);
       throw new Error('Flutterwave payment initiation failed');
