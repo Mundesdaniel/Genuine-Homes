@@ -1,8 +1,12 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { UserRole } from '@genuine-homes/shared';
+import { AdminLayout } from '@/components/AdminLayout';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { AdminPage } from '@/pages/AdminPage';
+import { AdminOverview } from '@/pages/admin/AdminOverview';
+import { AdminUsers } from '@/pages/admin/AdminUsers';
+import { IdentityQueue } from '@/pages/admin/IdentityQueue';
+import { VerificationQueue } from '@/pages/admin/VerificationQueue';
 import { BookingsPage } from '@/pages/BookingsPage';
 import { ChatPage } from '@/pages/ChatPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -79,14 +83,6 @@ export default function App() {
           }
         />
         <Route
-          path="admin"
-          element={
-            <ProtectedRoute requireRole={UserRole.ADMIN}>
-              <AdminPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
           path="plans/:id"
           element={
             <ProtectedRoute>
@@ -111,6 +107,25 @@ export default function App() {
           }
         />
         <Route path="*" element={<NotFoundPage />} />
+      </Route>
+
+      {/* Admin section — its own AdminLayout (sidebar, no user header/footer),
+          guarded once for the whole subtree. /admin keeps working (→ overview).
+          Non-admins are bounced to home; signed-out users to /login. */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requireRole={UserRole.ADMIN}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminOverview />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="verifications" element={<VerificationQueue />} />
+        <Route path="identity" element={<IdentityQueue />} />
+        {/* Unknown /admin/* path → overview. */}
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
   );
