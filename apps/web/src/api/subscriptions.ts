@@ -1,7 +1,6 @@
 import type {
   Paginated,
   RecordSubscriptionPaymentInput,
-  ShortLetDashboardResponse,
   SubscriptionResponse,
 } from '@genuine-homes/shared';
 import { api } from '@/lib/apiClient';
@@ -20,7 +19,4 @@ export const subscriptionsApi = {
   /** Admin: cancel a subscription. */
   cancel: (id: string) =>
     api.post<SubscriptionResponse>(`/subscriptions/${id}/cancel`, {}).then((r) => r.data),
-  /** Short-let dashboard (requires airbnb_agent role + active subscription). */
-  shortLetDashboard: () =>
-    api.get<ShortLetDashboardResponse>('/short-let/dashboard').then((r) => r.data),
 };
