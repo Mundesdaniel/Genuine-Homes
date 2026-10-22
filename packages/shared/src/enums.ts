@@ -35,6 +35,15 @@ export const ShortLetBookingStatus = {
 export type ShortLetBookingStatus =
   (typeof ShortLetBookingStatus)[keyof typeof ShortLetBookingStatus];
 
+/** A user's self-service request to subscribe as an AirBnB agent (admin-reviewed). */
+export const SubscriptionRequestStatus = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  DECLINED: 'declined',
+} as const;
+export type SubscriptionRequestStatus =
+  (typeof SubscriptionRequestStatus)[keyof typeof SubscriptionRequestStatus];
+
 export const PropertyType = {
   HOUSE: 'house',
   FURNISHED_HOUSE: 'furnished_house',
