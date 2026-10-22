@@ -8,6 +8,7 @@ import { propertiesApi } from '@/api/properties';
 import { EarningsChart, PaymentsTrendChart, PropertiesStatusChart } from '@/components/charts';
 import { NewListingForm } from '@/components/NewListingForm';
 import { PropertyForm } from '@/components/PropertyForm';
+import { RequestAirbnbSubscription } from '@/components/RequestAirbnbSubscription';
 import { PlanCard } from '@/components/PlanCard';
 import {
   Badge,
@@ -193,6 +194,10 @@ export function DashboardPage() {
           </div>
         )}
       </div>
+
+      {user && user.role !== 'airbnb_agent' && user.role !== 'admin' && (
+        <RequestAirbnbSubscription />
+      )}
 
       {seller && user?.role !== 'admin' && !user?.identityVerifiedAt && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4">
