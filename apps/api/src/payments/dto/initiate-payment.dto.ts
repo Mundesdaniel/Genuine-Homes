@@ -37,14 +37,16 @@ export class InitiatePaymentDto {
 
   @ApiPropertyOptional({ default: 'UGX' })
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim().toUpperCase() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsIn(['UGX', 'KES', 'TZS'])
   currency?: string;
 
-  @ApiProperty({ enum: enumValues(PaymentProvider), description: 'Payment method' })
-  @IsIn(enumValues(PaymentProvider))
+  // Cash-only: online gateways are disabled, so the only accepted method is
+  // cash (paid in person, confirmed by the owner). Any other provider value is
+  // rejected with a validation error. To re-enable online payments, widen this
+  // back to `enumValues(PaymentProvider)`.
+  @ApiProperty({ enum: [PaymentProvider.CASH], description: 'Payment method (cash only)' })
+  @IsIn([PaymentProvider.CASH], { message: 'Only cash payments are accepted' })
   provider!: PaymentProviderValue;
 
   @ApiPropertyOptional({ example: '+256700000000', description: 'Mobile Money number' })

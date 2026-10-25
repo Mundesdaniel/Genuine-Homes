@@ -2,17 +2,11 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import {
-  PaymentProvider,
-  RENTAL,
-  enumValues,
-  type ListingSearchItem,
-  type PaymentProvider as PaymentProviderValue,
-} from '@genuine-homes/shared';
+import { PaymentProvider, RENTAL, type ListingSearchItem } from '@genuine-homes/shared';
 import { rentalsApi } from '@/api/rentals';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { handlePaymentResult } from '@/lib/checkout';
-import { formatMoney, titleCase } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
 const TERMS = [6, 12, 24, 36].filter((m) => m >= RENTAL.MIN_MONTHS && m <= RENTAL.MAX_MONTHS);
@@ -27,7 +21,6 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
   const navigate = useNavigate();
   const returnUrl = `${window.location.origin}/payments/return`;
 
-  const [provider, setProvider] = useState<string>(PaymentProvider.CASH);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [months, setMonths] = useState<string>('');
 
@@ -42,7 +35,7 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
         months: months ? Number(months) : undefined,
       });
       return rentalsApi.payRent(agreement.id, {
-        provider: provider as PaymentProviderValue,
+        provider: PaymentProvider.CASH,
         redirectUrl: returnUrl,
       });
     },
@@ -101,29 +94,10 @@ export function RentActions({ listing }: { listing: ListingSearchItem }) {
         </select>
       </div>
 
-      <div>
-        <label className="label" htmlFor="rent-provider">
-          Pay with
-        </label>
-        <select
-          id="rent-provider"
-          className="input"
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-        >
-          {enumValues(PaymentProvider).map((p) => (
-            <option key={p} value={p}>
-              {titleCase(p)}
-            </option>
-          ))}
-        </select>
-        {provider === PaymentProvider.CASH && (
-          <p className="mt-1 text-xs text-stone-500">
-            Pay in person — recorded as pending until the owner confirms they’ve received the
-            cash.
-          </p>
-        )}
-      </div>
+      <p className="rounded-lg bg-stone-50 p-3 text-xs text-stone-500">
+        Rent is paid in cash, in person. Your payment is recorded as pending until the owner
+        confirms they’ve received the cash.
+      </p>
 
       <button
         className="btn-primary w-full"

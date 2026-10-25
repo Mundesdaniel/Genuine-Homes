@@ -77,7 +77,7 @@ export function BookingsPage() {
   const confirmViewed = useMutation({
     mutationFn: (id: string) => bookingsApi.markViewed(id),
     onSuccess: () => {
-      toast.success('Viewing confirmed — you can proceed to payment');
+      toast.success('Viewing confirmed — pay in cash in person; your agent confirms it');
       void invalidate();
     },
     onError,
@@ -268,7 +268,8 @@ function MyBookingRow({
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
           <p className="flex items-center gap-1.5 text-sm text-emerald-900">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Been to see it? If you like it, continue to payment — otherwise let the owner know.
+            Like it? Pay in cash in person — your agent confirms it once received. Not
+            interested? Let the owner know.
           </p>
           <div className="flex gap-2">
             <button
@@ -279,9 +280,6 @@ function MyBookingRow({
             >
               Not interested
             </button>
-            <Link to={`/listings/${booking.listingId}`} className="btn-primary">
-              Proceed to payment
-            </Link>
           </div>
         </div>
       )}

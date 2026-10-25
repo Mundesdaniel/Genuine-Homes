@@ -7,13 +7,16 @@ import {
 import { Prisma } from '@prisma/client';
 import {
   type Paginated,
+  type StaffUserCreatedResponse,
   type UserProfileResponse,
   type UserRole,
 } from '@genuine-homes/shared';
 import { AuditService } from '../audit/audit.service';
+import { AuthService } from '../auth/auth.service';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { mapUserProfile } from '../common/mappers';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { CreateStaffUserDto } from './dto/create-staff-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersRepository } from './users.repository';
 
@@ -22,6 +25,7 @@ export class UsersService {
   constructor(
     private readonly repo: UsersRepository,
     private readonly audit: AuditService,
+    private readonly auth: AuthService,
   ) {}
 
   async getMe(user: AuthenticatedUser): Promise<UserProfileResponse> {
@@ -88,6 +92,27 @@ export class UsersService {
     return mapUserProfile(updated);
   }
 
+  /**
+   * Admin-only: create a staff account (agent/landlord/manager). Delegates the
+   * account + invitation-link creation to AuthService, then records the audit
+   * trail. Returns the new profile plus the single-use set-password link for the
+   * admin to deliver (there is no email service to send it automatically).
+   */
+  async adminCreate(
+    actor: AuthenticatedUser,
+    dto: CreateStaffUserDto,
+  ): Promise<StaffUserCreatedResponse> {
+    const result = await this.auth.adminCreateUser(dto);
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'user.admin_created',
+      entityType: 'user',
+      entityId: result.user.id,
+      metadata: { role: result.user.role },
+    });
+    return result;
+  }
+
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   private async getProfile(id: string): Promise<UserProfileResponse> {
@@ -97,10 +122,7 @@ export class UsersService {
   }
 
   private rethrow(err: unknown): Error {
-    if (
-      err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === 'P2002'
-    ) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       return new ConflictException('That email is already in use');
     }
     return err instanceof Error ? err : new Error(String(err));

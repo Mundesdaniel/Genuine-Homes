@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -18,7 +17,6 @@ import type {
   PaymentResponse,
 } from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { Public } from '../auth/decorators/public.decorator';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
@@ -56,17 +54,10 @@ export class PaymentsController {
     return this.payments.earnings(user);
   }
 
-  // Public: authenticated by the gateway's signature, not a JWT.
-  @Public()
-  @Post('webhook')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Payment gateway webhook (idempotent)' })
-  webhook(
-    @Headers() headers: Record<string, string>,
-    @Body() body: Record<string, unknown>,
-  ): Promise<{ received: true }> {
-    return this.payments.handleWebhook(headers, body);
-  }
+  // Cash-only: the gateway webhook route (`POST /payments/webhook`) has been
+  // removed. Payments settle via the owner confirming cash receipt below
+  // (`POST /payments/:id/confirm-cash`). To re-enable online payments, restore
+  // the @Public() webhook handler that delegated to PaymentsService.handleWebhook.
 
   @Get('incoming-cash')
   @ApiBearerAuth()

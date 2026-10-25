@@ -11,6 +11,10 @@ import type {
   PropertyImage,
   RentalAgreement,
   Review,
+  ShortLetAvailabilityBlock,
+  ShortLetBooking,
+  Subscription,
+  SubscriptionRequest,
   User,
   Verification,
 } from '@prisma/client';
@@ -31,10 +35,18 @@ import type {
   PropertySummary,
   RentalAgreementResponse,
   ReviewResponse,
+  ShortLetAvailabilityBlockResponse,
+  ShortLetBookingResponse,
+  SubscriptionRequestResponse,
+  SubscriptionResponse,
   UserProfileResponse,
   VerificationDocument,
   VerificationResponse,
 } from '@genuine-homes/shared';
+
+/** Whole nights between two @db.Date values (both at UTC midnight). */
+export const nightsBetween = (from: Date, to: Date): number =>
+  Math.round((to.getTime() - from.getTime()) / 86_400_000);
 
 // PostgreSQL `date` columns come back as a Date at UTC midnight.
 const toDateString = (date: Date): string => date.toISOString().slice(0, 10);
@@ -257,6 +269,84 @@ export function mapPayment(payment: Payment): PaymentResponse {
     status: payment.status,
     createdAt: payment.createdAt.toISOString(),
     updatedAt: payment.updatedAt.toISOString(),
+  };
+}
+
+export function mapShortLetBooking(b: ShortLetBooking): ShortLetBookingResponse {
+  return {
+    id: b.id,
+    listingId: b.listingId,
+    checkIn: toDateString(b.checkIn),
+    checkOut: toDateString(b.checkOut),
+    nights: nightsBetween(b.checkIn, b.checkOut),
+    amount: b.amount.toNumber(),
+    currency: b.currency,
+    guestName: b.guestName ?? null,
+    status: b.status,
+    createdAt: b.createdAt.toISOString(),
+  };
+}
+
+export function mapShortLetAvailabilityBlock(
+  block: ShortLetAvailabilityBlock,
+): ShortLetAvailabilityBlockResponse {
+  return {
+    id: block.id,
+    listingId: block.listingId,
+    startDate: toDateString(block.startDate),
+    endDate: toDateString(block.endDate),
+    note: block.note ?? null,
+  };
+}
+
+type SubscriptionWithUser = Subscription & {
+  user?: Pick<User, 'id' | 'fullName' | 'phone' | 'email'> | null;
+};
+
+type SubscriptionRequestWithUser = SubscriptionRequest & {
+  user?: Pick<User, 'id' | 'fullName' | 'phone' | 'email'> | null;
+};
+
+export function mapSubscriptionRequest(
+  req: SubscriptionRequestWithUser,
+): SubscriptionRequestResponse {
+  return {
+    id: req.id,
+    userId: req.userId,
+    plan: req.plan,
+    message: req.message ?? null,
+    status: req.status,
+    createdAt: req.createdAt.toISOString(),
+    updatedAt: req.updatedAt.toISOString(),
+    user: req.user
+      ? {
+          id: req.user.id,
+          fullName: req.user.fullName,
+          phone: req.user.phone,
+          email: req.user.email ?? null,
+        }
+      : null,
+  };
+}
+
+export function mapSubscription(sub: SubscriptionWithUser): SubscriptionResponse {
+  return {
+    id: sub.id,
+    userId: sub.userId,
+    plan: sub.plan,
+    status: sub.status,
+    startsAt: sub.startsAt.toISOString(),
+    expiresAt: sub.expiresAt.toISOString(),
+    createdAt: sub.createdAt.toISOString(),
+    updatedAt: sub.updatedAt.toISOString(),
+    user: sub.user
+      ? {
+          id: sub.user.id,
+          fullName: sub.user.fullName,
+          phone: sub.user.phone,
+          email: sub.user.email ?? null,
+        }
+      : null,
   };
 }
 

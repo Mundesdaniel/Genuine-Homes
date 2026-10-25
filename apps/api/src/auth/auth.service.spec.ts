@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@genuine-homes/shared';
 import { AuthService } from './auth.service';
 import type { AuthRepository } from './auth.repository';
+import type { RegisterDto } from './dto/register.dto';
 import { TokenService } from './token.service';
 import type { Env } from '../config/env.validation';
 import type { NotificationsService } from '../notifications/notifications.service';
@@ -172,9 +173,7 @@ describe('AuthService', () => {
       expect(res.refreshToken).toEqual(expect.any(String));
       expect(res.tokenType).toBe('Bearer');
       expect(res.expiresIn).toBe(900);
-      expect(
-        (res.user as unknown as Record<string, unknown>).passwordHash,
-      ).toBeUndefined();
+      expect((res.user as unknown as Record<string, unknown>).passwordHash).toBeUndefined();
       // The refresh token is persisted only as a hash, never raw.
       expect(repo.tokens).toHaveLength(1);
       expect(repo.tokens[0]?.tokenHash).not.toBe(res.refreshToken);
@@ -184,6 +183,63 @@ describe('AuthService', () => {
       await service.register(validRegister);
       await expect(
         service.register({ ...validRegister, email: 'other@example.ug' }),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    // Security: self-registration can never grant an elevated role, even if a
+    // client hand-crafts a request with role=agent/admin. The service ignores it.
+    it.each([UserRole.AGENT, UserRole.LANDLORD, UserRole.MANAGER, UserRole.ADMIN])(
+      'ignores a self-assigned %s role and still creates a plain user',
+      async (role) => {
+        const res = await service.register({
+          ...validRegister,
+          role,
+        } as unknown as RegisterDto);
+        expect(res.user.role).toBe(UserRole.USER);
+      },
+    );
+  });
+
+  describe('adminCreateUser', () => {
+    const staffDto = {
+      fullName: 'Grace Agent',
+      phone: '+256700000010',
+      email: 'Grace@Example.ug',
+      role: UserRole.AGENT,
+    };
+
+    it('creates the account with the chosen elevated role (email normalised)', async () => {
+      const res = await service.adminCreateUser(staffDto);
+      expect(res.user.role).toBe(UserRole.AGENT);
+      expect(res.user.email).toBe('grace@example.ug');
+      // The password hash never leaks into the response shape.
+      expect((res.user as unknown as Record<string, unknown>).passwordHash).toBeUndefined();
+    });
+
+    it('returns a single-use set-password link and stores only its hash', async () => {
+      const res = await service.adminCreateUser(staffDto);
+      expect(res.invitationLink).toMatch(/\/reset-password\?token=[A-Za-z0-9_-]+/);
+      expect(repo.resetTokens).toHaveLength(1);
+      const token = /token=([A-Za-z0-9_-]+)/.exec(res.invitationLink)?.[1] ?? '';
+      expect(repo.resetTokens[0]?.tokenHash).not.toBe(token);
+    });
+
+    it('lets the invited staff set a password via the link and then log in', async () => {
+      const res = await service.adminCreateUser(staffDto);
+      const token = /token=([A-Za-z0-9_-]+)/.exec(res.invitationLink)?.[1] ?? '';
+
+      await expect(
+        service.resetPassword({ token, password: 'StaffPass123!' }),
+      ).resolves.toEqual({ success: true });
+      await expect(
+        service.login({ emailOrPhone: '+256700000010', password: 'StaffPass123!' }),
+      ).resolves.toBeDefined();
+    });
+
+    it('rejects a duplicate phone', async () => {
+      await service.adminCreateUser(staffDto);
+      await expect(
+        service.adminCreateUser({ ...staffDto, email: 'other@example.ug' }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
   });
@@ -248,9 +304,7 @@ describe('AuthService', () => {
     });
 
     it('rejects a garbage refresh token', async () => {
-      await expect(service.refresh('not-a-jwt')).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      await expect(service.refresh('not-a-jwt')).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 

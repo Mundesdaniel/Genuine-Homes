@@ -1,40 +1,26 @@
-import { Logger, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { type Env, resolvePaymentGateway } from '../config/env.validation';
-import { FlutterwaveGateway } from './gateway/flutterwave.gateway';
-import { MockGateway } from './gateway/mock.gateway';
-import { PAYMENT_GATEWAY } from './gateway/payment-gateway.interface';
+import { Module } from '@nestjs/common';
 import { PaymentsController } from './payments.controller';
 import { PaymentsRepository } from './payments.repository';
 import { PaymentsService } from './payments.service';
 
 /**
- * Payments module. The active gateway (Strategy) is chosen at startup via
- * `PAYMENT_GATEWAY` (or inferred: Flutterwave when a secret key is configured,
- * otherwise the dev mock). Env validation refuses to boot a production build
- * on the mock unless `PAYMENT_GATEWAY=mock` was set explicitly.
+ * Payments module — CASH ONLY.
+ *
+ * Online payment gateways are disabled: every payment is paid in person and
+ * confirmed by the property owner (see PaymentsService.confirmCash). As a
+ * result this module no longer wires a PAYMENT_GATEWAY provider, and the
+ * `/payments/webhook` route has been removed from PaymentsController.
+ *
+ * The gateway files remain in `./gateway` (FlutterwaveGateway, MockGateway,
+ * the PaymentGateway interface) and are intact but unused. To re-enable online
+ * payments, restore the `PAYMENT_GATEWAY` provider below (the Strategy factory
+ * that picked Flutterwave vs. the dev mock via `resolvePaymentGateway`), widen
+ * InitiatePaymentDto's `provider` back to all providers, and restore the
+ * gateway branch in PaymentsService.initiate + the handleWebhook handler.
  */
 @Module({
   controllers: [PaymentsController],
-  providers: [
-    PaymentsService,
-    PaymentsRepository,
-    {
-      provide: PAYMENT_GATEWAY,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => {
-        const choice = resolvePaymentGateway({
-          PAYMENT_GATEWAY: config.get('PAYMENT_GATEWAY', { infer: true }),
-          FLUTTERWAVE_SECRET_KEY: config.get('FLUTTERWAVE_SECRET_KEY', { infer: true }),
-        });
-        if (choice === 'flutterwave') return new FlutterwaveGateway(config);
-        new Logger('PaymentsModule').warn(
-          'Payment gateway: MOCK — checkouts are simulated and webhooks are unauthenticated. Never use with real money.',
-        );
-        return new MockGateway();
-      },
-    },
-  ],
+  providers: [PaymentsService, PaymentsRepository],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

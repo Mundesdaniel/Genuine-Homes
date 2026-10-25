@@ -1090,6 +1090,151 @@ async function main(): Promise<void> {
   ];
   await prisma.notification.createMany({ data: notifications, skipDuplicates: true });
 
+  // ── Short-let (AirBnB) demo data ────────────────────────────────────────────
+  // Promote the demo agent to an AirBnB agent with an active subscription and one
+  // short-let listing (bookings + a blocked range) so the short-let dashboard
+  // shows real income/occupancy. Idempotent — guarded so re-seeding won't dupe.
+  const airbnbAgent = await prisma.user.findUnique({
+    where: { email: 'james.agent@example.ug' },
+  });
+  if (airbnbAgent) {
+    await prisma.user.update({
+      where: { id: airbnbAgent.id },
+      data: { role: 'airbnb_agent' },
+    });
+    const DAY = 86_400_000;
+    const midnight = new Date();
+    midnight.setUTCHours(0, 0, 0, 0);
+    const day = (n: number): Date => new Date(midnight.getTime() + n * DAY);
+
+    if (!(await prisma.subscription.findFirst({ where: { userId: airbnbAgent.id } }))) {
+      await prisma.subscription.create({
+        data: {
+          userId: airbnbAgent.id,
+          plan: 'airbnb_monthly',
+          status: 'active',
+          startsAt: day(-7),
+          expiresAt: day(60),
+        },
+      });
+    }
+
+    // A dedicated, browsable short-let property + listing owned by the agent, so
+    // an AirBnB listing actually shows up in search/browse (active + verified).
+    const shortLetPropId = uuid(600);
+    const shortLetListingId = uuid(601);
+    const shortLetProp = await prisma.property.upsert({
+      where: { id: shortLetPropId },
+      update: {},
+      create: {
+        id: shortLetPropId,
+        ownerId: airbnbAgent.id,
+        type: 'furnished_house',
+        title: 'Furnished Short-Let Apartment in Kololo',
+        description:
+          'Fully furnished 2-bedroom apartment for short stays — nightly rate, WiFi, backup power and secure parking. Great for business or leisure.',
+        district: 'Kampala',
+        city: 'Kampala',
+        area: 'Kololo',
+        sizeSqm: new Prisma.Decimal('95'),
+        bedrooms: 2,
+        bathrooms: 2,
+        amenities: { wifi: true, power: true, parking: true, furnished: true },
+        verificationStatus: 'verified',
+        status: 'active',
+      },
+    });
+    await setLocation(shortLetProp.id, 32.5955, 0.3365); // Kololo, Kampala
+    await prisma.propertyImage.upsert({
+      where: { id: uuid(602) },
+      update: {},
+      create: {
+        id: uuid(602),
+        propertyId: shortLetProp.id,
+        url: img(PHOTO.aptInterior),
+        position: 0,
+      },
+    });
+    // listingType stays `rent` (a valid category); isShortLet marks it AirBnB and
+    // `price` is the per-night rate.
+    await prisma.listing.upsert({
+      where: { id: shortLetListingId },
+      update: { isShortLet: true, isActive: true },
+      create: {
+        id: shortLetListingId,
+        propertyId: shortLetProp.id,
+        listingType: 'rent',
+        price: new Prisma.Decimal('150000'),
+        currency: 'UGX',
+        isActive: true,
+        isShortLet: true,
+      },
+    });
+
+    if (
+      (await prisma.shortLetBooking.count({ where: { listingId: shortLetListingId } })) === 0
+    ) {
+      await prisma.shortLetBooking.createMany({
+        data: [
+          {
+            listingId: shortLetListingId,
+            checkIn: day(-10),
+            checkOut: day(-7),
+            amount: '500000',
+            guestName: 'Past Guest',
+            status: 'booked',
+          },
+          {
+            listingId: shortLetListingId,
+            checkIn: day(2),
+            checkOut: day(5),
+            amount: '450000',
+            guestName: 'Jane Doe',
+            status: 'booked',
+          },
+          {
+            listingId: shortLetListingId,
+            checkIn: day(8),
+            checkOut: day(11),
+            amount: '600000',
+            guestName: 'Mark K.',
+            status: 'booked',
+          },
+        ],
+      });
+    }
+    if (
+      (await prisma.shortLetAvailabilityBlock.count({
+        where: { listingId: shortLetListingId },
+      })) === 0
+    ) {
+      await prisma.shortLetAvailabilityBlock.create({
+        data: {
+          listingId: shortLetListingId,
+          startDate: day(14),
+          endDate: day(16),
+          note: 'Maintenance',
+        },
+      });
+    }
+  }
+
+  // A pending subscription request so the admin queue isn't empty on a fresh seed.
+  const requester = await prisma.user.findUnique({ where: { email: 'brenda@gmail.com' } });
+  if (
+    requester &&
+    !(await prisma.subscriptionRequest.findFirst({ where: { userId: requester.id } }))
+  ) {
+    await prisma.subscriptionRequest.create({
+      data: {
+        userId: requester.id,
+        plan: 'airbnb_monthly',
+        message: 'I manage a few short-lets in Entebbe.',
+        status: 'pending',
+      },
+    });
+  }
+
   const totals = await prisma.$transaction([
     prisma.user.count(),
     prisma.property.count(),
@@ -1103,7 +1248,7 @@ async function main(): Promise<void> {
   );
   console.log('  Demo logins (all use the same dev password):');
   console.log('    admin@genuinehomes.ug      (admin)');
-  console.log('    james.agent@example.ug     (agent)');
+  console.log('    james.agent@example.ug     (airbnb agent — short-let dashboard)');
   console.log('    pearl@estates.ug           (manager)');
   console.log('    sarah.landlord@example.ug  (landlord)');
   console.log('    roro@gmail.com             (buyer — live installment plan)');

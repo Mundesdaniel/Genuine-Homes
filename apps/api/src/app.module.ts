@@ -25,6 +25,8 @@ import { PropertiesModule } from './properties/properties.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { RentalsModule } from './rentals/rentals.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { ShortLetModule } from './short-let/short-let.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 import { VerificationsModule } from './verifications/verifications.module';
@@ -51,9 +53,7 @@ import { VerificationsModule } from './verifications/verifications.module';
         const isProd = config.get('NODE_ENV', { infer: true }) === 'production';
         return {
           pinoHttp: {
-            level:
-              config.get('LOG_LEVEL', { infer: true }) ??
-              (isProd ? 'info' : 'debug'),
+            level: config.get('LOG_LEVEL', { infer: true }) ?? (isProd ? 'info' : 'debug'),
             // Reuse the correlation id minted by requestContextMiddleware.
             genReqId: (req) =>
               (req.headers['x-request-id'] as string | undefined) ?? randomUUID(),
@@ -100,6 +100,8 @@ import { VerificationsModule } from './verifications/verifications.module';
     AdminModule,
     ChatModule,
     BookingsModule,
+    SubscriptionsModule,
+    ShortLetModule,
     UploadsModule,
     HealthModule,
   ],

@@ -26,6 +26,8 @@ const user = (over: Partial<User> = {}): User =>
 
 describe('UsersService', () => {
   let repo: jest.Mocked<UsersRepository>;
+  let audit: { record: jest.Mock };
+  let auth: { adminCreateUser: jest.Mock };
   let service: UsersService;
 
   beforeEach(() => {
@@ -34,10 +36,18 @@ describe('UsersService', () => {
       update: jest.fn().mockResolvedValue(user({ fullName: 'Ada N.' })),
       list: jest.fn().mockResolvedValue([[user()], 1]),
     } as unknown as jest.Mocked<UsersRepository>;
-    const audit = {
-      record: jest.fn().mockResolvedValue(undefined),
-    } as unknown as import('../audit/audit.service').AuditService;
-    service = new UsersService(repo, audit);
+    audit = { record: jest.fn().mockResolvedValue(undefined) };
+    auth = {
+      adminCreateUser: jest.fn().mockResolvedValue({
+        user: { id: 'staff-1', role: 'agent' },
+        invitationLink: 'http://localhost:5173/reset-password?token=abc',
+      }),
+    };
+    service = new UsersService(
+      repo,
+      audit as unknown as import('../audit/audit.service').AuditService,
+      auth as unknown as import('../auth/auth.service').AuthService,
+    );
   });
 
   it('returns the current profile', async () => {
@@ -49,7 +59,10 @@ describe('UsersService', () => {
 
   it('updates the profile', async () => {
     const profile = await service.updateMe(self, { fullName: 'Ada N.' });
-    expect(repo.update).toHaveBeenCalledWith('user-1', { fullName: 'Ada N.', email: undefined });
+    expect(repo.update).toHaveBeenCalledWith('user-1', {
+      fullName: 'Ada N.',
+      email: undefined,
+    });
     expect(profile.fullName).toBe('Ada N.');
   });
 
@@ -57,15 +70,18 @@ describe('UsersService', () => {
     repo.update.mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError('dup', { code: 'P2002', clientVersion: '6' }),
     );
-    await expect(service.updateMe(self, { email: 'taken@example.com' })).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      service.updateMe(self, { email: 'taken@example.com' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('lets an admin change another user role', async () => {
     repo.update.mockResolvedValue(user({ role: 'agent' }));
     const result = await service.adminUpdate(admin, 'user-1', { role: UserRole.AGENT });
-    expect(repo.update).toHaveBeenCalledWith('user-1', { role: 'agent', isVerified: undefined });
+    expect(repo.update).toHaveBeenCalledWith('user-1', {
+      role: 'agent',
+      isVerified: undefined,
+    });
     expect(result.role).toBe('agent');
   });
 
@@ -80,5 +96,26 @@ describe('UsersService', () => {
     await expect(
       service.adminUpdate(admin, 'ghost', { isVerified: true }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('admin creates a staff account and records an audit entry', async () => {
+    const dto = {
+      fullName: 'Grace',
+      phone: '+256700000010',
+      role: UserRole.AGENT,
+    } as unknown as import('./dto/create-staff-user.dto').CreateStaffUserDto;
+
+    const result = await service.adminCreate(admin, dto);
+
+    expect(auth.adminCreateUser).toHaveBeenCalledWith(dto);
+    expect(result.user.role).toBe('agent');
+    expect(result.invitationLink).toContain('/reset-password?token=');
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorId: admin.id,
+        action: 'user.admin_created',
+        entityId: 'staff-1',
+      }),
+    );
   });
 });

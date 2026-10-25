@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { hash as argonHash, verify as argonVerify } from '@node-rs/argon2';
 import {
   BadRequestException,
@@ -11,9 +12,12 @@ import type { User } from '@prisma/client';
 import {
   type AuthResponse,
   type AuthUser,
+  type CreateStaffUserInput,
   NotificationType,
+  type StaffUserCreatedResponse,
   UserRole,
 } from '@genuine-homes/shared';
+import { mapUserProfile } from '../common/mappers';
 import type { Env } from '../config/env.validation';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuthRepository } from './auth.repository';
@@ -26,6 +30,9 @@ import { TokenService } from './token.service';
 
 /** How long a password-reset link stays valid. */
 const RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+
+/** How long a staff set-password invitation link stays valid (7 days). */
+const INVITE_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -56,16 +63,59 @@ export class AuthService {
     }
 
     const passwordHash = await argonHash(dto.password);
+    // Self-registration always creates a plain user. Any `role` on the request is
+    // ignored here — elevated roles (agent/landlord/manager) are invite-only and
+    // created by an admin via adminCreateUser.
     const user = await this.repo.createUser({
       fullName: dto.fullName.trim(),
       phone,
       email,
       passwordHash,
-      role: dto.role ?? UserRole.USER,
+      role: UserRole.USER,
     });
 
     this.logger.log(`Registered user ${user.id} (${user.role})`);
     return this.issueSession(user);
+  }
+
+  /**
+   * Admin-only: create a staff account (agent/landlord/manager) directly. The
+   * account gets a random, unknowable password; the recipient sets their own via
+   * a single-use invitation link built on the same machinery as a password reset
+   * (longer-lived). The project has no email service, so the link is returned to
+   * the caller to deliver out-of-band rather than being sent automatically.
+   *
+   * The role is constrained to the staff roles by validation upstream — this
+   * endpoint can never mint a `user` (that's self-registration) or an `admin`.
+   */
+  async adminCreateUser(dto: CreateStaffUserInput): Promise<StaffUserCreatedResponse> {
+    const phone = dto.phone.trim();
+    const email = dto.email?.trim().toLowerCase() ?? null;
+
+    if (await this.repo.phoneExists(phone)) {
+      throw new ConflictException('Phone number is already registered');
+    }
+    if (email && (await this.repo.emailExists(email))) {
+      throw new ConflictException('Email is already registered');
+    }
+
+    // A random password the recipient never learns — they set their own via the
+    // invitation link, so the account is never usable with this placeholder.
+    const passwordHash = await argonHash(randomBytes(32).toString('base64url'));
+    const user = await this.repo.createUser({
+      fullName: dto.fullName.trim(),
+      phone,
+      email,
+      passwordHash,
+      role: dto.role,
+    });
+
+    const { token, tokenHash, expiresAt } = this.tokens.mintResetToken(INVITE_TOKEN_TTL_MS);
+    await this.repo.createResetToken({ userId: user.id, tokenHash, expiresAt });
+    const invitationLink = `${this.webOrigin()}/reset-password?token=${token}`;
+
+    this.logger.log(`Admin created ${user.role} account ${user.id}`);
+    return { user: mapUserProfile(user), invitationLink };
   }
 
   // Verify credentials and start a session. Errors are deliberately generic.

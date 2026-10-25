@@ -1,19 +1,10 @@
-import {
-  BadGatewayException,
-  ForbiddenException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Payment } from '@prisma/client';
-import { PaymentStatus, UserRole } from '@genuine-homes/shared';
+import { PaymentProvider, PaymentStatus, UserRole } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { PaymentsService } from './payments.service';
 import type { PaymentsRepository } from './payments.repository';
-import type {
-  PaymentGateway,
-  WebhookEvent,
-} from './gateway/payment-gateway.interface';
 import type { InitiatePaymentDto } from './dto/initiate-payment.dto';
 
 const owner: AuthenticatedUser = { id: 'user-1', role: UserRole.USER };
@@ -27,7 +18,7 @@ const fakePayment = (over: Partial<Payment> = {}): Payment =>
     referenceId: null,
     amount: new Prisma.Decimal('1500000'),
     currency: 'UGX',
-    provider: 'mtn_momo',
+    provider: 'cash',
     providerRef: null,
     status: 'pending',
     createdAt: new Date(),
@@ -35,48 +26,17 @@ const fakePayment = (over: Partial<Payment> = {}): Payment =>
     ...over,
   }) as unknown as Payment;
 
-// Configurable in-test gateway.
-class FakeGateway implements PaymentGateway {
-  readonly name = 'fake';
-  signatureOk = true;
-  event: WebhookEvent | null = {
-    txRef: 'pay-1',
-    providerRef: 'flw_1',
-    status: PaymentStatus.SUCCESSFUL,
-  };
-  throwOnInitiate = false;
-  async initiate() {
-    if (this.throwOnInitiate) throw new Error('gateway down');
-    return { providerRef: null, redirectUrl: 'https://checkout.test/pay-1' };
-  }
-  verifySignature() {
-    return this.signatureOk;
-  }
-  parseWebhook() {
-    return this.event;
-  }
-}
-
-// Gateway that also re-verifies transactions server-to-server (like Flutterwave).
-class VerifyingGateway extends FakeGateway {
-  verified: import('./gateway/payment-gateway.interface').VerifiedTransaction | null = {
-    txRef: 'pay-1',
-    status: PaymentStatus.SUCCESSFUL,
-    amount: 1_500_000,
-    currency: 'UGX',
-  };
-  verifyTransaction = jest.fn(async () => this.verified);
-}
-
+// Cash-only: online gateways are disabled, so the DTO only ever carries `cash`.
 const dto: InitiatePaymentDto = {
   purpose: 'deposit',
   amount: 1_500_000,
-  provider: 'mtn_momo',
+  provider: PaymentProvider.CASH,
 } as InitiatePaymentDto;
 
 describe('PaymentsService', () => {
   let repo: jest.Mocked<PaymentsRepository>;
-  let gateway: FakeGateway;
+  let events: { emit: jest.Mock };
+  let audit: { record: jest.Mock };
   let service: PaymentsService;
 
   beforeEach(() => {
@@ -84,121 +44,91 @@ describe('PaymentsService', () => {
       create: jest.fn().mockResolvedValue(fakePayment()),
       findById: jest.fn().mockResolvedValue(fakePayment()),
       listByUser: jest.fn().mockResolvedValue([[fakePayment()], 1]),
-      setProviderRef: jest.fn().mockResolvedValue(undefined),
-      markFailed: jest.fn().mockResolvedValue(undefined),
       settle: jest.fn().mockResolvedValue(true),
+      findPaymentOwner: jest.fn().mockResolvedValue(owner.id),
       findUser: jest.fn().mockResolvedValue({
         fullName: 'David Okello',
         email: null,
         phone: '+256700000003',
       }),
     } as unknown as jest.Mocked<PaymentsRepository>;
-    gateway = new FakeGateway();
-    const events = { emit: jest.fn() } as unknown as import('@nestjs/event-emitter').EventEmitter2;
-    const audit = {
-      record: jest.fn().mockResolvedValue(undefined),
-    } as unknown as import('../audit/audit.service').AuditService;
-    service = new PaymentsService(repo, gateway, events, audit);
+    events = { emit: jest.fn() };
+    audit = { record: jest.fn().mockResolvedValue(undefined) };
+    service = new PaymentsService(
+      repo,
+      events as unknown as import('@nestjs/event-emitter').EventEmitter2,
+      audit as unknown as import('../audit/audit.service').AuditService,
+    );
   });
 
   describe('initiate', () => {
-    it('creates a pending ledger row and returns the checkout URL', async () => {
+    it('creates a pending cash row and returns no redirect URL', async () => {
       const result = await service.initiate(owner, dto);
       expect(repo.create).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: owner.id, purpose: 'deposit', amount: 1_500_000 }),
+        expect.objectContaining({
+          userId: owner.id,
+          purpose: 'deposit',
+          amount: 1_500_000,
+          provider: PaymentProvider.CASH,
+        }),
       );
-      expect(result.redirectUrl).toBe('https://checkout.test/pay-1');
+      expect(result.redirectUrl).toBeNull();
       expect(result.payment.id).toBe('pay-1');
-    });
-
-    it('marks the payment failed and throws if the gateway errors', async () => {
-      gateway.throwOnInitiate = true;
-      await expect(service.initiate(owner, dto)).rejects.toBeInstanceOf(
-        BadGatewayException,
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({ action: 'payment.cash_pending', entityId: 'pay-1' }),
       );
-      expect(repo.markFailed).toHaveBeenCalledWith('pay-1');
     });
 
     it('404s when the account does not exist', async () => {
       repo.findUser.mockResolvedValue(null);
-      await expect(service.initiate(owner, dto)).rejects.toBeInstanceOf(
+      await expect(service.initiate(owner, dto)).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('confirmCash', () => {
+    it('settles a pending cash payment and announces success (owner)', async () => {
+      const res = await service.confirmCash(owner, 'pay-1');
+      expect(repo.settle).toHaveBeenCalledWith(
+        'pay-1',
+        'cash_pay-1',
+        PaymentStatus.SUCCESSFUL,
+      );
+      expect(events.emit).toHaveBeenCalled();
+      expect(res.id).toBe('pay-1');
+    });
+
+    it('lets an admin confirm without owning the property', async () => {
+      await expect(service.confirmCash(admin, 'pay-1')).resolves.toBeDefined();
+      expect(repo.findPaymentOwner).not.toHaveBeenCalled();
+    });
+
+    it('forbids a non-owner, non-admin from confirming', async () => {
+      repo.findPaymentOwner.mockResolvedValue('someone-else');
+      await expect(service.confirmCash(owner, 'pay-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(repo.settle).not.toHaveBeenCalled();
+    });
+
+    it('rejects a payment that is not cash', async () => {
+      repo.findById.mockResolvedValue(fakePayment({ provider: 'mtn_momo' }));
+      await expect(service.confirmCash(owner, 'pay-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('rejects a payment that is already settled', async () => {
+      repo.findById.mockResolvedValue(fakePayment({ status: 'successful' }));
+      await expect(service.confirmCash(owner, 'pay-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+
+    it('404s when the payment does not exist', async () => {
+      repo.findById.mockResolvedValue(null);
+      await expect(service.confirmCash(owner, 'pay-1')).rejects.toBeInstanceOf(
         NotFoundException,
       );
-    });
-  });
-
-  describe('handleWebhook', () => {
-    it('rejects an invalid signature', async () => {
-      gateway.signatureOk = false;
-      await expect(service.handleWebhook({}, {})).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
-      expect(repo.settle).not.toHaveBeenCalled();
-    });
-
-    it('settles a pending payment from a valid webhook', async () => {
-      const res = await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(repo.settle).toHaveBeenCalledWith('pay-1', 'flw_1', PaymentStatus.SUCCESSFUL);
-      expect(res).toEqual({ received: true });
-    });
-
-    it('is idempotent — a duplicate webhook is a no-op', async () => {
-      repo.settle.mockResolvedValue(false); // already settled
-      const res = await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(res).toEqual({ received: true });
-    });
-
-    it('ignores an unrecognised payload', async () => {
-      gateway.event = null;
-      const res = await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(repo.settle).not.toHaveBeenCalled();
-      expect(res).toEqual({ received: true });
-    });
-  });
-
-  describe('handleWebhook with server-to-server verification', () => {
-    let verifying: VerifyingGateway;
-    let audit: { record: jest.Mock };
-
-    beforeEach(() => {
-      verifying = new VerifyingGateway();
-      audit = { record: jest.fn().mockResolvedValue(undefined) };
-      const events = { emit: jest.fn() } as unknown as import('@nestjs/event-emitter').EventEmitter2;
-      service = new PaymentsService(
-        repo,
-        verifying,
-        events,
-        audit as unknown as import('../audit/audit.service').AuditService,
-      );
-    });
-
-    it('settles when the provider API confirms amount, currency and tx_ref', async () => {
-      const res = await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(verifying.verifyTransaction).toHaveBeenCalledWith('flw_1');
-      expect(repo.settle).toHaveBeenCalledWith('pay-1', 'flw_1', PaymentStatus.SUCCESSFUL);
-      expect(res).toEqual({ received: true });
-    });
-
-    it('refuses to settle when the verified amount is lower than the ledger amount', async () => {
-      verifying.verified = { ...verifying.verified!, amount: 100 };
-      await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(repo.settle).not.toHaveBeenCalled();
-      expect(audit.record).toHaveBeenCalledWith(
-        expect.objectContaining({ action: 'payment.verification_mismatch', entityId: 'pay-1' }),
-      );
-    });
-
-    it('refuses to settle when the provider API cannot confirm the transaction', async () => {
-      verifying.verified = null;
-      await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(repo.settle).not.toHaveBeenCalled();
-    });
-
-    it('does not call the verify API for failure webhooks', async () => {
-      verifying.event = { txRef: 'pay-1', providerRef: 'flw_1', status: PaymentStatus.FAILED };
-      await service.handleWebhook({ 'verif-hash': 'x' }, {});
-      expect(verifying.verifyTransaction).not.toHaveBeenCalled();
-      expect(repo.settle).toHaveBeenCalledWith('pay-1', 'flw_1', PaymentStatus.FAILED);
     });
   });
 
@@ -213,18 +143,14 @@ describe('PaymentsService', () => {
       await expect(service.getOne(admin, 'pay-1')).resolves.toBeDefined();
     });
 
-    it('forbids reading someone else\'s payment', async () => {
+    it("forbids reading someone else's payment", async () => {
       repo.findById.mockResolvedValue(fakePayment({ userId: 'someone-else' }));
-      await expect(service.getOne(owner, 'pay-1')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(service.getOne(owner, 'pay-1')).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('404s when missing', async () => {
       repo.findById.mockResolvedValue(null);
-      await expect(service.getOne(owner, 'pay-1')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.getOne(owner, 'pay-1')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

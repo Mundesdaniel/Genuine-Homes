@@ -27,6 +27,9 @@ export {
   RentalAgreementStatus,
   NotificationType,
   BookingStatus,
+  SubscriptionStatus,
+  SubscriptionRequestStatus,
+  ShortLetBookingStatus,
   enumValues,
 } from './enums';
 
@@ -45,6 +48,7 @@ export {
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export {
   SELF_ASSIGNABLE_ROLES,
+  STAFF_ASSIGNABLE_ROLES,
   phoneSchema,
   passwordSchema,
   registerSchema,
@@ -57,6 +61,7 @@ export {
 } from './schemas/auth';
 export type {
   SelfAssignableRole,
+  StaffAssignableRole,
   RegisterInput,
   RegisterRequest,
   LoginInput,
@@ -170,10 +175,16 @@ export type {
 } from './schemas/identity';
 
 // ── Users ─────────────────────────────────────────────────────────────────────
-export { updateProfileSchema, adminUpdateUserSchema } from './schemas/user';
+export {
+  updateProfileSchema,
+  adminUpdateUserSchema,
+  createStaffUserSchema,
+} from './schemas/user';
 export type {
   UpdateProfileInput,
   AdminUpdateUserInput,
+  CreateStaffUserInput,
+  StaffUserCreatedResponse,
   UserProfileResponse,
 } from './schemas/user';
 
@@ -191,3 +202,34 @@ export type {
   DeclineBookingInput,
   BookingResponse,
 } from './schemas/booking';
+
+// ── Subscriptions (AirBnB agent) ───────────────────────────────────────────────
+export {
+  SUBSCRIPTION,
+  recordSubscriptionPaymentSchema,
+  createSubscriptionRequestSchema,
+  approveSubscriptionRequestSchema,
+} from './schemas/subscription';
+export type {
+  RecordSubscriptionPaymentInput,
+  SubscriptionResponse,
+  CreateSubscriptionRequestInput,
+  ApproveSubscriptionRequestInput,
+  SubscriptionRequestResponse,
+} from './schemas/subscription';
+
+// ── Short-let (AirBnB) dashboard ────────────────────────────────────────────────
+export {
+  SHORT_LET,
+  createShortLetBookingSchema,
+  createAvailabilityBlockSchema,
+} from './schemas/short-let';
+export type {
+  CreateShortLetBookingInput,
+  CreateAvailabilityBlockInput,
+  ShortLetBookingResponse,
+  ShortLetAvailabilityBlockResponse,
+  ShortLetListingSummary,
+  SelectableListing,
+  ShortLetDashboardResponse,
+} from './schemas/short-let';

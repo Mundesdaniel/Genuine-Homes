@@ -1,8 +1,14 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { UserRole } from '@genuine-homes/shared';
+import { AdminLayout } from '@/components/AdminLayout';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { AdminPage } from '@/pages/AdminPage';
+import { SubscriptionGate } from '@/components/SubscriptionGate';
+import { AdminOverview } from '@/pages/admin/AdminOverview';
+import { AdminSubscriptions } from '@/pages/admin/AdminSubscriptions';
+import { AdminUsers } from '@/pages/admin/AdminUsers';
+import { IdentityQueue } from '@/pages/admin/IdentityQueue';
+import { VerificationQueue } from '@/pages/admin/VerificationQueue';
 import { BookingsPage } from '@/pages/BookingsPage';
 import { ChatPage } from '@/pages/ChatPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -13,12 +19,12 @@ import { IdentityVerificationPage } from '@/pages/IdentityVerificationPage';
 import { ListingDetailPage } from '@/pages/ListingDetailPage';
 import { PaymentsPage } from '@/pages/PaymentsPage';
 import { LoginPage } from '@/pages/LoginPage';
-import { MockCheckoutPage } from '@/pages/MockCheckoutPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { PaymentReturnPage } from '@/pages/PaymentReturnPage';
 import { PlanDetailPage } from '@/pages/PlanDetailPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage';
+import { ShortLetDashboardPage } from '@/pages/ShortLetDashboardPage';
 
 export default function App() {
   return (
@@ -79,10 +85,14 @@ export default function App() {
           }
         />
         <Route
-          path="admin"
+          path="short-let"
           element={
-            <ProtectedRoute requireRole={UserRole.ADMIN}>
-              <AdminPage />
+            // airbnb_agent role (server + client) AND an active subscription
+            // (SubscriptionGate shows a "Renew to access" screen otherwise).
+            <ProtectedRoute requireRole={UserRole.AIRBNB_AGENT}>
+              <SubscriptionGate>
+                <ShortLetDashboardPage />
+              </SubscriptionGate>
             </ProtectedRoute>
           }
         />
@@ -102,15 +112,27 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="payments/mock-checkout/:paymentId"
-          element={
-            <ProtectedRoute>
-              <MockCheckoutPage />
-            </ProtectedRoute>
-          }
-        />
         <Route path="*" element={<NotFoundPage />} />
+      </Route>
+
+      {/* Admin section — its own AdminLayout (sidebar, no user header/footer),
+          guarded once for the whole subtree. /admin keeps working (→ overview).
+          Non-admins are bounced to home; signed-out users to /login. */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requireRole={UserRole.ADMIN}>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminOverview />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="verifications" element={<VerificationQueue />} />
+        <Route path="identity" element={<IdentityQueue />} />
+        <Route path="subscriptions" element={<AdminSubscriptions />} />
+        {/* Unknown /admin/* path → overview. */}
+        <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
     </Routes>
   );

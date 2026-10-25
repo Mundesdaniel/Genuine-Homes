@@ -2,14 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional, IsUrl, Matches } from 'class-validator';
 import {
   PaymentProvider,
-  enumValues,
   type PaymentProvider as PaymentProviderValue,
 } from '@genuine-homes/shared';
 
-/** Choose how to pay a month's rent. Mirrors `payViaSchema`. */
+/** Pay a month's rent. Cash-only. Mirrors `payViaSchema`. */
 export class PayRentDto {
-  @ApiProperty({ enum: enumValues(PaymentProvider) })
-  @IsIn(enumValues(PaymentProvider))
+  // Cash-only: online gateways are disabled, so cash is the only accepted method.
+  @ApiProperty({ enum: [PaymentProvider.CASH], description: 'Payment method (cash only)' })
+  @IsIn([PaymentProvider.CASH], { message: 'Only cash payments are accepted' })
   provider!: PaymentProviderValue;
 
   @ApiPropertyOptional({ example: '+256700000000' })
