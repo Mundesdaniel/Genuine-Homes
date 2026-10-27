@@ -1,10 +1,13 @@
 import {
   BadgeCheck,
+  Building2,
   CreditCard,
   Fingerprint,
+  Handshake,
   Home,
   LayoutDashboard,
   LogOut,
+  UserCheck,
   Users,
 } from 'lucide-react';
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
@@ -13,6 +16,9 @@ import { useAuthStore } from '@/store/authStore';
 
 const NAV = [
   { to: '/admin', label: 'Overview', icon: LayoutDashboard, end: true },
+  { to: '/admin/agents', label: 'Agents', icon: UserCheck, end: false },
+  { to: '/admin/properties', label: 'Properties', icon: Building2, end: false },
+  { to: '/admin/deals', label: 'Deals', icon: Handshake, end: false },
   { to: '/admin/users', label: 'Users', icon: Users, end: false },
   { to: '/admin/verifications', label: 'Verifications', icon: BadgeCheck, end: false },
   { to: '/admin/identity', label: 'Identity checks', icon: Fingerprint, end: false },
