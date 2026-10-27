@@ -178,17 +178,17 @@ describe('InstallmentsService', () => {
 
     it('rejects buying your own property', async () => {
       await expect(
-        service.createPlan({ id: OWNER_ID, role: UserRole.LANDLORD }, dto()),
+        service.createPlan({ id: OWNER_ID, role: UserRole.AGENT }, dto()),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
-  describe('accept / decline (landlord approval)', () => {
+  describe('accept / decline (owner approval)', () => {
     const requested = {
       ...plan({ status: 'pending_approval' }),
       listing: { property: { ownerId: OWNER_ID } },
     };
-    const owner: AuthenticatedUser = { id: OWNER_ID, role: UserRole.LANDLORD };
+    const owner: AuthenticatedUser = { id: OWNER_ID, role: UserRole.AGENT };
 
     it('accepts a requested plan → pending_deposit', async () => {
       repo.findPlanWithOwner.mockResolvedValue(requested);

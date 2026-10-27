@@ -188,7 +188,7 @@ describe('AuthService', () => {
 
     // Security: self-registration can never grant an elevated role, even if a
     // client hand-crafts a request with role=agent/admin. The service ignores it.
-    it.each([UserRole.AGENT, UserRole.LANDLORD, UserRole.MANAGER, UserRole.ADMIN])(
+    it.each([UserRole.AGENT, UserRole.MANAGER, UserRole.ADMIN])(
       'ignores a self-assigned %s role and still creates a plain user',
       async (role) => {
         const res = await service.register({

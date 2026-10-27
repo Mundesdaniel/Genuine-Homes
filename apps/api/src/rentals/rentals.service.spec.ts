@@ -13,7 +13,7 @@ import type { AgreementWithOwner, RentListing, RentalsRepository } from './renta
 import { RentalsService } from './rentals.service';
 
 const tenant: AuthenticatedUser = { id: 'tenant-1', role: UserRole.USER };
-const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.LANDLORD };
+const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.AGENT };
 
 const rentListing = (over: Partial<RentListing> = {}): RentListing =>
   ({

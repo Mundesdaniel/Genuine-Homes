@@ -1,10 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type {
-  Paginated,
-  ReviewResponse,
-  ReviewSummary,
-} from '@genuine-homes/shared';
+import type { Paginated, ReviewResponse, ReviewSummary } from '@genuine-homes/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
@@ -19,7 +15,7 @@ export class ReviewsController {
 
   @Post()
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Review an agent/landlord (one per person; re-submitting updates it)' })
+  @ApiOperation({ summary: 'Review an agent (one per person; re-submitting updates it)' })
   submit(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateReviewDto,
@@ -40,9 +36,7 @@ export class ReviewsController {
   @Public()
   @Get('users/:userId/summary')
   @ApiOperation({ summary: 'Average rating + review count for a user' })
-  summary(
-    @Param('userId', ParseUUIDPipe) userId: string,
-  ): Promise<ReviewSummary> {
+  summary(@Param('userId', ParseUUIDPipe) userId: string): Promise<ReviewSummary> {
     return this.reviews.summary(userId);
   }
 }

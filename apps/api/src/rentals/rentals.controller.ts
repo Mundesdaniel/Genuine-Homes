@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type {
   Paginated,
@@ -47,7 +39,7 @@ export class RentalsController {
 
   @Get('incoming')
   @ApiBearerAuth()
-  @ApiOperation({ summary: "List agreements on your listings (landlord view)" })
+  @ApiOperation({ summary: 'List agreements on your listings (owner view)' })
   listIncoming(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: PaginationQueryDto,
@@ -68,7 +60,7 @@ export class RentalsController {
 
   @Post(':id/terminate')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'End an agreement early (tenant, landlord, or admin)' })
+  @ApiOperation({ summary: 'End an agreement early (tenant, owner, or admin)' })
   terminate(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

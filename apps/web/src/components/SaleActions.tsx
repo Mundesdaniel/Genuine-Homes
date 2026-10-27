@@ -12,7 +12,7 @@ import { useAuthStore } from '@/store/authStore';
 
 /**
  * Buyer actions for a for-sale listing: pay the full price at once, or request
- * an installment plan. A requested plan isn't payable until the landlord accepts
+ * an installment plan. A requested plan isn't payable until the owner accepts
  * it — so this offers both, the buyer's choice, on any for-sale property.
  */
 export function SaleActions({ listing }: { listing: ListingSearchItem }) {

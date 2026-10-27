@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { Property } from '@prisma/client';
 import { PropertyStatus, UserRole } from '@genuine-homes/shared';
@@ -12,9 +8,9 @@ import { PropertiesService } from './properties.service';
 import type { PropertiesRepository } from './properties.repository';
 import type { CreatePropertyDto } from './dto/create-property.dto';
 
-const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.LANDLORD };
+const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.AGENT };
 const admin: AuthenticatedUser = { id: 'admin-1', role: UserRole.ADMIN };
-const stranger: AuthenticatedUser = { id: 'other-1', role: UserRole.LANDLORD };
+const stranger: AuthenticatedUser = { id: 'other-1', role: UserRole.AGENT };
 
 // A bare Prisma Property row (no PostGIS column — Prisma omits it).
 const fakeProperty = (overrides: Partial<Property> = {}): Property =>
@@ -27,6 +23,9 @@ const fakeProperty = (overrides: Partial<Property> = {}): Property =>
     district: 'Kampala',
     city: 'Kampala',
     area: null,
+    contactName: null,
+    landlordName: 'Moses Kato',
+    landlordImageUrl: null,
     sizeSqm: null,
     bedrooms: 3,
     bathrooms: 2,
@@ -45,6 +44,7 @@ const baseDto: CreatePropertyDto = {
   description: 'A nice house with space',
   district: 'Kampala',
   city: 'Kampala',
+  landlordName: 'Moses Kato',
 };
 
 describe('PropertiesService', () => {
@@ -113,9 +113,9 @@ describe('PropertiesService', () => {
 
     it('404s when the property is missing', async () => {
       repo.findById.mockResolvedValue(null);
-      await expect(
-        service.update(owner, 'prop-1', { title: 'x' }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.update(owner, 'prop-1', { title: 'x' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
     });
 
     it('lets an owner mark a property taken by hand (only active is gated)', async () => {
@@ -171,9 +171,9 @@ describe('PropertiesService', () => {
     it('404s when the image is not on the property', async () => {
       repo.findById.mockResolvedValue(fakeProperty());
       repo.findImage.mockResolvedValue(null);
-      await expect(
-        service.removeImage(owner, 'prop-1', 'img-1'),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.removeImage(owner, 'prop-1', 'img-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
       expect(repo.removeImage).not.toHaveBeenCalled();
     });
   });

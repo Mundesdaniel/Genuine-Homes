@@ -26,7 +26,6 @@ datasource db {
 
 enum UserRole {
   user
-  landlord
   agent
   airbnb_agent
   manager
@@ -260,10 +259,14 @@ model Property {
   district    String
   city        String
   area        String?
-  // Public "listed by" contact — the landlord/agent/owner name shown on the
-  // listing. Defaults to the poster's account name but is editable (e.g. an
-  // agent listing on behalf of a landlord).
+  // Public "listed by" contact — the agent/owner name shown on the listing.
+  // Defaults to the poster's account name but is editable.
   contactName String?      @map("contact_name")
+  // The landlord / land-owner this property belongs to. The agent is the
+  // intermediary (owner of this record); the landlord is not a platform user and
+  // is never contacted directly — only their name (+ optional photo) is shown.
+  landlordName     String  @map("landlord_name")
+  landlordImageUrl String? @map("landlord_image_url")
   // PostGIS point (lng,lat) in WGS84 (SRID 4326). Nullable until geocoded.
   location    Unsupported("geography(Point, 4326)")?
   sizeSqm     Decimal?     @map("size_sqm") @db.Decimal(12, 2)

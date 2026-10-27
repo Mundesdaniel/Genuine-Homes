@@ -2,9 +2,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString, IsUUID, Max, MaxLength, Min } from 'class-validator';
 import { REVIEW } from '@genuine-homes/shared';
 
-/** Create or update a review for an agent/landlord. Mirrors `createReviewSchema`. */
+/** Create or update a review for an agent. Mirrors `createReviewSchema`. */
 export class CreateReviewDto {
-  @ApiProperty({ description: 'The user (agent/landlord) being reviewed' })
+  @ApiProperty({ description: 'The user (agent) being reviewed' })
   @IsUUID()
   targetId!: string;
 

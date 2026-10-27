@@ -64,7 +64,7 @@ export class AuthService {
 
     const passwordHash = await argonHash(dto.password);
     // Self-registration always creates a plain user. Any `role` on the request is
-    // ignored here — elevated roles (agent/landlord/manager) are invite-only and
+    // ignored here — elevated roles (agent/manager) are invite-only and
     // created by an admin via adminCreateUser.
     const user = await this.repo.createUser({
       fullName: dto.fullName.trim(),
@@ -79,7 +79,7 @@ export class AuthService {
   }
 
   /**
-   * Admin-only: create a staff account (agent/landlord/manager) directly. The
+   * Admin-only: create a staff account (agent/manager) directly. The
    * account gets a random, unknowable password; the recipient sets their own via
    * a single-use invitation link built on the same machinery as a password reset
    * (longer-lived). The project has no email service, so the link is returned to

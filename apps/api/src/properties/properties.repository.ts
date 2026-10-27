@@ -14,6 +14,8 @@ export interface PropertyWriteData {
   city: string;
   area: string | null;
   contactName: string | null;
+  landlordName: string;
+  landlordImageUrl: string | null;
   sizeSqm: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -48,6 +50,8 @@ export class PropertiesRepository {
           city: data.city,
           area: data.area,
           contactName: data.contactName,
+          landlordName: data.landlordName,
+          landlordImageUrl: data.landlordImageUrl,
           sizeSqm: data.sizeSqm,
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
@@ -128,11 +132,7 @@ export class PropertiesRepository {
     return (_max.position ?? -1) + 1;
   }
 
-  addImage(
-    propertyId: string,
-    url: string,
-    position: number,
-  ): Promise<PropertyImage> {
+  addImage(propertyId: string, url: string, position: number): Promise<PropertyImage> {
     return this.prisma.propertyImage.create({
       data: { propertyId, url, position },
     });
@@ -185,9 +185,7 @@ export class PropertiesRepository {
   }
 
   // Map the domain write shape onto Prisma's input (JSON cast, undefined skips).
-  private toPrismaData(
-    data: Partial<PropertyWriteData>,
-  ): Prisma.PropertyUncheckedUpdateInput {
+  private toPrismaData(data: Partial<PropertyWriteData>): Prisma.PropertyUncheckedUpdateInput {
     return {
       type: data.type,
       title: data.title,
@@ -196,13 +194,13 @@ export class PropertiesRepository {
       city: data.city,
       area: data.area,
       contactName: data.contactName,
+      landlordName: data.landlordName,
+      landlordImageUrl: data.landlordImageUrl,
       sizeSqm: data.sizeSqm,
       bedrooms: data.bedrooms,
       bathrooms: data.bathrooms,
       amenities:
-        data.amenities !== undefined
-          ? (data.amenities as Prisma.InputJsonValue)
-          : undefined,
+        data.amenities !== undefined ? (data.amenities as Prisma.InputJsonValue) : undefined,
       status: data.status,
     };
   }
