@@ -75,12 +75,16 @@ export class BookingsRepository {
     ]);
   }
 
+  // Viewing requests the user handles: ones on properties they own, plus ones on
+  // properties where they're an assigned agent (a manager's apartment, e.g.).
   listByOwner(
-    ownerId: string,
+    userId: string,
     skip: number,
     take: number,
   ): Promise<[BookingWithRelations[], number]> {
-    const where: Prisma.BookingWhereInput = { ownerId };
+    const where: Prisma.BookingWhereInput = {
+      OR: [{ ownerId: userId }, { property: { assignments: { some: { agentId: userId } } } }],
+    };
     return this.prisma.$transaction([
       this.prisma.booking.findMany({
         where,
@@ -154,10 +158,27 @@ export class BookingsRepository {
   // Narrowed lookup for authorization checks (no relations needed).
   findOwnership(
     id: string,
-  ): Promise<Pick<Booking, 'id' | 'buyerId' | 'ownerId' | 'status'> | null> {
+  ): Promise<Pick<Booking, 'id' | 'buyerId' | 'ownerId' | 'propertyId' | 'status'> | null> {
     return this.prisma.booking.findUnique({
       where: { id },
-      select: { id: true, buyerId: true, ownerId: true, status: true },
+      select: { id: true, buyerId: true, ownerId: true, propertyId: true, status: true },
     });
+  }
+
+  // Whether a user is an agent assigned to a property (can handle its viewings).
+  async isAssignedAgent(propertyId: string, userId: string): Promise<boolean> {
+    const count = await this.prisma.propertyAssignment.count({
+      where: { propertyId, agentId: userId },
+    });
+    return count > 0;
+  }
+
+  // Ids of agents assigned to a property — notified alongside the owner.
+  async assignedAgentIds(propertyId: string): Promise<string[]> {
+    const rows = await this.prisma.propertyAssignment.findMany({
+      where: { propertyId },
+      select: { agentId: true },
+    });
+    return rows.map((r) => r.agentId);
   }
 }

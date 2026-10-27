@@ -1,9 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { Listing, Property, PropertyImage } from '@prisma/client';
+import type { Listing, Property, PropertyImage, User } from '@prisma/client';
 import type { PropertyStatus, PropertyType } from '@genuine-homes/shared';
 import type { Coords } from '../common/mappers';
 import { PrismaService } from '../prisma/prisma.service';
+
+// An assignment row plus the assigned agent's public details.
+const assignmentWithAgent = {
+  agent: {
+    select: { id: true, fullName: true, phone: true, email: true, role: true },
+  },
+} satisfies Prisma.PropertyAssignmentInclude;
+export type AssignmentWithAgent = Prisma.PropertyAssignmentGetPayload<{
+  include: typeof assignmentWithAgent;
+}>;
 
 // Scalar fields the service sends in; `null` clears an optional column.
 export interface PropertyWriteData {
@@ -16,6 +26,7 @@ export interface PropertyWriteData {
   contactName: string | null;
   landlordName: string;
   landlordImageUrl: string | null;
+  unitCount: number | null;
   sizeSqm: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -52,6 +63,7 @@ export class PropertiesRepository {
           contactName: data.contactName,
           landlordName: data.landlordName,
           landlordImageUrl: data.landlordImageUrl,
+          unitCount: data.unitCount,
           sizeSqm: data.sizeSqm,
           bedrooms: data.bedrooms,
           bathrooms: data.bathrooms,
@@ -148,6 +160,60 @@ export class PropertiesRepository {
     await this.prisma.propertyImage.delete({ where: { id: imageId } });
   }
 
+  // ── Agent assignments ───────────────────────────────────────────────────────
+
+  // Resolve an agent to assign, by their email or phone (no public directory).
+  findUserByEmailOrPhone(value: string): Promise<User | null> {
+    const identifier = value.trim();
+    return this.prisma.user.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [{ email: identifier.toLowerCase() }, { phone: identifier }],
+      },
+    });
+  }
+
+  listAssignments(propertyId: string): Promise<AssignmentWithAgent[]> {
+    return this.prisma.propertyAssignment.findMany({
+      where: { propertyId },
+      include: assignmentWithAgent,
+      orderBy: { assignedAt: 'asc' },
+    });
+  }
+
+  findAssignment(propertyId: string, agentId: string): Promise<AssignmentWithAgent | null> {
+    return this.prisma.propertyAssignment.findUnique({
+      where: { propertyId_agentId: { propertyId, agentId } },
+      include: assignmentWithAgent,
+    });
+  }
+
+  assign(propertyId: string, agentId: string): Promise<AssignmentWithAgent> {
+    return this.prisma.propertyAssignment.create({
+      data: { propertyId, agentId },
+      include: assignmentWithAgent,
+    });
+  }
+
+  async unassign(propertyId: string, agentId: string): Promise<void> {
+    await this.prisma.propertyAssignment.deleteMany({ where: { propertyId, agentId } });
+  }
+
+  async isAssignedAgent(propertyId: string, userId: string): Promise<boolean> {
+    const count = await this.prisma.propertyAssignment.count({
+      where: { propertyId, agentId: userId },
+    });
+    return count > 0;
+  }
+
+  async assignedAgentIds(propertyId: string): Promise<string[]> {
+    const rows = await this.prisma.propertyAssignment.findMany({
+      where: { propertyId },
+      select: { agentId: true },
+    });
+    return rows.map((r) => r.agentId);
+  }
+
   // ── PostGIS ───────────────────────────────────────────────────────────────
 
   // Read lng/lat back for a set of properties (Prisma can't select the column).
@@ -196,6 +262,7 @@ export class PropertiesRepository {
       contactName: data.contactName,
       landlordName: data.landlordName,
       landlordImageUrl: data.landlordImageUrl,
+      unitCount: data.unitCount,
       sizeSqm: data.sizeSqm,
       bedrooms: data.bedrooms,
       bathrooms: data.bathrooms,

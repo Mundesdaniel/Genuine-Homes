@@ -117,6 +117,7 @@ export function ListingDetailPage() {
           </div>
 
           <div className="flex flex-wrap gap-6 text-sm text-stone-600">
+            {p.unitCount != null && <span>{p.unitCount} units</span>}
             {p.bedrooms != null && <span>{p.bedrooms} bedrooms</span>}
             {p.bathrooms != null && <span>{p.bathrooms} bathrooms</span>}
             {p.sizeSqm != null && <span>{p.sizeSqm} m²</span>}

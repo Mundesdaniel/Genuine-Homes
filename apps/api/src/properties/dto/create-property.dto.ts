@@ -91,6 +91,16 @@ export class CreatePropertyDto {
   @MaxLength(2048)
   landlordImageUrl?: string;
 
+  @ApiPropertyOptional({
+    example: 24,
+    description: 'Number of units in a multi-unit property (e.g. an apartment block)',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100_000)
+  unitCount?: number;
+
   @ApiPropertyOptional({ example: 250, description: 'Size in square metres' })
   @IsOptional()
   @IsNumber()

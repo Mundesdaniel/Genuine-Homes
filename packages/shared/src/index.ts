@@ -91,6 +91,8 @@ export type {
   PropertyDetail,
   UploadResponse,
 } from './schemas/property';
+export { assignAgentSchema } from './schemas/assignment';
+export type { AssignAgentInput, ManagedAgentResponse } from './schemas/assignment';
 
 // ── Listings ──────────────────────────────────────────────────────────────────
 export {

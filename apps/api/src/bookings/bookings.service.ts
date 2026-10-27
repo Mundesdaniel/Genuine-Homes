@@ -71,14 +71,22 @@ export class BookingsService {
       message: dto.message?.trim() || null,
     });
 
-    await this.notifyViewing(
-      booking.ownerId,
-      'New viewing request',
-      `${booking.buyer.fullName} wants to view "${booking.property.title}" on ${formatWhen(scheduledAt)}.`,
-      booking,
+    // Notify the owner and any agents the owner assigned to handle this property
+    // (e.g. a manager's apartment agents) so whoever is free can pick it up.
+    const assignedAgentIds = await this.repo.assignedAgentIds(booking.propertyId);
+    const recipients = [...new Set([booking.ownerId, ...assignedAgentIds])];
+    await Promise.all(
+      recipients.map((recipientId) =>
+        this.notifyViewing(
+          recipientId,
+          'New viewing request',
+          `${booking.buyer.fullName} wants to view "${booking.property.title}" on ${formatWhen(scheduledAt)}.`,
+          booking,
+        ),
+      ),
     );
     this.logger.log(
-      `Booking ${booking.id} created by ${user.id} for owner ${booking.ownerId}`,
+      `Booking ${booking.id} created by ${user.id} for owner ${booking.ownerId} (+${assignedAgentIds.length} assigned agent(s))`,
     );
     return mapBooking(booking);
   }
@@ -179,7 +187,8 @@ export class BookingsService {
     const isParty =
       user.role === UserRole.ADMIN ||
       booking.buyerId === user.id ||
-      booking.ownerId === user.id;
+      booking.ownerId === user.id ||
+      (await this.repo.isAssignedAgent(booking.propertyId, user.id));
     if (!isParty) throw new ForbiddenException('This booking is not yours');
     if (booking.status !== BookingStatus.ACCEPTED) {
       throw new BadRequestException('Only an accepted viewing can be confirmed');
@@ -223,7 +232,11 @@ export class BookingsService {
   ): Promise<BookingWithRelations> {
     const booking = await this.repo.findByIdWithRelations(id);
     if (!booking) throw new NotFoundException('Booking not found');
-    if (user.role !== UserRole.ADMIN && booking.ownerId !== user.id) {
+    const mayDecide =
+      user.role === UserRole.ADMIN ||
+      booking.ownerId === user.id ||
+      (await this.repo.isAssignedAgent(booking.propertyId, user.id));
+    if (!mayDecide) {
       throw new ForbiddenException('This booking is for another owner');
     }
     if (booking.status !== BookingStatus.PENDING) {
