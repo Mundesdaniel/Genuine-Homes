@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type {
   InstallmentPlanDetail,
@@ -49,7 +41,7 @@ export class InstallmentsController {
 
   @Get('requests')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Plans buyers have requested on your properties (landlord view)' })
+  @ApiOperation({ summary: 'Plans buyers have requested on your properties (owner view)' })
   listRequests(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: PaginationQueryDto,
@@ -102,7 +94,7 @@ export class InstallmentsController {
 
   @Post(':id/accept')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Landlord: accept a requested plan (makes it payable)' })
+  @ApiOperation({ summary: 'Owner: accept a requested plan (makes it payable)' })
   accept(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -112,7 +104,7 @@ export class InstallmentsController {
 
   @Post(':id/decline')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Landlord: decline a requested plan' })
+  @ApiOperation({ summary: 'Owner: decline a requested plan' })
   decline(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,

@@ -1,15 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type {
-  InstallmentPayment,
-  InstallmentPlan,
-  Listing,
-  Property,
-} from '@prisma/client';
-import type {
-  InstallmentPlanStatus,
-  PropertyStatus,
-} from '@genuine-homes/shared';
+import type { InstallmentPayment, InstallmentPlan, Listing, Property } from '@prisma/client';
+import type { InstallmentPlanStatus, PropertyStatus } from '@genuine-homes/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface PlanCreateData {
@@ -48,7 +40,7 @@ export type PlanListing = Listing & {
   property: Pick<Property, 'id' | 'ownerId' | 'status'>;
 };
 
-/** A plan awaiting landlord approval, with the buyer + property for the queue. */
+/** A plan awaiting owner approval, with the buyer + property for the queue. */
 export type PlanRequestRow = InstallmentPlan & {
   buyer: { id: string; fullName: string; phone: string };
   listing: { property: { title: string; ownerId: string } };
@@ -64,7 +56,7 @@ export class InstallmentsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // A listing a buyer can turn into a plan: the seller's own `installment` offer
-  // (pre-approved) or any `sale` listing (buyer requests a plan the landlord must
+  // (pre-approved) or any `sale` listing (buyer requests a plan the owner must
   // accept). Only while the property is still active — a reserved/sold one is
   // already taken, so its listings must not accept a new plan.
   findActiveListingForPlan(id: string): Promise<PlanListing | null> {
@@ -168,7 +160,7 @@ export class InstallmentsRepository {
     return plan?.listing.property.status ?? null;
   }
 
-  // The landlord's queue of buyer-requested plans awaiting acceptance.
+  // The owner's queue of buyer-requested plans awaiting acceptance.
   async listPlanRequestsByOwner(
     ownerId: string,
     skip: number,
@@ -328,8 +320,7 @@ export class InstallmentsRepository {
       .map((id) => {
         const p = byId.get(id);
         if (!p) return null;
-        const missedCount =
-          sorted.find((g) => g.planId === id)?._count._all ?? 0;
+        const missedCount = sorted.find((g) => g.planId === id)?._count._all ?? 0;
         return { ...p, missedCount };
       })
       .filter((p): p is DefaultEligiblePlan => p !== null);
@@ -343,9 +334,7 @@ export class InstallmentsRepository {
   }
 
   // Earliest still-unpaid due date + whether the whole schedule is paid.
-  async scheduleProgress(
-    planId: string,
-  ): Promise<{ nextDue: Date | null; allPaid: boolean }> {
+  async scheduleProgress(planId: string): Promise<{ nextDue: Date | null; allPaid: boolean }> {
     const items = await this.prisma.installmentPayment.findMany({
       where: { planId },
       orderBy: { sequence: 'asc' },

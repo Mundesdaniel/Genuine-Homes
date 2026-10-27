@@ -3,7 +3,7 @@ import { ReviewsController } from './reviews.controller';
 import { ReviewsRepository } from './reviews.repository';
 import { ReviewsService } from './reviews.service';
 
-/** Ratings & reviews for agents/landlords (trust signals on seller profiles). */
+/** Ratings & reviews for agents/managers (trust signals on seller profiles). */
 @Module({
   controllers: [ReviewsController],
   providers: [ReviewsService, ReviewsRepository],

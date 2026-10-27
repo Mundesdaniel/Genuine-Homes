@@ -41,8 +41,13 @@ const propertyBase = z.object({
   district: z.string().trim().min(2).max(100),
   city: z.string().trim().min(2).max(100),
   area: z.string().trim().max(100).optional(),
-  /** "Listed by" contact name (landlord/agent/owner) shown on the listing. */
+  /** "Listed by" contact name (the agent/owner) shown on the listing. */
   contactName: z.string().trim().min(2).max(120).optional(),
+  /** The landlord / land-owner's name — required. The agent is the intermediary;
+   *  the landlord is never a user and is only displayed, never contacted. */
+  landlordName: z.string().trim().min(2).max(120),
+  /** Optional photo of the landlord, shown on the listing. */
+  landlordImageUrl: z.string().url().max(2048).optional(),
   sizeSqm: z.coerce.number().positive().max(1_000_000).optional(),
   bedrooms: z.coerce.number().int().min(0).max(100).optional(),
   bathrooms: z.coerce.number().int().min(0).max(100).optional(),
@@ -53,10 +58,8 @@ const propertyBase = z.object({
 });
 
 // latitude and longitude must be supplied together (or not at all).
-const coordsPaired = (value: {
-  latitude?: number;
-  longitude?: number;
-}): boolean => (value.latitude == null) === (value.longitude == null);
+const coordsPaired = (value: { latitude?: number; longitude?: number }): boolean =>
+  (value.latitude == null) === (value.longitude == null);
 const coordsError = {
   message: 'latitude and longitude must be provided together',
   path: ['latitude'],
@@ -65,9 +68,7 @@ const coordsError = {
 export const createPropertySchema = propertyBase.refine(coordsPaired, coordsError);
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 
-export const updatePropertySchema = propertyBase
-  .partial()
-  .refine(coordsPaired, coordsError);
+export const updatePropertySchema = propertyBase.partial().refine(coordsPaired, coordsError);
 export type UpdatePropertyInput = z.infer<typeof updatePropertySchema>;
 
 export const addImageSchema = z.object({
@@ -89,6 +90,10 @@ export interface PropertySummary {
   area: string | null;
   /** "Listed by" contact name; falls back to the owner's account name. */
   contactName: string | null;
+  /** The landlord / land-owner's name, shown publicly on the listing. */
+  landlordName: string;
+  /** Optional photo of the landlord. */
+  landlordImageUrl: string | null;
   /** The poster's account name + role (for "Listed by … · Agent"). */
   ownerName: string | null;
   ownerRole: UserRoleType | null;

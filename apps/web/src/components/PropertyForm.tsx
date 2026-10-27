@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ChangeEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import {
@@ -9,6 +9,7 @@ import {
   type PropertyDetail,
 } from '@genuine-homes/shared';
 import { propertiesApi } from '@/api/properties';
+import { uploadsApi } from '@/api/uploads';
 import {
   ImageUploader,
   hasPendingUploads,
@@ -30,6 +31,7 @@ const BLANK = {
   city: '',
   area: '',
   contactName: '',
+  landlordName: '',
   bedrooms: '',
   bathrooms: '',
   sizeSqm: '',
@@ -48,6 +50,7 @@ const toFormState = (p?: PropertyDetail) =>
         city: p.city,
         area: p.area ?? '',
         contactName: p.contactName ?? '',
+        landlordName: p.landlordName ?? '',
         bedrooms: p.bedrooms?.toString() ?? '',
         bathrooms: p.bathrooms?.toString() ?? '',
         sizeSqm: p.sizeSqm?.toString() ?? '',
@@ -72,7 +75,7 @@ export function PropertyForm({
 }) {
   const isEdit = Boolean(initialProperty);
   // New listings prefill the contact name with the poster's account name; it
-  // stays editable (e.g. an agent listing on behalf of a landlord).
+  // stays editable (the agent is the public contact for the listing).
   const accountName = useAuthStore((s) => s.user?.fullName) ?? '';
   const [form, setForm] = useState(() => {
     const base = toFormState(initialProperty);
@@ -82,6 +85,25 @@ export function PropertyForm({
   const [amenities, setAmenities] = useState<Record<string, boolean>>(
     () => initialProperty?.amenities ?? {},
   );
+  // Optional landlord photo — uploaded on pick; we keep only the resulting URL.
+  const [landlordImageUrl, setLandlordImageUrl] = useState<string>(
+    () => initialProperty?.landlordImageUrl ?? '',
+  );
+  const [landlordUploading, setLandlordUploading] = useState(false);
+  const onLandlordFile = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file) return;
+    setLandlordUploading(true);
+    try {
+      const { url } = await uploadsApi.upload(file);
+      setLandlordImageUrl(url);
+    } catch (err) {
+      toast.error(apiErrorMessage(err));
+    } finally {
+      setLandlordUploading(false);
+    }
+  };
   const [status, setStatus] = useState<string>(() => initialProperty?.status ?? 'active');
   const [images, setImages] = useState<GalleryImage[]>(() =>
     (initialProperty?.images ?? []).map((img) => ({
@@ -102,7 +124,7 @@ export function PropertyForm({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (hasPendingUploads(images)) {
+      if (hasPendingUploads(images) || landlordUploading) {
         throw new Error('Wait for photos to finish uploading');
       }
       const parsed = createPropertySchema.safeParse({
@@ -113,6 +135,8 @@ export function PropertyForm({
         city: form.city,
         area: form.area.trim() || undefined,
         contactName: form.contactName.trim() || undefined,
+        landlordName: form.landlordName.trim(),
+        landlordImageUrl: landlordImageUrl || undefined,
         bedrooms: numOrUndef(form.bedrooms),
         bathrooms: numOrUndef(form.bathrooms),
         sizeSqm: numOrUndef(form.sizeSqm),
@@ -142,6 +166,7 @@ export function PropertyForm({
         setForm({ ...BLANK, contactName: accountName });
         setAmenities({});
         setImages([]);
+        setLandlordImageUrl('');
       }
       toast.success(isEdit ? 'Property updated' : 'Property created');
       onSaved();
@@ -229,7 +254,7 @@ export function PropertyForm({
 
       <div>
         <label className="label">
-          Contact name <span className="text-stone-400">(landlord / agent / owner)</span>
+          Contact name <span className="text-stone-400">(agent / owner)</span>
         </label>
         <input
           className="input"
@@ -237,6 +262,54 @@ export function PropertyForm({
           onChange={(e) => set('contactName', e.target.value)}
           placeholder="Shown on the listing as “Listed by”"
         />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label">Landlord / owner name</label>
+          <input
+            className="input"
+            value={form.landlordName}
+            onChange={(e) => set('landlordName', e.target.value)}
+            placeholder="The land-owner this property belongs to"
+          />
+          <p className="mt-1 text-xs text-stone-400">
+            Shown on the listing. Tenants deal with you (the agent), not the landlord.
+          </p>
+        </div>
+        <div>
+          <label className="label">
+            Landlord photo <span className="text-stone-400">(optional)</span>
+          </label>
+          <div className="flex items-center gap-3">
+            {landlordImageUrl && (
+              <img
+                src={landlordImageUrl}
+                alt="Landlord"
+                className="h-14 w-14 rounded-full object-cover"
+              />
+            )}
+            <div className="space-y-1">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onLandlordFile}
+                disabled={landlordUploading || mutation.isPending}
+                className="text-sm"
+              />
+              {landlordUploading && <p className="text-xs text-stone-400">Uploading…</p>}
+              {landlordImageUrl && !landlordUploading && (
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:underline"
+                  onClick={() => setLandlordImageUrl('')}
+                >
+                  Remove photo
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -340,7 +413,7 @@ export function PropertyForm({
         <button
           className="btn-primary"
           type="submit"
-          disabled={mutation.isPending || hasPendingUploads(images)}
+          disabled={mutation.isPending || hasPendingUploads(images) || landlordUploading}
         >
           {mutation.isPending
             ? isEdit

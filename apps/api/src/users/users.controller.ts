@@ -57,7 +57,7 @@ export class UsersController {
   @Post()
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Admin: create a staff account (agent/landlord/manager)' })
+  @ApiOperation({ summary: 'Admin: create a staff account (agent/manager)' })
   createStaff(
     @CurrentUser() actor: AuthenticatedUser,
     @Body() dto: CreateStaffUserDto,

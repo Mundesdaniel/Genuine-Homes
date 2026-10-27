@@ -93,7 +93,7 @@ export class UsersService {
   }
 
   /**
-   * Admin-only: create a staff account (agent/landlord/manager). Delegates the
+   * Admin-only: create a staff account (agent/manager). Delegates the
    * account + invitation-link creation to AuthService, then records the audit
    * trail. Returns the new profile plus the single-use set-password link for the
    * admin to deliver (there is no email service to send it automatically).

@@ -7,7 +7,7 @@ import type { IdentityRepository, IdentityVerificationWithUser } from './identit
 import { IdentityService } from './identity.service';
 import type { NinHasherService } from './nin-hasher.service';
 
-const landlord: AuthenticatedUser = { id: 'seller-1', role: UserRole.LANDLORD };
+const owner: AuthenticatedUser = { id: 'seller-1', role: UserRole.AGENT };
 const manager: AuthenticatedUser = { id: 'mgr-1', role: UserRole.MANAGER };
 const admin: AuthenticatedUser = { id: 'admin-1', role: UserRole.ADMIN };
 
@@ -17,7 +17,7 @@ const NIN = 'CM90012100ABCD';
 const row = (overrides: Record<string, unknown> = {}): IdentityVerificationWithUser =>
   ({
     id: 'idv-1',
-    userId: landlord.id,
+    userId: owner.id,
     legalName: 'Sarah Nambi',
     ninMasked: '**********ABCD',
     ninHash: 'hash',
@@ -30,7 +30,7 @@ const row = (overrides: Record<string, unknown> = {}): IdentityVerificationWithU
     notes: null,
     createdAt: new Date(),
     updatedAt: new Date(),
-    user: { fullName: 'Sarah Nambi', role: 'landlord' },
+    user: { fullName: 'Sarah Nambi', role: 'agent' },
     ...overrides,
   }) as unknown as IdentityVerificationWithUser;
 
@@ -48,8 +48,8 @@ describe('IdentityService', () => {
   beforeEach(() => {
     repo = {
       findUserState: jest.fn().mockResolvedValue({
-        id: landlord.id,
-        role: 'landlord',
+        id: owner.id,
+        role: 'agent',
         identityVerifiedAt: null,
       }),
       findLatestByUser: jest.fn().mockResolvedValue(null),
@@ -80,7 +80,7 @@ describe('IdentityService', () => {
   });
 
   it('stores the mask + hash, never the raw NIN', async () => {
-    const res = await service.submit(landlord, submitDto);
+    const res = await service.submit(owner, submitDto);
     const data = repo.createSubmission.mock.calls[0][1];
     expect(data.ninMasked).toBe('**********ABCD');
     expect(data.ninHash).toBe('hash');
@@ -92,27 +92,21 @@ describe('IdentityService', () => {
 
   it('blocks resubmission while a submission is pending', async () => {
     repo.hasPending.mockResolvedValue(true);
-    await expect(service.submit(landlord, submitDto)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(service.submit(owner, submitDto)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('blocks submission when already verified', async () => {
     repo.findUserState.mockResolvedValue({
-      id: landlord.id,
-      role: 'landlord',
+      id: owner.id,
+      role: 'agent',
       identityVerifiedAt: new Date(),
     });
-    await expect(service.submit(landlord, submitDto)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(service.submit(owner, submitDto)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('blocks a NIN already verified on another account', async () => {
     repo.ninVerifiedElsewhere.mockResolvedValue(true);
-    await expect(service.submit(landlord, submitDto)).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(service.submit(owner, submitDto)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('requires KYB fields for manager (company) accounts', async () => {
@@ -142,7 +136,7 @@ describe('IdentityService', () => {
       null,
     );
     expect(notifications.notify).toHaveBeenCalledWith(
-      landlord.id,
+      owner.id,
       NotificationType.IDENTITY_VERIFIED,
       expect.any(String),
       expect.any(String),
@@ -154,7 +148,7 @@ describe('IdentityService', () => {
     repo.review.mockResolvedValue(row({ status: 'rejected', reviewerId: admin.id }));
     await service.review(admin, 'idv-1', { decision: 'rejected', notes: 'blurry photo' });
     expect(notifications.notify).toHaveBeenCalledWith(
-      landlord.id,
+      owner.id,
       NotificationType.IDENTITY_REJECTED,
       expect.any(String),
       expect.stringContaining('blurry photo'),

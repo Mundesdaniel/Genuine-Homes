@@ -92,7 +92,7 @@ export class InstallmentsService {
 
     // A seller's own `installment` listing is a pre-made offer, so the plan is
     // immediately payable (`pending_deposit`). A plain `sale` listing means the
-    // buyer is *requesting* a plan, which the landlord must accept first
+    // buyer is *requesting* a plan, which the owner must accept first
     // (`pending_approval`); its terms fall back to the platform defaults.
     const isOffer = listing.listingType === 'installment';
     const minDeposit =
@@ -142,9 +142,9 @@ export class InstallmentsService {
     return this.getDetail(user, planId);
   }
 
-  // ── Landlord approval of buyer-requested plans ────────────────────────────
+  // ── Owner approval of buyer-requested plans ────────────────────────────
 
-  /** The landlord's queue of plans buyers have requested on their properties. */
+  /** The owner's queue of plans buyers have requested on their properties. */
   async listPlanRequests(
     user: AuthenticatedUser,
     page: number,
@@ -167,7 +167,7 @@ export class InstallmentsService {
     };
   }
 
-  /** Landlord accepts a requested plan → it becomes payable (`pending_deposit`). */
+  /** Owner accepts a requested plan → it becomes payable (`pending_deposit`). */
   async accept(actor: AuthenticatedUser, planId: string): Promise<InstallmentPlanDetail> {
     const plan = await this.repo.findPlanWithOwner(planId);
     if (!plan) throw new NotFoundException('Plan not found');
@@ -187,7 +187,7 @@ export class InstallmentsService {
     return this.loadDetail(planId);
   }
 
-  /** Landlord declines a requested plan → cancelled (reason is audit-logged). */
+  /** Owner declines a requested plan → cancelled (reason is audit-logged). */
   async decline(
     actor: AuthenticatedUser,
     planId: string,
@@ -531,7 +531,7 @@ export class InstallmentsService {
     }
   }
 
-  // Detail lookup that skips the buyer check — for landlord/admin actions where
+  // Detail lookup that skips the buyer check — for owner/admin actions where
   // the caller has already been authorized as the property owner.
   private async loadDetail(planId: string): Promise<InstallmentPlanDetail> {
     const plan = await this.repo.findPlanDetail(planId);

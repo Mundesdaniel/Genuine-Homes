@@ -24,10 +24,7 @@ import {
 import { AddImageDto } from './dto/add-image.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
-import {
-  PropertiesRepository,
-  type PropertyWriteData,
-} from './properties.repository';
+import { PropertiesRepository, type PropertyWriteData } from './properties.repository';
 
 @Injectable()
 export class PropertiesService {
@@ -36,10 +33,7 @@ export class PropertiesService {
     private readonly identity: IdentityService,
   ) {}
 
-  async create(
-    user: AuthenticatedUser,
-    dto: CreatePropertyDto,
-  ): Promise<PropertyDetail> {
+  async create(user: AuthenticatedUser, dto: CreatePropertyDto): Promise<PropertyDetail> {
     await this.assertMayPublish(user, dto.status);
     const coords = this.resolveCoords(dto.latitude, dto.longitude);
     const data: PropertyWriteData = {
@@ -50,6 +44,8 @@ export class PropertiesService {
       city: dto.city,
       area: dto.area ?? null,
       contactName: dto.contactName ?? null,
+      landlordName: dto.landlordName,
+      landlordImageUrl: dto.landlordImageUrl ?? null,
       sizeSqm: dto.sizeSqm ?? null,
       bedrooms: dto.bedrooms ?? null,
       bathrooms: dto.bathrooms ?? null,
@@ -77,6 +73,8 @@ export class PropertiesService {
       city: dto.city,
       area: dto.area,
       contactName: dto.contactName,
+      landlordName: dto.landlordName,
+      landlordImageUrl: dto.landlordImageUrl,
       sizeSqm: dto.sizeSqm,
       bedrooms: dto.bedrooms,
       bathrooms: dto.bathrooms,
@@ -127,8 +125,7 @@ export class PropertiesService {
     dto: AddImageDto,
   ): Promise<PropertyImageResponse> {
     await this.loadManageable(propertyId, user);
-    const position =
-      dto.position ?? (await this.repo.nextImagePosition(propertyId));
+    const position = dto.position ?? (await this.repo.nextImagePosition(propertyId));
     const image = await this.repo.addImage(propertyId, dto.url, position);
     return mapImage(image);
   }
@@ -163,10 +160,7 @@ export class PropertiesService {
   }
 
   // Load a property and assert the user owns it (admins may manage any).
-  private async loadManageable(
-    id: string,
-    user: AuthenticatedUser,
-  ): Promise<Property> {
+  private async loadManageable(id: string, user: AuthenticatedUser): Promise<Property> {
     const property = await this.repo.findById(id);
     if (!property) throw new NotFoundException('Property not found');
     if (user.role !== UserRole.ADMIN && property.ownerId !== user.id) {
@@ -176,14 +170,9 @@ export class PropertiesService {
   }
 
   // Coordinates are all-or-nothing.
-  private resolveCoords(
-    lat: number | undefined,
-    lng: number | undefined,
-  ): Coords | null {
+  private resolveCoords(lat: number | undefined, lng: number | undefined): Coords | null {
     if ((lat == null) !== (lng == null)) {
-      throw new BadRequestException(
-        'latitude and longitude must be provided together',
-      );
+      throw new BadRequestException('latitude and longitude must be provided together');
     }
     return lat != null && lng != null ? { lat, lng } : null;
   }

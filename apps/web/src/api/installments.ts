@@ -20,9 +20,7 @@ export const installmentsApi = {
   create: (input: CreatePlanInput) =>
     api.post<InstallmentPlanDetail>('/installment-plans', input).then((r) => r.data),
   payDeposit: (id: string, input: PayViaInput) =>
-    api
-      .post<PaymentInitiation>(`/installment-plans/${id}/deposit`, input)
-      .then((r) => r.data),
+    api.post<PaymentInitiation>(`/installment-plans/${id}/deposit`, input).then((r) => r.data),
   payInstallment: (id: string, installmentId: string, input: PayViaInput) =>
     api
       .post<PaymentInitiation>(
@@ -31,10 +29,8 @@ export const installmentsApi = {
       )
       .then((r) => r.data),
   cancel: (id: string) =>
-    api
-      .post<InstallmentPlanDetail>(`/installment-plans/${id}/cancel`, {})
-      .then((r) => r.data),
-  // Landlord: buyer-requested plans awaiting a decision on your properties.
+    api.post<InstallmentPlanDetail>(`/installment-plans/${id}/cancel`, {}).then((r) => r.data),
+  // Owner: buyer-requested plans awaiting a decision on your properties.
   requests: (page = 1, pageSize = 50) =>
     api
       .get<Paginated<PlanRequestResponse>>('/installment-plans/requests', {
@@ -42,9 +38,7 @@ export const installmentsApi = {
       })
       .then((r) => r.data),
   accept: (id: string) =>
-    api
-      .post<InstallmentPlanDetail>(`/installment-plans/${id}/accept`, {})
-      .then((r) => r.data),
+    api.post<InstallmentPlanDetail>(`/installment-plans/${id}/accept`, {}).then((r) => r.data),
   decline: (id: string, reason?: string) =>
     api
       .post<InstallmentPlanDetail>(`/installment-plans/${id}/decline`, { reason })

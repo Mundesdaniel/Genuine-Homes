@@ -73,7 +73,7 @@ export class RentalsRepository {
     ]);
   }
 
-  // Agreements on listings owned by `ownerId` (landlord/agent inbox).
+  // Agreements on listings owned by `ownerId` (owner/agent inbox).
   async listByOwner(
     ownerId: string,
     skip: number,

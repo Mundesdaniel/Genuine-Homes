@@ -418,6 +418,8 @@ export function mapPropertySummary(
     city: property.city,
     area: property.area ?? null,
     contactName: property.contactName ?? null,
+    landlordName: property.landlordName,
+    landlordImageUrl: property.landlordImageUrl ?? null,
     ownerName: opts.owner?.fullName ?? null,
     ownerRole: (opts.owner?.role ?? null) as PropertySummary['ownerRole'],
     sizeSqm: property.sizeSqm != null ? property.sizeSqm.toNumber() : null,

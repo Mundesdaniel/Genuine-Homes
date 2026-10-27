@@ -16,7 +16,7 @@ const DEV_PASSWORD = 'Password123!';
 
 const IDS = {
   admin: '00000000-0000-4000-8000-000000000001',
-  landlord: '00000000-0000-4000-8000-000000000002',
+  agent: '00000000-0000-4000-8000-000000000002',
   tenant: '00000000-0000-4000-8000-000000000003',
   daniel: '00000000-0000-4000-8000-000000000004',
   roro: '00000000-0000-4000-8000-000000000005',
@@ -69,6 +69,9 @@ const PHOTO = {
 interface SeedProp {
   id: string;
   ownerId: string;
+  /** The land-owner (landlord) this property belongs to — shown on the listing. */
+  landlordName: string;
+  landlordImageUrl?: string;
   type: Prisma.PropertyCreateManyInput['type'];
   title: string;
   description: string;
@@ -111,16 +114,18 @@ async function main(): Promise<void> {
     },
   });
 
-  const landlord = await prisma.user.upsert({
-    where: { id: IDS.landlord },
+  // An agent — the intermediary who lists on behalf of land-owners (landlords).
+  // Landlords are not platform users; their name is stored on each property.
+  const agent = await prisma.user.upsert({
+    where: { id: IDS.agent },
     update: {},
     create: {
-      id: IDS.landlord,
-      fullName: 'Sarah Nambi',
-      email: 'sarah.landlord@example.ug',
+      id: IDS.agent,
+      fullName: 'Agnes Kirabo',
+      email: 'agnes.agent@example.ug',
       phone: '+256700000002',
       passwordHash,
-      role: 'landlord',
+      role: 'agent',
       isVerified: true,
     },
   });
@@ -172,7 +177,8 @@ async function main(): Promise<void> {
     update: {},
     create: {
       id: IDS.propHouse,
-      ownerId: landlord.id,
+      ownerId: agent.id,
+      landlordName: 'Sarah Nambi',
       type: 'house',
       title: '4-Bedroom Family House in Nakawa',
       description:
@@ -196,7 +202,8 @@ async function main(): Promise<void> {
     update: {},
     create: {
       id: IDS.propLand,
-      ownerId: landlord.id,
+      ownerId: agent.id,
+      landlordName: 'Sarah Nambi',
       type: 'land',
       title: '50x100 Plot with Land Title in Gayaza',
       description:
@@ -356,7 +363,7 @@ async function main(): Promise<void> {
   // with an overdue payment, verifications, notifications, and a chat thread.
   // ─────────────────────────────────────────────────────────────────────────
 
-  // Extra people: two agents, a manager company, two buyers, a landlord.
+  // Extra people: two agents, a manager company, two buyers.
   const newUsers: Prisma.UserCreateManyInput[] = [
     {
       id: uuid(101),
@@ -400,15 +407,6 @@ async function main(): Promise<void> {
       passwordHash,
       role: 'user',
     },
-    {
-      id: uuid(106),
-      fullName: 'Moses Kato',
-      email: 'moses.landlord@example.ug',
-      phone: '+256700000011',
-      passwordHash,
-      role: 'landlord',
-      isVerified: true,
-    },
   ];
   await prisma.user.createMany({ data: newUsers, skipDuplicates: true });
 
@@ -416,7 +414,7 @@ async function main(): Promise<void> {
   // publish — stamp all seeded sellers so dev flows work out of the box.
   await prisma.user.updateMany({
     where: {
-      role: { in: ['landlord', 'agent', 'manager', 'admin'] },
+      role: { in: ['agent', 'manager', 'admin'] },
       identityVerifiedAt: null,
     },
     data: { identityVerifiedAt: new Date() },
@@ -426,6 +424,7 @@ async function main(): Promise<void> {
     {
       id: uuid(200),
       ownerId: uuid(101),
+      landlordName: 'Robert Ssentongo',
       type: 'apartment',
       title: '2-Bedroom Apartment in Kololo',
       district: 'Kampala',
@@ -446,6 +445,7 @@ async function main(): Promise<void> {
     {
       id: uuid(201),
       ownerId: uuid(103),
+      landlordName: 'Patrick Bwanika',
       type: 'villa',
       title: 'Luxury 5-Bedroom Villa in Munyonyo',
       district: 'Kampala',
@@ -472,7 +472,8 @@ async function main(): Promise<void> {
     },
     {
       id: uuid(202),
-      ownerId: uuid(106),
+      ownerId: uuid(102),
+      landlordName: 'Moses Kato',
       type: 'apartment',
       title: '2-Bedroom Apartment in Ntinda',
       district: 'Kampala',
@@ -493,6 +494,7 @@ async function main(): Promise<void> {
     {
       id: uuid(203),
       ownerId: uuid(101),
+      landlordName: 'Grace Nabwire',
       type: 'commercial',
       title: 'Retail Space in Kampala CBD',
       district: 'Kampala',
@@ -511,6 +513,7 @@ async function main(): Promise<void> {
     {
       id: uuid(204),
       ownerId: uuid(103),
+      landlordName: 'Hadija Namusoke',
       type: 'land',
       title: '1-Acre Plot in Mukono',
       district: 'Mukono',
@@ -528,7 +531,8 @@ async function main(): Promise<void> {
     },
     {
       id: uuid(205),
-      ownerId: uuid(106),
+      ownerId: uuid(102),
+      landlordName: 'Moses Kato',
       type: 'house',
       title: '4-Bedroom House in Entebbe',
       district: 'Wakiso',
@@ -549,6 +553,7 @@ async function main(): Promise<void> {
     {
       id: uuid(206),
       ownerId: uuid(102),
+      landlordName: 'Samuel Opio',
       type: 'house',
       title: '3-Bedroom Bungalow in Jinja',
       district: 'Jinja',
@@ -568,7 +573,8 @@ async function main(): Promise<void> {
     },
     {
       id: uuid(207),
-      ownerId: landlord.id,
+      ownerId: agent.id,
+      landlordName: 'Sarah Nambi',
       type: 'apartment',
       title: 'Studio Apartment in Bukoto',
       district: 'Kampala',
@@ -589,6 +595,7 @@ async function main(): Promise<void> {
     {
       id: uuid(208),
       ownerId: uuid(103),
+      landlordName: 'Esther Nakimuli',
       type: 'house',
       title: '4-Bedroom Home in Naalya',
       district: 'Wakiso',
@@ -937,7 +944,7 @@ async function main(): Promise<void> {
   ];
   await prisma.favorite.createMany({ data: favorites, skipDuplicates: true });
 
-  // Reviews of agents / landlords / managers.
+  // Reviews of agents / managers.
   const reviews: Prisma.ReviewCreateManyInput[] = [
     {
       id: uuid(1200),
@@ -949,9 +956,9 @@ async function main(): Promise<void> {
     {
       id: uuid(1201),
       authorId: uuid(105),
-      targetId: uuid(106),
+      targetId: uuid(102),
       rating: 4,
-      comment: 'Smooth rental process, fair landlord.',
+      comment: 'Smooth rental process, responsive agent.',
     },
     {
       id: uuid(1202),
@@ -963,7 +970,7 @@ async function main(): Promise<void> {
     {
       id: uuid(1203),
       authorId: IDS.tenant,
-      targetId: landlord.id,
+      targetId: agent.id,
       rating: 4,
       comment: 'Good communication and a clean, well-kept house.',
     },
@@ -1129,6 +1136,7 @@ async function main(): Promise<void> {
       create: {
         id: shortLetPropId,
         ownerId: airbnbAgent.id,
+        landlordName: 'Diana Katusiime',
         type: 'furnished_house',
         title: 'Furnished Short-Let Apartment in Kololo',
         description:
@@ -1250,7 +1258,7 @@ async function main(): Promise<void> {
   console.log('    admin@genuinehomes.ug      (admin)');
   console.log('    james.agent@example.ug     (airbnb agent — short-let dashboard)');
   console.log('    pearl@estates.ug           (manager)');
-  console.log('    sarah.landlord@example.ug  (landlord)');
+  console.log('    agnes.agent@example.ug     (agent)');
   console.log('    roro@gmail.com             (buyer — live installment plan)');
   console.log('    brenda@gmail.com           (buyer — plan with an overdue payment)');
   console.log('    tonny@gmail.com            (tenant — active rental)');

@@ -13,7 +13,7 @@ import { Badge, ConfirmDialog, ErrorState, Spinner } from '@/components/ui';
 import { apiErrorMessage } from '@/lib/apiClient';
 import { titleCase } from '@/lib/format';
 
-/** Add agent / landlord: create a staff account with an elevated role. */
+/** Add agent / manager: create a staff account with an elevated role. */
 function AddStaffForm() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
@@ -46,7 +46,7 @@ function AddStaffForm() {
   return (
     <div className="card space-y-4 p-5">
       <div>
-        <h2 className="font-semibold text-stone-800">Add agent / landlord</h2>
+        <h2 className="font-semibold text-stone-800">Add agent / manager</h2>
         <p className="mt-1 text-sm text-stone-500">
           Create a staff account with an elevated role. They’ll get a one-time link to set
           their own password.

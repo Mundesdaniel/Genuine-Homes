@@ -189,7 +189,14 @@ export type {
 } from './schemas/user';
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
-export type { AdminOverviewResponse } from './schemas/admin';
+export type {
+  AdminAgentPerformanceRow,
+  AdminDealKind,
+  AdminDealRow,
+  AdminOverviewResponse,
+  AdminPersonRef,
+  AdminPropertyRow,
+} from './schemas/admin';
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
 export { CHAT, CHAT_MESSAGE_EVENT, sendMessageSchema } from './schemas/chat';

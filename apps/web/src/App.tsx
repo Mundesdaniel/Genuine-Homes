@@ -4,7 +4,10 @@ import { AdminLayout } from '@/components/AdminLayout';
 import { Layout } from '@/components/Layout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
+import { AdminAgents } from '@/pages/admin/AdminAgents';
+import { AdminDeals } from '@/pages/admin/AdminDeals';
 import { AdminOverview } from '@/pages/admin/AdminOverview';
+import { AdminProperties } from '@/pages/admin/AdminProperties';
 import { AdminSubscriptions } from '@/pages/admin/AdminSubscriptions';
 import { AdminUsers } from '@/pages/admin/AdminUsers';
 import { IdentityQueue } from '@/pages/admin/IdentityQueue';
@@ -127,6 +130,9 @@ export default function App() {
         }
       >
         <Route index element={<AdminOverview />} />
+        <Route path="agents" element={<AdminAgents />} />
+        <Route path="properties" element={<AdminProperties />} />
+        <Route path="deals" element={<AdminDeals />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="verifications" element={<VerificationQueue />} />
         <Route path="identity" element={<IdentityQueue />} />

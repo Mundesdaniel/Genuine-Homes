@@ -23,7 +23,7 @@ import { apiErrorMessage } from '@/lib/apiClient';
 import { formatMoney, titleCase } from '@/lib/format';
 import { useAuthStore } from '@/store/authStore';
 
-const SELLER_ROLES = ['landlord', 'agent', 'manager', 'admin'];
+const SELLER_ROLES = ['agent', 'manager', 'admin'];
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -109,7 +109,7 @@ export function DashboardPage() {
     enabled: seller,
     refetchInterval: 15_000,
   });
-  // Buyer-requested plans awaiting this landlord's decision.
+  // Buyer-requested plans awaiting this owner's decision.
   const requestsQuery = useQuery({
     queryKey: ['plan-requests'],
     queryFn: () => installmentsApi.requests(),
@@ -296,7 +296,7 @@ export function DashboardPage() {
         </section>
       )}
 
-      {/* Payment-plan requests (landlord approval) */}
+      {/* Payment-plan requests (owner approval) */}
       {seller && planRequests.length > 0 && (
         <section>
           <h2 className="mb-3 text-lg font-semibold text-stone-800">Payment plan requests</h2>

@@ -176,6 +176,23 @@ export function ListingDetailPage() {
                 </p>
               </div>
             )}
+            {p.landlordName && (
+              <div className="mt-4 border-t border-stone-100 pt-3">
+                <p className="text-xs uppercase tracking-wide text-stone-400">
+                  Landlord / owner
+                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  {p.landlordImageUrl && (
+                    <img
+                      src={p.landlordImageUrl}
+                      alt={p.landlordName}
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  )}
+                  <p className="text-sm font-medium text-stone-800">{p.landlordName}</p>
+                </div>
+              </div>
+            )}
             <BookViewing listing={listing} taken={Boolean(takenLabel)} />
             {/* Secondary action: free-form questions to the owner (booking is
                 the primary CTA above). Hidden for the owner's own listing. */}

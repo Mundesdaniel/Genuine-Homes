@@ -13,8 +13,8 @@ import { UserRole } from '../enums';
 
 /**
  * The only role a person may pick when registering themselves: a plain `user`.
- * Every elevated role (landlord/agent/manager) is invite-only — created by an
- * admin — and `admin` itself is granted only by promoting an existing account.
+ * Every elevated role (agent/manager) is invite-only — created by an admin — and
+ * `admin` itself is granted only by promoting an existing account.
  */
 export const SELF_ASSIGNABLE_ROLES = [UserRole.USER] as const;
 export type SelfAssignableRole = (typeof SELF_ASSIGNABLE_ROLES)[number];
@@ -24,11 +24,7 @@ export type SelfAssignableRole = (typeof SELF_ASSIGNABLE_ROLES)[number];
  * Excludes `user` (the self-registration default) and `admin` (never minted
  * via this flow — only granted by promoting an existing account).
  */
-export const STAFF_ASSIGNABLE_ROLES = [
-  UserRole.LANDLORD,
-  UserRole.AGENT,
-  UserRole.MANAGER,
-] as const;
+export const STAFF_ASSIGNABLE_ROLES = [UserRole.AGENT, UserRole.MANAGER] as const;
 export type StaffAssignableRole = (typeof STAFF_ASSIGNABLE_ROLES)[number];
 
 /** International phone number (E.164-ish). Uganda numbers look like +2567XXXXXXXX. */

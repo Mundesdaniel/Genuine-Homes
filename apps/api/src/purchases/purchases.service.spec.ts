@@ -62,7 +62,7 @@ describe('PurchasesService', () => {
 
     it('rejects buying your own property', async () => {
       await expect(
-        service.buy({ id: OWNER_ID, role: UserRole.LANDLORD }, 'listing-1', {
+        service.buy({ id: OWNER_ID, role: UserRole.AGENT }, 'listing-1', {
           provider: 'mtn_momo',
         }),
       ).rejects.toBeInstanceOf(BadRequestException);

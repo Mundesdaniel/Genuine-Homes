@@ -7,8 +7,10 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUrl,
   Length,
   Max,
+  MaxLength,
   Min,
 } from 'class-validator';
 import {
@@ -60,14 +62,34 @@ export class CreatePropertyDto {
   area?: string;
 
   @ApiPropertyOptional({
-    example: 'Sarah Namuli (Prime Agents)',
-    description: 'Public "listed by" contact name (landlord/agent/owner)',
+    example: 'Prime Agents',
+    description: 'Public "listed by" contact name (the agent/owner)',
   })
   @IsOptional()
   @Transform(trim)
   @IsString()
   @Length(2, 120)
   contactName?: string;
+
+  @ApiProperty({
+    example: 'Moses Kato',
+    description:
+      "The landlord / land-owner's name. The agent is the intermediary; the landlord is never contacted directly.",
+  })
+  @Transform(trim)
+  @IsString()
+  @Length(2, 120)
+  landlordName!: string;
+
+  @ApiPropertyOptional({
+    example: 'https://cdn.example.com/landlords/moses.jpg',
+    description: 'Optional photo of the landlord, shown on the listing.',
+  })
+  @IsOptional()
+  @Transform(trim)
+  @IsUrl()
+  @MaxLength(2048)
+  landlordImageUrl?: string;
 
   @ApiPropertyOptional({ example: 250, description: 'Size in square metres' })
   @IsOptional()

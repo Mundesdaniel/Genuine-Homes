@@ -4,16 +4,13 @@ import type { Listing, Property, PropertyImage } from '@prisma/client';
 import { UserRole } from '@genuine-homes/shared';
 import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { ListingsService } from './listings.service';
-import type {
-  ListingWithProperty,
-  ListingsRepository,
-} from './listings.repository';
+import type { ListingWithProperty, ListingsRepository } from './listings.repository';
 import type { PropertiesRepository } from '../properties/properties.repository';
 import type { CreateListingDto } from './dto/create-listing.dto';
 import type { SearchListingsDto } from './dto/search-listings.dto';
 
-const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.LANDLORD };
-const stranger: AuthenticatedUser = { id: 'other-1', role: UserRole.LANDLORD };
+const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.AGENT };
+const stranger: AuthenticatedUser = { id: 'other-1', role: UserRole.AGENT };
 
 const fakeListing = (overrides: Partial<Listing> = {}): Listing =>
   ({
@@ -78,16 +75,14 @@ describe('ListingsService', () => {
     });
 
     it('rejects a rent listing with no rentPeriod', async () => {
-      await expect(make({ listingType: 'rent' })).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(make({ listingType: 'rent' })).rejects.toBeInstanceOf(BadRequestException);
       expect(repo.create).not.toHaveBeenCalled();
     });
 
     it('rejects an installment listing missing deposit/months', async () => {
-      await expect(
-        make({ listingType: 'installment' }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(make({ listingType: 'installment' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('rejects a sale listing that carries a rentPeriod', async () => {

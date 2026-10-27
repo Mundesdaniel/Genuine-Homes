@@ -6,7 +6,7 @@ import { BookingsService } from './bookings.service';
 
 /**
  * Viewing bookings. A buyer requests to view a property; the owner (the
- * seller/agent/landlord who posted it) accepts or declines. Imports
+ * seller/agent who posted it) accepts or declines. Imports
  * NotificationsModule to notify the owner (and, on a decision, the buyer).
  */
 @Module({

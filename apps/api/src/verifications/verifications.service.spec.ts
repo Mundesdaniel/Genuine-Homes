@@ -10,7 +10,7 @@ import type {
 } from './verifications.repository';
 import { VerificationsService } from './verifications.service';
 
-const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.LANDLORD };
+const owner: AuthenticatedUser = { id: 'owner-1', role: UserRole.AGENT };
 const admin: AuthenticatedUser = { id: 'admin-1', role: UserRole.ADMIN };
 
 const DOC_KEY = '5e0da180-3d9f-4a5e-b3f7-1f9a2c4d6e8b.pdf';

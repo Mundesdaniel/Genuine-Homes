@@ -9,7 +9,6 @@
 
 export const UserRole = {
   USER: 'user',
-  LANDLORD: 'landlord',
   AGENT: 'agent',
   // A short-let ("AirBnB") agent. Access to the short-let dashboard requires
   // this role AND an active subscription (see SubscriptionStatus).
