@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { Property } from '@prisma/client';
 import {
+  type ManagedAgentResponse,
   type Paginated,
   type PropertyDetail,
   type PropertyImageResponse,
@@ -24,7 +25,21 @@ import {
 import { AddImageDto } from './dto/add-image.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
-import { PropertiesRepository, type PropertyWriteData } from './properties.repository';
+import { AssignAgentDto } from './dto/assign-agent.dto';
+import {
+  type AssignmentWithAgent,
+  PropertiesRepository,
+  type PropertyWriteData,
+} from './properties.repository';
+
+const mapAssignedAgent = (a: AssignmentWithAgent): ManagedAgentResponse => ({
+  id: a.agent.id,
+  fullName: a.agent.fullName,
+  phone: a.agent.phone,
+  email: a.agent.email ?? null,
+  role: a.agent.role,
+  assignedAt: a.assignedAt.toISOString(),
+});
 
 @Injectable()
 export class PropertiesService {
@@ -46,6 +61,7 @@ export class PropertiesService {
       contactName: dto.contactName ?? null,
       landlordName: dto.landlordName,
       landlordImageUrl: dto.landlordImageUrl ?? null,
+      unitCount: dto.unitCount ?? null,
       sizeSqm: dto.sizeSqm ?? null,
       bedrooms: dto.bedrooms ?? null,
       bathrooms: dto.bathrooms ?? null,
@@ -75,6 +91,7 @@ export class PropertiesService {
       contactName: dto.contactName,
       landlordName: dto.landlordName,
       landlordImageUrl: dto.landlordImageUrl,
+      unitCount: dto.unitCount,
       sizeSqm: dto.sizeSqm,
       bedrooms: dto.bedrooms,
       bathrooms: dto.bathrooms,
@@ -139,6 +156,52 @@ export class PropertiesService {
     const image = await this.repo.findImage(propertyId, imageId);
     if (!image) throw new NotFoundException('Image not found');
     await this.repo.removeImage(imageId);
+  }
+
+  // ── Agent assignments ───────────────────────────────────────────────────────
+
+  /** Agents a manager/owner has assigned to help run this property. */
+  async listAssignedAgents(
+    user: AuthenticatedUser,
+    propertyId: string,
+  ): Promise<ManagedAgentResponse[]> {
+    await this.loadManageable(propertyId, user);
+    const rows = await this.repo.listAssignments(propertyId);
+    return rows.map(mapAssignedAgent);
+  }
+
+  /** Assign an agent (by email/phone) to help handle this property's tenants. */
+  async assignAgent(
+    user: AuthenticatedUser,
+    propertyId: string,
+    dto: AssignAgentDto,
+  ): Promise<ManagedAgentResponse> {
+    const property = await this.loadManageable(propertyId, user);
+    const agent = await this.repo.findUserByEmailOrPhone(dto.emailOrPhone);
+    if (!agent) {
+      throw new NotFoundException('No user found with that email or phone');
+    }
+    if (agent.role !== UserRole.AGENT) {
+      throw new BadRequestException('Only an agent can be assigned to a property');
+    }
+    if (agent.id === property.ownerId) {
+      throw new BadRequestException('The property owner already manages this property');
+    }
+    if (await this.repo.findAssignment(propertyId, agent.id)) {
+      throw new BadRequestException('That agent is already assigned to this property');
+    }
+    const assignment = await this.repo.assign(propertyId, agent.id);
+    return mapAssignedAgent(assignment);
+  }
+
+  /** Remove an assigned agent from this property. */
+  async unassignAgent(
+    user: AuthenticatedUser,
+    propertyId: string,
+    agentId: string,
+  ): Promise<void> {
+    await this.loadManageable(propertyId, user);
+    await this.repo.unassign(propertyId, agentId);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

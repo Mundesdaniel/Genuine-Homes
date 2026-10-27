@@ -2,6 +2,7 @@ import type {
   CreateListingInput,
   CreatePropertyInput,
   ListingResponse,
+  ManagedAgentResponse,
   Paginated,
   PropertyDetail,
   PropertyImageResponse,
@@ -36,4 +37,13 @@ export const propertiesApi = {
       .then((r) => r.data),
   removeImage: (propertyId: string, imageId: string) =>
     api.delete(`/properties/${propertyId}/images/${imageId}`).then((r) => r.data),
+  // Agents the owner/manager has assigned to help run the property.
+  listAgents: (propertyId: string) =>
+    api.get<ManagedAgentResponse[]>(`/properties/${propertyId}/agents`).then((r) => r.data),
+  assignAgent: (propertyId: string, emailOrPhone: string) =>
+    api
+      .post<ManagedAgentResponse>(`/properties/${propertyId}/agents`, { emailOrPhone })
+      .then((r) => r.data),
+  unassignAgent: (propertyId: string, agentId: string) =>
+    api.delete(`/properties/${propertyId}/agents/${agentId}`).then((r) => r.data),
 };

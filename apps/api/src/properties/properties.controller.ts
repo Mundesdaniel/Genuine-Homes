@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
+  type ManagedAgentResponse,
   type Paginated,
   type PropertyDetail,
   type PropertyImageResponse,
@@ -24,6 +25,7 @@ import type { AuthenticatedUser } from '../auth/types/jwt-payload';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { SELLER_ROLES } from '../common/roles';
 import { AddImageDto } from './dto/add-image.dto';
+import { AssignAgentDto } from './dto/assign-agent.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
@@ -109,5 +111,43 @@ export class PropertiesController {
     @Param('imageId', ParseUUIDPipe) imageId: string,
   ): Promise<void> {
     return this.properties.removeImage(user, id, imageId);
+  }
+
+  // ── Agent assignments (a manager/owner assigns agents to help run a property) ──
+
+  @Get(':id/agents')
+  @Roles(...SELLER_ROLES)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List agents assigned to a property you own' })
+  listAgents(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ManagedAgentResponse[]> {
+    return this.properties.listAssignedAgents(user, id);
+  }
+
+  @Post(':id/agents')
+  @Roles(...SELLER_ROLES)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Assign an agent (by email/phone) to a property you own' })
+  assignAgent(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignAgentDto,
+  ): Promise<ManagedAgentResponse> {
+    return this.properties.assignAgent(user, id, dto);
+  }
+
+  @Delete(':id/agents/:agentId')
+  @Roles(...SELLER_ROLES)
+  @HttpCode(204)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove an assigned agent from a property you own' })
+  unassignAgent(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+  ): Promise<void> {
+    return this.properties.unassignAgent(user, id, agentId);
   }
 }

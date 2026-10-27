@@ -48,6 +48,9 @@ const propertyBase = z.object({
   landlordName: z.string().trim().min(2).max(120),
   /** Optional photo of the landlord, shown on the listing. */
   landlordImageUrl: z.string().url().max(2048).optional(),
+  /** Number of units in a multi-unit property (e.g. an apartment block a manager
+   *  runs as one listing). Omitted for single-unit properties. */
+  unitCount: z.coerce.number().int().min(1).max(100_000).optional(),
   sizeSqm: z.coerce.number().positive().max(1_000_000).optional(),
   bedrooms: z.coerce.number().int().min(0).max(100).optional(),
   bathrooms: z.coerce.number().int().min(0).max(100).optional(),
@@ -94,6 +97,8 @@ export interface PropertySummary {
   landlordName: string;
   /** Optional photo of the landlord. */
   landlordImageUrl: string | null;
+  /** Number of units for a multi-unit property; null for single-unit ones. */
+  unitCount: number | null;
   /** The poster's account name + role (for "Listed by … · Agent"). */
   ownerName: string | null;
   ownerRole: UserRoleType | null;

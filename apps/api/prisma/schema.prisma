@@ -203,6 +203,7 @@ model User {
   bookingsReceived      Booking[]         @relation("BookingOwner")
   subscriptions         Subscription[]
   subscriptionRequests  SubscriptionRequest[]
+  assignedProperties    PropertyAssignment[] @relation("AgentAssignments")
 
   @@index([role])
   @@map("users")
@@ -267,6 +268,9 @@ model Property {
   // is never contacted directly — only their name (+ optional photo) is shown.
   landlordName     String  @map("landlord_name")
   landlordImageUrl String? @map("landlord_image_url")
+  // Number of units in a multi-unit property (e.g. an apartment block a manager
+  // runs as one listing). Null for single-unit properties.
+  unitCount   Int?         @map("unit_count")
   // PostGIS point (lng,lat) in WGS84 (SRID 4326). Nullable until geocoded.
   location    Unsupported("geography(Point, 4326)")?
   sizeSqm     Decimal?     @map("size_sqm") @db.Decimal(12, 2)
@@ -287,6 +291,7 @@ model Property {
   verifications Verification[]
   favoritedBy   Favorite[]
   bookings      Booking[]
+  assignments   PropertyAssignment[]
 
   @@index([ownerId])
   @@index([district, type])
@@ -294,6 +299,24 @@ model Property {
   @@index([verificationStatus])
   @@index([amenities], type: Gin)
   @@map("properties")
+}
+
+// An agent a manager/owner has assigned to help run a property — e.g. agents who
+// handle specific units/tenants of an apartment block the manager owns. Assigned
+// agents receive and can act on the property's viewing requests; the owner still
+// owns the record.
+model PropertyAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  propertyId String   @map("property_id") @db.Uuid
+  agentId    String   @map("agent_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  agent    User     @relation("AgentAssignments", fields: [agentId], references: [id])
+
+  @@unique([propertyId, agentId])
+  @@index([agentId])
+  @@map("property_assignments")
 }
 
 // A property can be listed for rent OR sale OR installments — sometimes more
